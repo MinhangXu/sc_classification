@@ -25,6 +25,7 @@ class DimensionReductionMethod(ABC):
         """
         pass
     
+    
     def save_model(self, model, save_dir, patient_id=None):
         """
         Save the fitted model to disk.
@@ -50,6 +51,7 @@ class DimensionReductionMethod(ABC):
         
         return model_path
     
+
     def preprocess_data(self, X, row_weights=None):
         """
         Preprocess data for dimension reduction.

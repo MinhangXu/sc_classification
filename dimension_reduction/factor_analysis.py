@@ -47,7 +47,7 @@ class FactorAnalysis(DimensionReductionMethod):
         
         # Save the full FA model if requested
         if save_model and save_dir is not None:
-            # Extract patient ID if available
+            # Extract patient ID if the adata o
             patient_id = None
             if 'patient' in adata.obs.columns:
                 patient_values = adata.obs['patient'].unique()
