@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from ..dimension_reduction.factor_analysis import FactorAnalysis
-from ..dimension_reduction.nmf import NMF
-from ..classification.lr_lasso import LRLasso
-from ..evaluation.visualization import plot_metrics_and_coefficients
+# from ..dimension_reduction.nmf import NMF
+from ..classification_methods.lr_lasso import LRLasso
+from ..evaluation.LR_visualization import plot_metrics_and_coefficients
 
 def run_all_patients_pipeline(
     adata, 

@@ -22,7 +22,7 @@ class FactorAnalysis(DimensionReductionMethod):
         - Updated AnnData with Factor Analysis results
         """
         # Preprocess data
-        X = self.preprocess_data(adata.X, row_weights)
+        X = self.preprocess_data(adata.X, row_weights)  # preprocess_data() defined in the base class
         
         # Initialize and fit Factor Analysis model
         fa = SklearnFA(n_components=n_components, random_state=random_state)
@@ -55,7 +55,7 @@ class FactorAnalysis(DimensionReductionMethod):
                     patient_id = patient_values[0]
             
             # Save the model
-            model_path = self.save_model(fa, save_dir, patient_id)
+            model_path = self.save_model(fa, save_dir, patient_id) # save_model() defined in the base class
             print(f"Saved FA model to {model_path}")
         
         return adata
