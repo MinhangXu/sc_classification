@@ -25,8 +25,8 @@ from sc_classification.classification_methods.lr_lasso import LRLasso
 from sc_classification.pipeline.all_patients_DR_classification import run_all_patients_pipeline
 
 # Define paths
-ADATA_PATH = "/home/minhang/mds_project/MDS/mrd_classification/adata_mrd_CN_label_4_malignant_healthy_classify.h5ad"
-OUTPUT_DIR = "results/fa_lrlasso_pipeline_apr16"
+ADATA_PATH = "/home/minhang/mds_project/data/cohort_adata/mrd_malignant_healthy_scRNA_adata_may1.h5ad"
+OUTPUT_DIR = "results/fa_lrlasso_pipeline_may1"
 ALL_PATIENTS_DIR = os.path.join(OUTPUT_DIR, "all_patients")
 PER_PATIENT_DIR = os.path.join(OUTPUT_DIR, "per_patient")
 

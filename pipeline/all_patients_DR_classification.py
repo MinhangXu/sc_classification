@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from ..dimension_reduction.factor_analysis import FactorAnalysis
-# from ..dimension_reduction.nmf import NMF
+from ..dimension_reduction.nmf import NMF
 from ..classification_methods.lr_lasso import LRLasso
 from ..evaluation.LR_visualization import plot_metrics_and_coefficients
 
@@ -15,19 +15,23 @@ def run_all_patients_pipeline(
     use_row_weights=False,
     row_weights_beta=0.25,
     alphas=None,
-    output_dir="results/all_patients"
+    output_dir="results/all_patients",
+    use_hvg=False,  # Added parameter for NMF
+    n_top_genes=2000  # Added parameter for NMF
 ):
     """
     Run the dimension reduction and classification pipeline for all patients combined.
     
     Parameters:
     - adata: AnnData object with all patients' data
-    - dr_method: Dimension reduction method ('factor_analysis' or 'nmf')
+    - dr_method: Dimension reduction method ('factor_analysis', 'nmf', etc.)
     - n_components: Number of components to extract
     - use_row_weights: Whether to use row weights
     - row_weights_beta: Beta parameter for row weights calculation
     - alphas: Array of regularization strengths (if None, default values are used)
     - output_dir: Directory to save results
+    - use_hvg: Whether to use highly variable genes (for NMF)
+    - n_top_genes: Number of top variable genes to select (for NMF)
     
     Returns:
     - Dictionary of results
@@ -63,7 +67,9 @@ def run_all_patients_pipeline(
             random_state=0, 
             row_weights=row_weights,
             save_model=True,
-            save_dir=model_dir
+            save_dir=model_dir,
+            use_hvg=use_hvg,
+            n_top_genes=n_top_genes
         )
         dr_obsm_key = 'X_nmf'
     else:
@@ -86,7 +92,7 @@ def run_all_patients_pipeline(
         alphas = np.logspace(-4, 5, 20)
     
     # Fit along regularization path
-    print("Running LR-Lasso classification for all patients...")
+    print(f"Running LR-Lasso classification for all patients...")
     results = classifier.fit_along_regularization_path(
         X, y, feature_names, alphas=alphas, metrics_grouping='patient'
     )
