@@ -25,51 +25,21 @@ class DimensionReductionMethod(ABC):
         """
         pass
     
-    
+    def preprocess_data(self, X_data, row_weights=None):
+        # Basic preprocessing, can be overridden or made more complex
+        if hasattr(X_data, 'toarray'): # Check if sparse
+            X_data = X_data.toarray()
+        # Further preprocessing like scaling could go here if not handled elsewhere
+        return X_data
+
     def save_model(self, model, save_dir, patient_id=None):
-        """
-        Save the fitted model to disk.
-        
-        Parameters:
-        - model: The fitted model object
-        - save_dir: Directory to save the model
-        - patient_id: Optional patient ID for model filename
-        
-        Returns:
-        - Path to the saved model file
-        """
-        os.makedirs(save_dir, exist_ok=True)
-        
-        # Determine filename based on patient ID
-        if patient_id is not None:
-            model_path = os.path.join(save_dir, f"{self.__class__.__name__.lower()}_model_{patient_id}.pkl")
-        else:
-            model_path = os.path.join(save_dir, f"{self.__class__.__name__.lower()}_model.pkl")
-        
+        # Placeholder for saving model logic if needed
+        import pickle
+        import os
+        model_filename = "fa_model.pkl"
+        if patient_id:
+            model_filename = f"fa_model_{patient_id}.pkl"
+        model_path = os.path.join(save_dir, model_filename)
         with open(model_path, 'wb') as f:
             pickle.dump(model, f)
-        
         return model_path
-    
-
-    def preprocess_data(self, X, row_weights=None):
-        """
-        Preprocess data for dimension reduction.
-        
-        Parameters:
-        - X: Data matrix
-        - row_weights: Optional 1D np.array for cell weights
-        
-        Returns:
-        - Preprocessed data matrix
-        """
-        # Ensure data is dense
-        if sp.issparse(X):
-            X = X.toarray()
-        
-        # Apply row-scaling if weights provided
-        if row_weights is not None:
-            w_sqrt = np.sqrt(row_weights)
-            X = X * w_sqrt[:, None]
-        
-        return X
