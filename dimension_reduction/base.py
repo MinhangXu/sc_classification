@@ -26,20 +26,19 @@ class DimensionReductionMethod(ABC):
         pass
     
     def preprocess_data(self, X_data, row_weights=None):
-        # Basic preprocessing, can be overridden or made more complex
-        if hasattr(X_data, 'toarray'): # Check if sparse
+        if hasattr(X_data, 'toarray'):
             X_data = X_data.toarray()
-        # Further preprocessing like scaling could go here if not handled elsewhere
         return X_data
 
-    def save_model(self, model, save_dir, patient_id=None):
-        # Placeholder for saving model logic if needed
-        import pickle
-        import os
-        model_filename = "fa_model.pkl"
-        if patient_id:
-            model_filename = f"fa_model_{patient_id}.pkl"
+    def save_sklearn_model(self, model, model_type, save_dir, n_factors, patient_id=None):
+        # Generalized model saving
+        filename_parts = [model_type, f"{n_factors}factors"]
+        if patient_id: # This might not be relevant for global FA models/scalers
+            filename_parts.append(patient_id)
+        model_filename = "_".join(filename_parts) + ".pkl"
+        
         model_path = os.path.join(save_dir, model_filename)
         with open(model_path, 'wb') as f:
             pickle.dump(model, f)
+        print(f"Saved {model_type} model to {model_path}")
         return model_path
