@@ -204,6 +204,7 @@ def main():
 
             adata_for_classifier = adata_patient_with_fa # Default to using all cells for this patient
 
+            # --- Downsampling ---
             if DOWNSAMPLE_METHOD != 'none' and n_donor_patient_original > 0:
                 # Determine target fraction for this patient
                 patient_target_fraction = DEFAULT_TARGET_DONOR_FRACTION
