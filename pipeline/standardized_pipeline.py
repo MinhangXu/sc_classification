@@ -10,6 +10,7 @@ import os
 import sys
 import time
 import numpy as np
+import json
 import pandas as pd
 import scanpy as sc
 from pathlib import Path
@@ -151,16 +152,31 @@ class StandardizedPipeline:
         
         # Run dimension reduction
         if dr_method.lower() == 'fa':
+            dr_model_instance = FactorAnalysis()
+            save_dir = experiment.experiment_dir / "models" / f"fa_{n_components}"
             fa_params = {
                 'n_components': n_components,
                 'random_state': random_state,
-                'standardize_input': False, # Done in preprocessing
-                'svd_method': 'lapack',
+                'standardize_input': False, # Already done in preprocessing
+                'svd_method': dr_config.get('svd_method', 'lapack'),
                 'save_fitted_models': True,
                 'model_save_dir': str(save_dir)
             }
-            adata_transformed = dr_model.fit_transform(adata, **fa_params)
+            adata_transformed = dr_model_instance.fit_transform(adata, **fa_params)
             model = adata_transformed.uns.get('_temp_fa_model_obj')
+            
+            # --- FIX: Clean the AnnData object before saving ---
+            # The h5ad format cannot store complex Python objects like sklearn models.
+            # We must remove them from .uns before writing the file to disk.
+            # The model object itself is saved separately via pickle in save_dr_results.
+            if '_temp_fa_model_obj' in adata_transformed.uns:
+                del adata_transformed.uns['_temp_fa_model_obj']
+            if '_temp_scaler_obj' in adata_transformed.uns:
+                del adata_transformed.uns['_temp_scaler_obj']
+            # --- END FIX ---
+            
+            fa_info = adata_transformed.uns.get('fa', {})
+            summary = "Factor Analysis Summary:\n" + json.dumps(fa_info, indent=2, default=str)
             
         elif dr_method.lower() == 'nmf':
             input_standardized = experiment.config.get('preprocessing.standardize', True)
@@ -310,7 +326,7 @@ class StandardizedPipeline:
                 columns=[f'alpha_{a:.2e}' for a in alphas]
             )
             
-            # --- MODIFIED: Pass the detailed, dynamic downsampling_info to be saved ---
+            # Save results and update metadata for the current patient ---
             experiment.save_classification_results(
                 patient_id=patient,
                 coefficients=patient_coefs_df,
@@ -394,21 +410,24 @@ class StandardizedPipeline:
         adata_donor = adata_patient[donor_mask].copy()
         adata_recipient = adata_patient[~donor_mask].copy()
         
-        min_cells_per_type = downsampling_config.get('min_cells_per_type_after_downsample', 1)
+        min_cells_per_type = downsampling_config.get('min_cells_per_type', 1)
+        
+        # --- FIX: Use the correct cell_type_col for stratification ---
+        stratification_col = downsampling_config.get('cell_type_column', 'predicted.annotation')
+        self.logger.info(f"  Stratifying downsampling by column: '{stratification_col}'")
         
         adata_donor_downsampled, per_stratum_log = random_downsample_stratified(
             adata_donor,
-            strata_col=cell_type_col,
+            strata_col=stratification_col,
             target_fraction=patient_target_fraction,
             min_cells_per_stratum=min_cells_per_type,
             random_state=42
         )
+        # --- END FIX ---
         
         n_kept = adata_donor_downsampled.n_obs
-        self.logger.info(f"  Downsampled from {n_donor_original} to {n_kept} donor cells.")
         
-        adata_patient_processed = sc.concat([adata_recipient, adata_donor_downsampled], join='outer')
-        
+        # --- MODIFIED: Update detailed info dictionary ---
         downsampling_details.update({
             'scenario': scenario,
             'final_fraction_used': patient_target_fraction,
