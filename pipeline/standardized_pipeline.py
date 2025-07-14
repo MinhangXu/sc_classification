@@ -269,16 +269,10 @@ class StandardizedPipeline:
         
         # Get classification parameters
         alphas = np.logspace(-4, 5, 20)  # Default alpha range
-        cv_folds = experiment.config.get('classification.cv_folds', 5)
-        random_state = experiment.config.get('classification.random_state', 42)
         
-        # Get downsampling parameters
+        # Get downsampling config dictionary
         downsampling_config = experiment.config.get('downsampling', {})
         downsampling_method = downsampling_config.get('method', 'none')
-        default_target_fraction = downsampling_config.get('target_donor_fraction', 0.5)
-        target_ratio_threshold = downsampling_config.get('target_donor_recipient_ratio_threshold', 10.0)
-        min_cells_per_type = downsampling_config.get('min_cells_per_type', 20)
-        cell_type_col = downsampling_config.get('cell_type_column', 'predicted.annotation')
         
         all_patient_metrics = []
         all_patient_coefs = []
@@ -288,14 +282,11 @@ class StandardizedPipeline:
             
             adata_patient = adata[adata.obs[patient_col] == patient].copy()
             
-            # --- MODIFIED: Capture the returned downsampling_info dictionary ---
             downsampling_info = {'downsampling_method': 'none'}
             if downsampling_method != 'none':
+                # Pass the entire config dictionary for self-contained logic
                 adata_patient, downsampling_info = self._apply_dynamic_downsampling(
-                    adata_patient, downsampling_config, donor_recipient_col,
-                    cell_type_col=target_col, 
-                    default_target_fraction=default_target_fraction,
-                    target_ratio_threshold=target_ratio_threshold
+                    adata_patient, downsampling_config
                 )
             
             # --- Classification ---
@@ -325,12 +316,14 @@ class StandardizedPipeline:
                 index=feature_names,
                 columns=[f'alpha_{a:.2e}' for a in alphas]
             )
+            patient_correctness_df = results['correctness_df']
             
             # Save results and update metadata for the current patient ---
             experiment.save_classification_results(
                 patient_id=patient,
                 coefficients=patient_coefs_df,
                 metrics=patient_metrics_df,
+                correctness=patient_correctness_df,
                 downsampling_info=downsampling_info
             )
             
@@ -351,24 +344,36 @@ class StandardizedPipeline:
             'coefficients_all_patients': pd.concat(all_patient_coefs, ignore_index=True) if all_patient_coefs else pd.DataFrame()
         }
     
-    def _apply_dynamic_downsampling(self, adata_patient, downsampling_config, 
-                                   donor_recipient_col, cell_type_col, 
-                                   default_target_fraction, target_ratio_threshold):
+    def _apply_dynamic_downsampling(self, adata_patient, downsampling_config):
         """
-        Apply dynamic downsampling and return the processed AnnData and a detailed info dictionary.
+        Apply dynamic downsampling based on the provided configuration dictionary.
+        This method is now self-contained.
         """
-        downsampling_method = downsampling_config.get('method', 'none')
-        # --- MODIFIED: Initialize detailed info dictionary ---
+        # --- Streamlined: Extract all parameters from the config dictionary ---
+        method = downsampling_config.get('method', 'none')
+        donor_recipient_col = downsampling_config.get('donor_recipient_column', 'source')
+        stratification_col = downsampling_config.get('cell_type_column', 'predicted.annotation')
+        default_target_fraction = downsampling_config.get('target_donor_fraction', 0.5)
+        target_ratio_threshold = downsampling_config.get('target_donor_recipient_ratio_threshold', 10.0)
+        min_cells_per_stratum = downsampling_config.get('min_cells_per_type', 20)
+        
         downsampling_details = {
-            'downsampling_method': downsampling_method,
+            'downsampling_method': method,
             'scenario': 'not_applicable',
             'n_donor_original': 0,
             'n_recipient_original': 0,
             'final_fraction_used': 0.0,
-            'n_donor_after_downsampling': 0
+            'n_donor_after_downsampling': 0,
+            'parameters': {
+                'donor_recipient_col': donor_recipient_col,
+                'stratification_col': stratification_col,
+                'default_target_fraction': default_target_fraction,
+                'target_ratio_threshold': target_ratio_threshold,
+                'min_cells_per_stratum': min_cells_per_stratum
+            }
         }
 
-        if downsampling_method == 'none':
+        if method == 'none':
             return adata_patient, downsampling_details
         
         donor_mask = adata_patient.obs[donor_recipient_col] == 'donor'
@@ -405,35 +410,31 @@ class StandardizedPipeline:
              scenario = "no_recipient_cells"
              self.logger.info(f"  Scenario: {scenario}. No recipient cells found. Using default target fraction {default_target_fraction:.3f} for {n_donor_original} donor cells.")
         
-        self.logger.info(f"  Applying '{downsampling_method}' downsampling with final target fraction: {patient_target_fraction:.3f}")
+        self.logger.info(f"  Applying '{method}' downsampling with final target fraction: {patient_target_fraction:.3f}")
+        self.logger.info(f"  Stratifying by '{stratification_col}' with a minimum of {min_cells_per_stratum} cells per stratum.")
         
         adata_donor = adata_patient[donor_mask].copy()
         adata_recipient = adata_patient[~donor_mask].copy()
-        
-        min_cells_per_type = downsampling_config.get('min_cells_per_type', 1)
-        
-        # --- FIX: Use the correct cell_type_col for stratification ---
-        stratification_col = downsampling_config.get('cell_type_column', 'predicted.annotation')
-        self.logger.info(f"  Stratifying downsampling by column: '{stratification_col}'")
         
         adata_donor_downsampled, per_stratum_log = random_downsample_stratified(
             adata_donor,
             strata_col=stratification_col,
             target_fraction=patient_target_fraction,
-            min_cells_per_stratum=min_cells_per_type,
+            min_cells_per_stratum=min_cells_per_stratum,
             random_state=42
         )
-        # --- END FIX ---
         
         n_kept = adata_donor_downsampled.n_obs
         
-        # --- MODIFIED: Update detailed info dictionary ---
         downsampling_details.update({
             'scenario': scenario,
             'final_fraction_used': patient_target_fraction,
             'n_donor_after_downsampling': n_kept,
-            'per_cell_type_counts': per_stratum_log
+            'per_stratum_log': per_stratum_log
         })
+        self.logger.info(f"  Downsampled from {n_donor_original} to {n_kept} donor cells.")
+        
+        adata_patient_processed = sc.concat([adata_recipient, adata_donor_downsampled], join='outer')
         
         return adata_patient_processed, downsampling_details
 
@@ -452,11 +453,26 @@ def main():
         downsampling_method='random',
         target_donor_fraction=0.5
     )
+    
+    # Explicitly disable standardization for NMF runs
     config.config['preprocessing']['standardize'] = False
+    
+    # Update downsampling configuration with additional parameters
+    config.config['downsampling']['target_donor_recipient_ratio_threshold'] = 10.0
+    config.config['downsampling']['min_cells_per_type'] = 20
+    
+    # Update NMF-specific configuration
+    config.config['dimension_reduction']['handle_negative_values'] = 'error'
     
     # Create and run pipeline
     pipeline = StandardizedPipeline(experiment_manager)
     
+    # --- CHANGED: Default fraction updated to 0.7 ---
+    default_target_fraction = 0.7
+    target_ratio_threshold = 10.0
+    min_cells_per_type = 20
+    
+    # Check if input file exists
     input_path = "/home/minhang/mds_project/data/cohort_adata/multiVI_model/adata_multivi_corrected_rna.h5ad"
     if not os.path.exists(input_path):
         print(f"Error: Input file not found at {input_path}")
