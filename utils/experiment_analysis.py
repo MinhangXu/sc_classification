@@ -243,10 +243,15 @@ class ExperimentAnalyzer:
         plt.tight_layout(rect=[0, 0, 0.85, 1])
         return fig
     
-    def generate_lr_lasso_analysis_plots(self, experiment_id: str, output_dir: str = None):
+    def generate_standard_analysis_report(self, experiment_id: str, output_dir: str = None):
         """
-        Generate LR-Lasso analysis plots using the user's detailed plotting functions.
+        Generate a standard set of analysis plots for an experiment.
+        
+        This includes:
+        - Per-patient classification metrics and coefficient paths.
+        - For Factor Analysis runs, diagnostic plots for SS Loadings and Communalities.
         """
+        print(f"--- Generating Standard Analysis Report for Experiment: {experiment_id} ---")
         exp = self.experiment_manager.load_experiment(experiment_id)
         dr_method = exp.config.get('dimension_reduction.method')
         n_components = exp.config.get('dimension_reduction.n_components')
@@ -293,7 +298,9 @@ class ExperimentAnalyzer:
                 print(f"  Saved plot to {save_filepath}")
                 plt.close(fig)
 
+        # For FA experiments, add model diagnostic plots
         if dr_method and dr_method.lower() == 'fa':
+            print("\nGenerating FA-specific diagnostic plots...")
             self._create_fa_specific_plots(exp, n_components, output_path)
             
     def _create_fa_specific_plots(self, exp, n_factors, output_path):
@@ -474,6 +481,289 @@ class ExperimentAnalyzer:
         plt.ylabel('Factors')
         plt.savefig(output_path / "factor_loading_heatmap.png", dpi=300, bbox_inches='tight')
         plt.close()
+
+    def generate_cross_patient_summary_plot(self, experiment_id: str, patient_alphas: Dict[str, float], output_dir: str = None):
+        """
+        Generates a summary plot comparing performance and coefficients across all
+        patients at their hand-picked optimal alpha values.
+
+        Args:
+            experiment_id: The ID of the experiment to analyze.
+            patient_alphas: A dictionary mapping patient IDs to their chosen alpha value.
+                            e.g., {'P01': 0.01, 'P02': 0.05}
+            output_dir: Custom output directory. Defaults to the experiment's summary_plots dir.
+        """
+        print(f"--- Generating Cross-Patient Summary Plot for Experiment: {experiment_id} ---")
+        exp = self.experiment_manager.load_experiment(experiment_id)
+        
+        if output_dir is None:
+            output_path = exp.get_path('summary_plots')
+        else:
+            output_path = Path(output_dir)
+        output_path.mkdir(exist_ok=True, parents=True)
+
+        results = self.extract_classification_results(experiment_id)
+        if 'metrics' not in results or 'coefficients' not in results:
+            print("No classification results found. Cannot generate plot.")
+            return
+
+        all_metrics = results['metrics']
+        all_coefficients = results['coefficients']
+
+        # Filter the results to get only the data for the selected alpha for each patient
+        filtered_metrics = {}
+        filtered_coeffs = {}
+
+        for patient_id, selected_alpha in patient_alphas.items():
+            if patient_id not in all_coefficients:
+                print(f"Warning: Patient {patient_id} not found in experiment results. Skipping.")
+                continue
+
+            patient_coefs_df = all_coefficients[patient_id]
+            patient_metrics_df = all_metrics[all_metrics['group'] == patient_id]
+
+            # Find the closest alpha in the results
+            alpha_cols_numeric = pd.to_numeric(patient_coefs_df.columns.str.replace('alpha_', ''))
+            closest_alpha_idx = (np.abs(alpha_cols_numeric - selected_alpha)).argmin()
+            closest_alpha_val = alpha_cols_numeric[closest_alpha_idx]
+            
+            # Store the single series of coefficients
+            filtered_coeffs[patient_id] = patient_coefs_df.iloc[:, closest_alpha_idx]
+            
+            # Store the single row of metrics
+            metric_row = patient_metrics_df[np.isclose(patient_metrics_df['alpha'], closest_alpha_val)]
+            if not metric_row.empty:
+                filtered_metrics[patient_id] = metric_row.iloc[0].to_dict()
+            else:
+                print(f"Warning: Could not find metrics for patient {patient_id} at alpha ~{closest_alpha_val:.2e}")
+
+        if not filtered_metrics or not filtered_coeffs:
+            print("No data available after filtering for selected alphas. Aborting plot generation.")
+            return
+            
+        # Generate the plot using the helper function adapted from your notebook
+        fig = self._create_enhanced_summary_plot(filtered_metrics, filtered_coeffs)
+        
+        if fig:
+            n_components = exp.config.get('dimension_reduction.n_components')
+            save_path = output_path / f"cross_patient_summary_{n_components}factors.png"
+            fig.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Saved cross-patient summary plot to {save_path}")
+            plt.close(fig)
+
+    def _create_enhanced_summary_plot(self, patient_metrics: Dict, patient_coefficients: Dict):
+        """
+        Creates an enhanced visualization summarizing results across patients.
+        Adapted from FA_result_eval.ipynb.
+        """
+        from matplotlib import gridspec, patches as mpatches
+        
+        # Sort patients in numerical order
+        patients = sorted(patient_coefficients.keys(), key=lambda x: int(x[1:]) if x[1:].isdigit() else float('inf'))
+        
+        metrics_df = pd.DataFrame(index=patients)
+        feature_counts = {}
+        balanced_accuracies = {}
+        trivial_accuracies = {}
+        class_balance_info = {}
+
+        for p in patients:
+            if p not in patient_metrics: continue
+            metrics = patient_metrics[p]
+            
+            # Feature counts
+            non_zero_count = np.sum(np.abs(patient_coefficients[p]) > 1e-10)
+            total_count = len(patient_coefficients[p])
+            feature_counts[p] = {'non_zero': non_zero_count, 'total': total_count, 'percentage': (non_zero_count / total_count) * 100}
+
+            # Balanced accuracy
+            tp = metrics.get('tp', 0); fp = metrics.get('fp', 0); tn = metrics.get('tn', 0); fn = metrics.get('fn', 0)
+            sensitivity = tp / (tp + fn) if (tp + fn) > 0 else 0
+            specificity = tn / (tn + fp) if (tn + fp) > 0 else 0
+            balanced_accuracies[p] = (sensitivity + specificity) / 2
+
+            # Other metrics
+            metrics_df.loc[p, 'ROC AUC'] = metrics.get('roc_auc', 0.5)
+            metrics_df.loc[p, 'Overall Accuracy'] = metrics.get('overall_accuracy', 0.5)
+            metrics_df.loc[p, 'Cancer Cell Accuracy'] = metrics.get('mal_accuracy', 0.5)
+            metrics_df.loc[p, 'Normal Cell Accuracy'] = metrics.get('norm_accuracy', 0.5)
+            metrics_df.loc[p, 'Balanced Accuracy'] = balanced_accuracies[p]
+            trivial_accuracies[p] = metrics.get('trivial_accuracy', 0.5)
+
+            # Class balance
+            majority_num = metrics.get('majority_num', 0); minority_num = metrics.get('minority_num', 0)
+            total_cells = majority_num + minority_num
+            class_balance_info[p] = {'majority_num': majority_num, 'minority_num': minority_num, 'total_cells': total_cells}
+
+        # Create plot
+        fig = plt.figure(figsize=(max(15, len(patients) * 2.5), 14))
+        gs = gridspec.GridSpec(3, 1, height_ratios=[0.8, 1.5, 4.5], hspace=0.4)
+        ax_features = fig.add_subplot(gs[0]); ax_metrics = fig.add_subplot(gs[1]); ax_heatmap = fig.add_subplot(gs[2])
+
+        # Metrics Panel
+        n_metrics = 5; bar_width = 0.15; group_width = bar_width * n_metrics
+        group_positions = np.arange(len(patients))
+        colors = {'ROC AUC': 'darkgreen', 'Overall Accuracy': 'royalblue', 'Cancer Cell Accuracy': 'firebrick', 'Normal Cell Accuracy': 'darkorange', 'Balanced Accuracy': 'purple'}
+        
+        for i, (metric, color) in enumerate(colors.items()):
+            pos = group_positions - (group_width / 2) + (i * bar_width) + (bar_width / 2)
+            ax_metrics.bar(pos, metrics_df[metric], width=bar_width, color=color, label=metric, alpha=0.85)
+            for j, value in enumerate(metrics_df[metric]):
+                if value > 0.55: ax_metrics.text(pos[j], value - 0.05, f'{value:.2f}', ha='center', va='center', color='white', fontsize=7, fontweight='bold')
+        
+        for i, p in enumerate(patients):
+            trivial_acc = trivial_accuracies[p]
+            line_start, line_end = group_positions[i] - group_width / 2, group_positions[i] + group_width / 2
+            ax_metrics.plot([line_start, line_end], [trivial_acc, trivial_acc], linestyle='--', color='gray', linewidth=1.5)
+            info = class_balance_info[p]
+            ax_metrics.text(group_positions[i], trivial_acc + 0.02, f"{info['majority_num']}/{info['total_cells']}={trivial_acc:.2f}", ha='center', va='bottom', color='gray', fontsize=7)
+
+        ax_metrics.set_ylim(0.5, 1.05); ax_metrics.set_ylabel('Metric Value')
+        ax_metrics.set_title('Performance Metrics at Optimal Regularization Strength'); ax_metrics.set_xticks(group_positions); ax_metrics.set_xticklabels(patients)
+        ax_metrics.legend(loc='lower right', ncol=3, fontsize='small'); ax_metrics.grid(axis='y', linestyle='--', alpha=0.3)
+
+        # Features Panel
+        for i, p in enumerate(patients):
+            counts = feature_counts[p]
+            ax_features.bar(i, counts['non_zero'], color='darkred', width=0.6, alpha=0.7)
+            ax_features.bar(i, counts['total'] - counts['non_zero'], bottom=counts['non_zero'], color='lightgray', width=0.6, alpha=0.6)
+            ax_features.text(i, counts['non_zero'] / 2, f"{counts['non_zero']}", ha='center', va='center', fontsize=8, color='white', fontweight='bold')
+        
+        ax_features.set_ylabel('Feature Count'); ax_features.set_title('Active vs. Inactive Features at Selected Alpha')
+        ax_features.set_xticks(np.arange(len(patients))); ax_features.set_xticklabels(patients)
+        ax_features.legend(handles=[mpatches.Patch(color='darkred', alpha=0.7, label='Active'), mpatches.Patch(color='lightgray', alpha=0.6, label='Inactive')], loc='upper right', fontsize='small')
+
+        # Heatmap Panel
+        coef_df = pd.DataFrame({p: patient_coefficients[p] for p in patients}).fillna(0)
+        cbar_ax = fig.add_axes([0.92, 0.1, 0.02, 0.3])
+        sns.heatmap(coef_df.astype(float), cmap="coolwarm", center=0, ax=ax_heatmap, cbar_ax=cbar_ax, vmin=-1.5, vmax=1.5, cbar_kws={'label': 'Factor Coefficient Value'})
+        ax_heatmap.set_xticks(np.arange(len(patients)) + 0.5); ax_heatmap.set_xticklabels(patients)
+        ax_heatmap.set_title('Factor Coefficients at Optimal Sparsity-Performance Trade-off'); ax_heatmap.set_xlabel('Patient'); ax_heatmap.set_ylabel('Factor')
+
+        plt.tight_layout(rect=[0, 0.03, 0.9, 0.95])
+        return fig
+
+    def prepare_projection_environment(self, experiment_id: str) -> Dict[str, Any]:
+        """
+        Loads all necessary artifacts from an experiment for data projection.
+
+        This is a convenience function to gather the DR model, pre-processing scaler,
+        HVG list, and classification coefficients.
+
+        Args:
+            experiment_id: The ID of the experiment to load artifacts from.
+
+        Returns:
+            A dictionary containing the loaded 'model', 'scaler', 'hvg_list', 
+            'coefficients', and 'config'. Returns an empty dictionary on failure.
+        """
+        try:
+            exp = self.experiment_manager.load_experiment(experiment_id)
+            dr_method = exp.config.get('dimension_reduction.method')
+            n_components = exp.config.get('dimension_reduction.n_components')
+            
+            # Load DR model
+            model_path = exp.get_path('dr_model', dr_method=dr_method, n_components=n_components)
+            with open(model_path, 'rb') as f:
+                model = pickle.load(f)
+            
+            # Load scaler
+            scaler_path = exp.get_path('scaler')
+            with open(scaler_path, 'rb') as f:
+                scaler = pickle.load(f)
+            
+            # Load HVG list
+            hvg_path = exp.get_path('hvg_list')
+            with open(hvg_path, 'rb') as f:
+                hvg_list = pickle.load(f)
+            
+            # Load coefficients
+            results = self.extract_classification_results(experiment_id)
+            if 'coefficients' not in results:
+                raise FileNotFoundError("Could not find or load classification coefficients.")
+            
+            return {
+                "model": model,
+                "scaler": scaler,
+                "hvg_list": hvg_list,
+                "coefficients": results['coefficients'],
+                "config": exp.config
+            }
+        except Exception as e:
+            print(f"Error preparing projection environment for experiment {experiment_id}: {e}")
+            return {}
+
+    def get_factors_for_alpha(self, patient_coefficients: pd.DataFrame, alpha_value: float) -> np.ndarray:
+        """
+        Gets the indices of factors with non-zero coefficients for a specific alpha.
+
+        Args:
+            patient_coefficients: A DataFrame of coefficients for a single patient,
+                                  where columns are alphas and rows are factors.
+            alpha_value: The regularization strength (alpha) to select. The function
+                         will find the closest matching column.
+
+        Returns:
+            A numpy array of integer indices for the selected factors.
+        """
+        # Find the column name that is closest to the provided alpha_value
+        alpha_cols = patient_coefficients.columns.str.replace('alpha_', '').astype(float)
+        closest_alpha_col_idx = (np.abs(alpha_cols - alpha_value)).argmin()
+        target_col = patient_coefficients.columns[closest_alpha_col_idx]
+        
+        print(f"Selected alpha {alpha_value}. Closest match found: {alpha_cols[closest_alpha_col_idx]:.2e} (column: {target_col})")
+        
+        # Get coefficients and find non-zero ones
+        coefs = patient_coefficients[target_col]
+        selected_factor_indices = np.where(coefs != 0)[0]
+        
+        return selected_factor_indices
+
+    def project_new_data(self, adata_new: sc.AnnData, model: Any, hvg_list: List[str], scaler: Any) -> sc.AnnData:
+        """
+        Preprocesses and projects new data using a trained model and scaler.
+
+        Args:
+            adata_new: The new AnnData object to project.
+            model: The trained dimension reduction model (e.g., FA or NMF).
+            hvg_list: The list of highly variable genes the model was trained on.
+            scaler: The trained StandardScaler object.
+
+        Returns:
+            The AnnData object with projected data in `adata.obsm['X_projected']`, 
+            or None if projection is not possible.
+        """
+        print(f"Projecting {adata_new.n_obs} cells onto {len(hvg_list)} HVGs...")
+        
+        # Subset to HVGs that are available in the new data
+        available_hvgs = [hvg for hvg in hvg_list if hvg in adata_new.var_names]
+        if not available_hvgs:
+            print("Warning: No matching HVGs found in the new data. Cannot project.")
+            return None
+        
+        adata_hvg = adata_new[:, available_hvgs].copy()
+        
+        # Align the data matrix to the exact HVG list, filling missing genes with 0
+        X_df = pd.DataFrame(
+            adata_hvg.X.toarray() if hasattr(adata_hvg.X, 'toarray') else adata_hvg.X,
+            index=adata_hvg.obs_names,
+            columns=adata_hvg.var_names
+        )
+        aligned_X_df = X_df.reindex(columns=hvg_list, fill_value=0)
+        X_for_scaling = aligned_X_df.values
+        
+        # Standardize data using the pre-fitted scaler
+        X_scaled = scaler.transform(X_for_scaling)
+        
+        # Project data using the pre-fitted model
+        X_projected = model.transform(X_scaled)
+        
+        # Store projected data in the AnnData object
+        adata_projected = adata_new.copy()
+        adata_projected.obsm['X_projected'] = X_projected
+        
+        print("Projection complete.")
+        return adata_projected
     
     def generate_projection_validation_analysis(self, experiment_id: str,
                                               validation_data_path: str,
@@ -481,14 +771,16 @@ class ExperimentAnalyzer:
         """
         Generate projection validation analysis across timepoints.
         
+        This function serves as a high-level wrapper and example of how to use
+        the more granular projection methods like `prepare_projection_environment`
+        and `project_new_data`.
+
         Args:
-            experiment_id: ID of the experiment to analyze
-            validation_data_path: Path to full AnnData with all timepoints
-            output_dir: Output directory for results (defaults to experiment's projections dir)
+            experiment_id: ID of the experiment to analyze.
+            validation_data_path: Path to full AnnData with all timepoints.
+            output_dir: Output directory for results (defaults to experiment's projections dir).
         """
         exp = self.experiment_manager.load_experiment(experiment_id)
-        dr_method = exp.config.get('dimension_reduction.method')
-        n_components = exp.config.get('dimension_reduction.n_components')
         
         # Use experiment's projections directory as default
         if output_dir is None:
@@ -496,143 +788,74 @@ class ExperimentAnalyzer:
         else:
             output_path = Path(output_dir)
         
-        output_path.mkdir(exist_ok=True)
+        output_path.mkdir(exist_ok=True, parents=True)
         
+        # 1. Prepare projection environment
+        print("--- Preparing projection environment ---")
+        proj_env = self.prepare_projection_environment(experiment_id)
+        if not proj_env:
+            print("Failed to prepare projection environment. Aborting.")
+            return
+            
+        model = proj_env['model']
+        scaler = proj_env['scaler']
+        hvg_list = proj_env['hvg_list']
+        coefficients_dict = proj_env['coefficients']
+        config = proj_env['config']
+
         # Load validation data
-        print(f"Loading validation data from {validation_data_path}")
+        print(f"--- Loading validation data from {validation_data_path} ---")
         adata_full = sc.read_h5ad(validation_data_path)
+
+        # Get relevant column names from config
+        patient_col = config.get('classification.patient_column', 'patient')
+        timepoint_col = config.get('preprocessing.timepoint_column', 'timepoint_type')
         
-        # Load trained objects
-        preproc_path = exp.get_path('preprocessed_data')
-        model_path = exp.get_path('dr_model', dr_method=dr_method, n_components=n_components)
-        
-        if not preproc_path.exists() or not model_path.exists():
-            print("Required files not found")
-            return
-        
-        # Load preprocessed data and model
-        adata_mrd = sc.read_h5ad(preproc_path)
-        with open(model_path, 'rb') as f:
-            model = pickle.load(f)
-        
-        # Load preprocessing objects
-        hvg_path = exp.get_path('hvg_list')
-        scaler_path = exp.get_path('scaler')
-        
-        if not hvg_path.exists() or not scaler_path.exists():
-            print("Preprocessing objects not found")
-            return
-        
-        with open(hvg_path, 'rb') as f:
-            hvg_list = pickle.load(f)
-        with open(scaler_path, 'rb') as f:
-            scaler = pickle.load(f)
-        
-        # Extract classification results to get selected factors
-        results = self.extract_classification_results(experiment_id)
-        if 'coefficients' not in results:
-            print("No coefficient results found")
-            return
-        
-        coef_df = results['coefficients']
-        
-        # Perform projection analysis
-        self._perform_projection_analysis(exp, adata_full, adata_mrd, model, 
-                                        hvg_list, scaler, coef_df, output_path)
-    
-    def _perform_projection_analysis(self, exp, adata_full, adata_mrd, model, 
-                                   hvg_list, scaler, coef_df, output_path):
-        """Perform the actual projection analysis."""
-        # This would implement the projection validation logic
-        # Similar to QE_projection_MRD_factor_val.ipynb
-        
-        # Get patient and timepoint information
-        patient_col = exp.config.get('classification.patient_column', 'patient')
-        timepoint_col = exp.config.get('preprocessing.timepoint_filter', 'timepoint_type')
-        
-        patients = adata_full.obs[patient_col].unique()
-        timepoints = adata_full.obs[timepoint_col].unique()
-        
-        print(f"Found {len(patients)} patients and {len(timepoints)} timepoints")
-        
-        # For each patient, project to different timepoints
-        for patient in patients:
-            print(f"Processing patient {patient}")
-            
-            # Get selected factors for this patient (simplified - use middle alpha)
-            patient_coefs = coef_df[coef_df['patient_id'] == patient]
-            if patient_coefs.empty:
+        # Iterate through patients present in the classification results
+        for patient_id, patient_coefs_df in coefficients_dict.items():
+            print(f"\n--- Processing patient: {patient_id} ---")
+
+            # For this example, we automatically select the middle alpha.
+            # A user could manually select an alpha and call get_factors_for_alpha.
+            alpha_cols_str = patient_coefs_df.columns[patient_coefs_df.columns.str.startswith('alpha_')]
+            if len(alpha_cols_str) == 0:
+                print(f"  No alpha columns found for patient {patient_id}. Skipping.")
                 continue
             
-            alpha_cols = [col for col in patient_coefs.columns if col.startswith('alpha_')]
-            if not alpha_cols:
-                continue
+            # For demonstration, pick a middle alpha
+            middle_alpha_str = alpha_cols_str[len(alpha_cols_str) // 2]
+            middle_alpha_val = float(middle_alpha_str.replace('alpha_', ''))
             
-            # Use middle alpha
-            mid_alpha = alpha_cols[len(alpha_cols)//2]
-            coefs = patient_coefs[mid_alpha].values
-            
-            # Get selected factor indices
-            selected_factors = np.where(np.abs(coefs) > 0)[0]
+            selected_factors = self.get_factors_for_alpha(patient_coefs_df, middle_alpha_val)
             
             if len(selected_factors) == 0:
+                print(f"  No factors selected for alpha ~{middle_alpha_val:.2e}. Skipping projection for this patient.")
                 continue
-            
-            # Project to each timepoint
-            for timepoint in timepoints:
+                
+            print(f"  Selected {len(selected_factors)} factors: {selected_factors}")
+
+            # Project to each timepoint found in the full data
+            available_timepoints = adata_full.obs[timepoint_col].unique()
+            for timepoint in available_timepoints:
+                print(f"  - Projecting onto timepoint: {timepoint}")
+                
                 # Filter data for this patient and timepoint
-                mask = (adata_full.obs[patient_col] == patient) & \
-                      (adata_full.obs[timepoint_col] == timepoint)
+                mask = (adata_full.obs[patient_col] == patient_id) & (adata_full.obs[timepoint_col] == timepoint)
                 
                 if not mask.any():
+                    print(f"    No cells found for patient {patient_id} at timepoint {timepoint}.")
                     continue
                 
                 adata_subset = adata_full[mask].copy()
                 
-                # Preprocess and project
-                try:
-                    projected_data = self._preprocess_and_project(
-                        adata_subset, hvg_list, scaler, model
+                # 2. Project the new data
+                adata_projected = self.project_new_data(adata_subset, model, hvg_list, scaler)
+                
+                if adata_projected:
+                    # 3. Visualize the projection
+                    self._create_projection_visualization(
+                        adata_projected, selected_factors, patient_id, timepoint, output_path
                     )
-                    
-                    if projected_data is not None:
-                        # Create visualization
-                        self._create_projection_visualization(
-                            projected_data, selected_factors, patient, timepoint, output_path
-                        )
-                        
-                except Exception as e:
-                    print(f"Error projecting {patient} {timepoint}: {e}")
-    
-    def _preprocess_and_project(self, adata, hvg_list, scaler, model):
-        """Preprocess data and project using the model."""
-        # Subset to available HVGs
-        available_hvgs = [hvg for hvg in hvg_list if hvg in adata.var_names]
-        if len(available_hvgs) == 0:
-            return None
-        
-        adata_hvg = adata[:, available_hvgs].copy()
-        
-        # Align with full HVG list
-        if adata_hvg.n_vars != len(hvg_list):
-            # Create aligned matrix
-            X_df = pd.DataFrame(adata_hvg.X.toarray() if hasattr(adata_hvg.X, 'toarray') else adata_hvg.X,
-                              index=adata_hvg.obs_names,
-                              columns=adata_hvg.var_names)
-            aligned_X_df = X_df.reindex(columns=hvg_list, fill_value=0)
-            X_for_scaling = aligned_X_df.values
-        else:
-            X_for_scaling = adata_hvg.X.toarray() if hasattr(adata_hvg.X, 'toarray') else adata_hvg.X
-        
-        # Scale and project
-        X_scaled = scaler.transform(X_for_scaling)
-        X_projected = model.transform(X_scaled)
-        
-        # Create result AnnData
-        result_adata = adata.copy()
-        result_adata.obsm['X_projected'] = X_projected
-        
-        return result_adata
     
     def _create_projection_visualization(self, adata, selected_factors, patient, timepoint, output_path):
         """Create visualization for projected data."""

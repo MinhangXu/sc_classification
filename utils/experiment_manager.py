@@ -74,7 +74,9 @@ class ExperimentManager:
         
     def create_experiment(self, config: ExperimentConfig) -> 'Experiment':
         """Create a new experiment instance."""
-        return Experiment(self.base_dir, config)
+        experiment_dir = self.base_dir / config.experiment_id
+        is_new_experiment = not experiment_dir.exists()
+        return Experiment(self.base_dir, config, is_new_experiment=is_new_experiment)
     
     def load_experiment(self, experiment_id: str) -> 'Experiment':
         """Load an existing experiment."""
@@ -88,7 +90,7 @@ class ExperimentManager:
             config_dict = yaml.safe_load(f)
         
         config = ExperimentConfig(config_dict, experiment_id=experiment_id)
-        return Experiment(self.base_dir, config)
+        return Experiment(self.base_dir, config, is_new_experiment=False)
     
     def list_experiments(self) -> List[str]:
         """List all experiment IDs."""
@@ -125,19 +127,20 @@ class ExperimentManager:
 class Experiment:
     """Individual experiment instance."""
     
-    def __init__(self, base_dir: Path, config: ExperimentConfig):
+    def __init__(self, base_dir: Path, config: ExperimentConfig, is_new_experiment: bool = True):
         self.base_dir = base_dir
         self.config = config
         self.experiment_dir = base_dir / config.experiment_id
         
-        # Create directory structure
-        self._create_directory_structure()
-        
-        # Save configuration
-        self._save_config()
-        
-        # Initialize metadata
-        self._initialize_metadata()
+        if is_new_experiment:
+            # Create directory structure
+            self._create_directory_structure()
+            
+            # Save configuration
+            self._save_config()
+            
+            # Initialize metadata
+            self._initialize_metadata()
     
     def _create_directory_structure(self):
         """Create the standardized directory structure."""
@@ -281,8 +284,9 @@ class Experiment:
             }
         })
     
-    def save_classification_results(self, patient_id: str, coefficients: pd.Series, 
-                                  metrics, downsampling_info: Dict[str, Any]):   
+    def save_classification_results(self, patient_id: str, coefficients: pd.DataFrame, 
+                                  metrics: pd.DataFrame, correctness: pd.DataFrame, 
+                                  downsampling_info: Dict[str, Any]):   
         """Save classification results for a patient."""
         patient_dir = self.experiment_dir / "models" / "classification" / patient_id
         patient_dir.mkdir(parents=True, exist_ok=True)
@@ -291,14 +295,14 @@ class Experiment:
         coefficients.to_csv(patient_dir / "coefficients.csv")
         
         # Save metrics
-        if not isinstance(metrics, pd.DataFrame):
-            metrics_df = pd.DataFrame(metrics)
-        else:
-            metrics_df = metrics
-        metrics_df.to_csv(patient_dir / "metrics.csv", index=False)
+        metrics.to_csv(patient_dir / "metrics.csv", index=False)
         
-        # Save downsampling info
-        with open(patient_dir / "downsampling_info.json", 'w') as f:
+        # Save correctness
+        correctness.to_csv(patient_dir / "classification_correctness.csv")
+
+        # Save downsampling info as a separate JSON for easy access
+        downsampling_info_path = patient_dir / "downsampling_info.json"
+        with open(downsampling_info_path, 'w') as f:
             json.dump(downsampling_info, f, indent=2)
         
         # Update metadata
@@ -311,14 +315,23 @@ class Experiment:
         if patient_id not in patients_completed:
             patients_completed.append(patient_id)
         
+        # Get or initialize the classification metadata dictionary
+        classification_metadata = current_metadata.get('classification', {})
+        
+        # Update patient-specific details within the classification metadata
+        if 'patient_details' not in classification_metadata:
+            classification_metadata['patient_details'] = {}
+            
+        classification_metadata['patient_details'][patient_id] = {
+            'downsampling_info': downsampling_info,
+            'classification_completion_date': datetime.now().isoformat()
+        }
+        
         self.update_metadata({
             'status': 'classification_in_progress',
             'stages_completed': stages,
-            'patients_completed': patients_completed, # The updated list is saved here
-            'classification': {
-                'last_patient': patient_id,
-                'last_completion_date': datetime.now().isoformat()
-            }
+            'patients_completed': sorted(patients_completed),
+            'classification': classification_metadata
         })
     
     def get_experiment_summary(self) -> Dict[str, Any]:
