@@ -194,6 +194,9 @@ class LRLasso(Classifier):
         coefs = []
         feature_elimination_dict = {f: None for f in feature_names}
         group_metrics_path = []
+        
+        per_cell_correctness = []
+        cell_ids = self.adata.obs_names.to_list()
 
         if metrics_grouping not in ['sample', 'patient']:
             raise ValueError("metrics_grouping must be either 'sample' or 'patient'")
@@ -204,19 +207,15 @@ class LRLasso(Classifier):
             print(f"Training model with C={C:.2e} (alpha={alphas[i]:.2e}) ({i+1}/{len(C_values)})")
             self.fit(X, y, C=C)
             coefs.append(self.model.coef_.ravel())
+            
+            y_pred = self.predict(X)
+            correctness = (y == y_pred)
+            per_cell_correctness.append(correctness)
 
             # Track feature elimination timing
             for idx, coef in enumerate(self.model.coef_.ravel()):
                 if coef == 0 and feature_elimination_dict[feature_names[idx]] is None:
                     feature_elimination_dict[feature_names[idx]] = alphas[i]
-
-            # Log metrics for the overall dataset
-            y_prob = self.predict_proba(X)[:, 1]
-            y_pred = self.predict(X)
-            overall_metrics = self._log_metrics_with_probabilities(
-                X, y, y_pred, y_prob, alphas, i, group_name="all_samples"
-            )
-            group_metrics_path.append(overall_metrics)
 
             # Log metrics for each individual group
             for group in groups:
@@ -236,10 +235,17 @@ class LRLasso(Classifier):
                 )
                 group_metrics_path.append(group_metrics)
 
+        correctness_df = pd.DataFrame(
+            np.array(per_cell_correctness).T,
+            index=cell_ids,
+            columns=[f'alpha_{a:.2e}' for a in alphas]
+        )
+        
         return {
             'coefs': np.array(coefs).T,
             'feature_elimination_dict': feature_elimination_dict,
-            'group_metrics_path': group_metrics_path
+            'group_metrics_path': group_metrics_path,
+            'correctness_df': correctness_df
         }
     
     def _log_metrics_with_probabilities(self, X, y, y_pred, y_prob, alphas, i, group_name="all_samples"):
