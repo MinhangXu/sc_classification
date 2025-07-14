@@ -302,7 +302,7 @@ def random_downsample_stratified(adata_donor, strata_col,
         return adata_donor.copy(), per_stratum_counts
         
     kept_indices = []
-    # --- MODIFIED: Initialize dictionary to log per-stratum counts ---
+    # Initialize dictionary to log per-stratum counts ---
     per_stratum_counts = {}
     
     for group in adata_donor.obs[strata_col].unique():
