@@ -3,10 +3,24 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_curve, auc
+from sklearn.model_selection import RepeatedStratifiedKFold
 from .base import Classifier
 
 class LRLasso(Classifier):
     """Logistic Regression with L1 regularization for feature selection."""
+    
+    def __init__(self, adata, target_col, target_value, random_state=42):
+        """
+        Initialize the LRLasso classifier.
+        
+        Parameters:
+        - adata: AnnData object
+        - target_col: The column in adata.obs with the target labels
+        - target_value: The value in target_col that represents the positive class
+        - random_state: Seed for reproducibility
+        """
+        super().__init__(adata, target_col, target_value)
+        self.random_state = random_state
     
     def prepare_data(self, use_factorized=True, factorization_method='X_fa', selected_features=None):
         """
@@ -68,7 +82,7 @@ class LRLasso(Classifier):
             penalty='l1', 
             solver='saga', 
             max_iter=5000,
-            random_state=45, 
+            random_state=self.random_state, 
             class_weight='balanced', 
             C=C
         )
@@ -173,19 +187,71 @@ class LRLasso(Classifier):
             "norm_f1": norm_f1,
         }
     
+    def _perform_cv(self, X, y, C, n_splits, n_repeats, alpha, group_name):
+        """
+        Perform repeated stratified cross-validation.
+        This is kept as a private helper method.
+        """
+        rskf = RepeatedStratifiedKFold(
+            n_splits=n_splits, n_repeats=n_repeats, random_state=self.random_state
+        )
+        
+        fold_metrics = []
+
+        for fold, (train_idx, val_idx) in enumerate(rskf.split(X, y)):
+            # X is a numpy array, y is a pandas Series. We use .iloc for positional indexing on the Series.
+            X_train, y_train = X[train_idx], y.iloc[train_idx]
+            X_val, y_val = X[val_idx], y.iloc[val_idx]
+
+            if len(np.unique(y_val)) < 2:
+                continue
+
+            model = LogisticRegression(
+                penalty='l1',
+                solver='saga',
+                max_iter=5000,
+                random_state=self.random_state,
+                class_weight='balanced',
+                C=C
+            )
+            model.fit(X_train, y_train)
+            
+            y_pred_val = model.predict(X_val)
+            y_prob_val = model.predict_proba(X_val)[:, 1]
+
+            metrics = self._calculate_metrics(y_val, y_pred_val)
+            
+            if len(np.unique(y_val)) > 1:
+                fpr, tpr, _ = roc_curve(y_val, y_prob_val)
+                roc_auc = auc(fpr, tpr)
+                metrics['roc_auc'] = roc_auc
+            else:
+                metrics['roc_auc'] = np.nan
+            
+            fold_metrics.append(metrics)
+        
+        if not fold_metrics:
+            return None
+
+        metrics_df = pd.DataFrame(fold_metrics)
+        mean_metrics = metrics_df.mean()
+        std_metrics = metrics_df.std()
+        
+        result = {f"{k}_mean": v for k, v in mean_metrics.items()}
+        result.update({f"{k}_std": v for k, v in std_metrics.items()})
+
+        majority_class = pd.Series(y).value_counts().idxmax()
+        result["trivial_accuracy"] = (pd.Series(y) == majority_class).mean()
+        result["majority_num"] = pd.Series(y).value_counts().max()
+        result["minority_num"] = pd.Series(y).value_counts().min() if len(pd.Series(y).value_counts()) > 1 else 0
+        result["group"] = group_name
+        result["alpha"] = alpha
+        
+        return result
+
     def fit_along_regularization_path(self, X, y, feature_names, alphas=None, metrics_grouping='patient'):
         """
-        Fit models along the regularization path and calculate metrics.
-        
-        Parameters:
-        - X: Feature matrix
-        - y: Target vector
-        - feature_names: List of feature names
-        - alphas: Array of regularization strengths
-        - metrics_grouping: Grouping column name in adata.obs
-        
-        Returns:
-        - Dictionary with coefficients and metrics
+        Fit models along the regularization path and calculate metrics on the full dataset. (Original function)
         """
         if alphas is None:
             alphas = np.logspace(-4, 5, 20)
@@ -234,6 +300,81 @@ class LRLasso(Classifier):
                     X_group, y_group, y_pred_group, y_prob_group, alphas, i, group_name=str(group)
                 )
                 group_metrics_path.append(group_metrics)
+
+        correctness_df = pd.DataFrame(
+            np.array(per_cell_correctness).T,
+            index=cell_ids,
+            columns=[f'alpha_{a:.2e}' for a in alphas]
+        )
+        
+        return {
+            'coefs': np.array(coefs).T,
+            'feature_elimination_dict': feature_elimination_dict,
+            'group_metrics_path': group_metrics_path,
+            'correctness_df': correctness_df
+        }
+
+    def fit_along_regularization_path_cv(self, X, y, feature_names, alphas=None, metrics_grouping='patient', cv_folds=5, cv_repeats=1):
+        """
+        Fit models along the regularization path and calculate metrics using cross-validation.
+        
+        This method still computes coefficients and correctness on the full dataset for plotting,
+        but generates performance metrics through repeated stratified cross-validation.
+        """
+        if alphas is None:
+            alphas = np.logspace(-4, 5, 20)
+        C_values = 1 / alphas
+
+        coefs = []
+        feature_elimination_dict = {f: None for f in feature_names}
+        group_metrics_path = []
+        
+        per_cell_correctness = []
+        cell_ids = self.adata.obs_names.to_list()
+
+        if metrics_grouping not in ['sample', 'patient']:
+            raise ValueError("metrics_grouping must be either 'sample' or 'patient'")
+
+        groups = self.adata.obs[metrics_grouping].unique()
+
+        for i, C in enumerate(C_values):
+            print(f"Training model with C={C:.2e} (alpha={alphas[i]:.2e}) ({i+1}/{len(C_values)})")
+            
+            # Fit on full data to get coefficients and per-cell correctness for plotting/analysis
+            self.fit(X, y, C=C)
+            coefs.append(self.model.coef_.ravel())
+            
+            y_pred = self.predict(X)
+            correctness = (y == y_pred)
+            per_cell_correctness.append(correctness)
+
+            # Track feature elimination timing
+            for idx, coef in enumerate(self.model.coef_.ravel()):
+                if coef == 0 and feature_elimination_dict[feature_names[idx]] is None:
+                    feature_elimination_dict[feature_names[idx]] = alphas[i]
+
+            # Perform cross-validation for each group to get robust metrics
+            for group in groups:
+                group_mask = self.adata.obs[metrics_grouping] == group
+                X_group, y_group = X[group_mask], y[group_mask]
+
+                if len(y_group) == 0: continue
+                
+                minority_class_count = np.min(np.unique(y_group, return_counts=True)[1])
+                current_cv_folds = cv_folds
+                if minority_class_count < current_cv_folds:
+                    print(f"Warning: Minority class has {minority_class_count} samples. Adjusting CV folds to {minority_class_count}.")
+                    current_cv_folds = minority_class_count
+                
+                if current_cv_folds < 2:
+                    print(f"Warning: Not enough samples in minority class ({minority_class_count}) for CV. Skipping.")
+                    continue
+
+                cv_results = self._perform_cv(
+                    X_group, y_group, C, current_cv_folds, cv_repeats, alphas[i], str(group)
+                )
+                if cv_results:
+                    group_metrics_path.append(cv_results)
 
         correctness_df = pd.DataFrame(
             np.array(per_cell_correctness).T,

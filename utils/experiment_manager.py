@@ -46,8 +46,12 @@ class ExperimentConfig:
         n_components = self.config.get('dimension_reduction', {}).get('n_components', 'unknown')
         downsampling = self.config.get('downsampling', {}).get('method', 'none')
         
+        # Add a representation of the gene selection pipeline to the hash
+        gene_selection_pipeline = self.config.get('preprocessing', {}).get('gene_selection_pipeline', [])
+        gene_selection_str = "-".join([step.get('method', 'unknown') for step in gene_selection_pipeline])
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return f"{timestamp}_{dr_method}_{n_components}_{downsampling}_{config_hash}"
+        return f"{timestamp}_{dr_method}_{n_components}_{downsampling}_{gene_selection_str}_{config_hash}"
     
     def get(self, key: str, default=None):
         """Get configuration value with dot notation support."""
@@ -210,6 +214,8 @@ class Experiment:
             'transformed_data': self.experiment_dir / "models" / f"{kwargs.get('dr_method', 'unknown')}_{kwargs.get('n_components', 'unknown')}" / "transformed_data.h5ad",
             'patient_coefficients': self.experiment_dir / "models" / "classification" / f"{kwargs.get('patient_id', 'unknown')}" / "coefficients.csv",
             'patient_metrics': self.experiment_dir / "models" / "classification" / f"{kwargs.get('patient_id', 'unknown')}" / "metrics.csv",
+            'patient_classification_correctness': self.experiment_dir / "models" / "classification" / f"{kwargs.get('patient_id', 'unknown')}" / "classification_correctness.csv",
+            'patient_classification_transitions': self.experiment_dir / "models" / "classification" / f"{kwargs.get('patient_id', 'unknown')}" / "classification_transitions.json",
             'factor_interpretation': self.experiment_dir / "analysis" / "factor_interpretation",
             'projections': self.experiment_dir / "analysis" / "projections",
             'summary_plots': self.experiment_dir / "analysis" / "summary_plots"
@@ -221,7 +227,7 @@ class Experiment:
         return base_paths[path_type]
     
     def save_preprocessing_results(self, adata: sc.AnnData, hvg_list: List[str], 
-                                 scaler: StandardScaler, summary: str):
+                                 scaler: StandardScaler, summary: Dict[str, Any]):
         """Save preprocessing results."""
         # Save processed AnnData
         adata.write_h5ad(self.get_path('preprocessed_data'))
@@ -237,7 +243,13 @@ class Experiment:
         # Save summary
         summary_path = self.experiment_dir / "preprocessing" / "preprocessing_summary.txt"
         with open(summary_path, 'w') as f:
-            f.write(summary)
+            f.write(summary['summary_text'])
+        
+        # Save detailed gene lists
+        gene_log_path = self.experiment_dir / "preprocessing" / "gene_lists_at_each_filtering_steps.json"
+        gene_log = summary.get('gene_log', {})
+        with open(gene_log_path, 'w') as f:
+            json.dump(gene_log, f, indent=2)
         
         # Update metadata
         self.update_metadata({
@@ -367,7 +379,8 @@ class Experiment:
 
 def create_standard_config(dr_method: str = 'fa', n_components: int = 100,
                           downsampling_method: str = 'random', 
-                          target_donor_fraction: float = 0.5) -> ExperimentConfig:
+                          target_donor_fraction: float = 0.5,
+                          tech_filter: Optional[str] = None) -> ExperimentConfig:
     """Create a standard experiment configuration."""
     
     config = {
@@ -377,13 +390,18 @@ def create_standard_config(dr_method: str = 'fa', n_components: int = 100,
             'timepoint_filter': 'MRD',
             'target_column': 'CN.label',
             'positive_class': 'cancer',
-            'negative_class': 'normal'
+            'negative_class': 'normal',
+            'tech_filter': tech_filter,
+            'gene_selection_pipeline': [{'method': 'hvg', 'n_top_genes': 3000}]
         },
         'dimension_reduction': {
             'method': dr_method,
             'n_components': n_components,
             'random_state': 42,
-            'svd_method': 'lapack',  # For FA
+            'svd_method': 'lapack',  # For sklearn FA
+            'fm': 'ml',              # For R FA: 'ml' or 'minres'
+            'rotate': 'varimax',     # For R FA
+            'n_iter': 100,           # For R FA bootstrapping
             'beta_loss': 'kullback-leibler',  # For NMF
             'handle_negative_values': 'error'
         },

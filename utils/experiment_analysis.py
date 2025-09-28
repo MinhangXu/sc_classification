@@ -7,12 +7,16 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import seaborn as sns
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import scanpy as sc
 import pickle
 from .experiment_manager import ExperimentManager
 import gseapy
 from anndata import AnnData
+import logging
+import anndata
+from matplotlib.colors import ListedColormap
+from sklearn.metrics import roc_auc_score
 
 
 class ExperimentAnalyzer:
@@ -20,6 +24,7 @@ class ExperimentAnalyzer:
     
     def __init__(self, experiment_manager: ExperimentManager):
         self.experiment_manager = experiment_manager
+        self.logger = logging.getLogger(__name__)
 
     def compare_experiments(self, experiment_ids: List[str]) -> pd.DataFrame:
         """Compare multiple experiments and return summary statistics."""
@@ -113,7 +118,38 @@ class ExperimentAnalyzer:
         if all_coefficients:
             results['coefficients'] = all_coefficients
         if all_metrics_list:
-            results['metrics'] = pd.concat(all_metrics_list, ignore_index=True)
+            # Concatenate all metrics first
+            raw_metrics_df = pd.concat(all_metrics_list, ignore_index=True)
+
+            # --- Handle Pan-Patient Aggregation ---
+            if len(patients) == 1 and patients[0] == 'all_patients':
+                self.logger.info("Pan-patient experiment detected. Aggregating metrics...")
+                all_patients_dir = exp.experiment_dir / "models" / "classification" / "all_patients"
+                is_cv_run = 'roc_auc_mean' in raw_metrics_df.columns
+
+                if is_cv_run:
+                    agg_path = all_patients_dir / "all_patients_aggregated_cv_metrics.csv"
+                    self.logger.info(f"CV run detected. Aggregating metrics across patients and saving to {agg_path}")
+                    
+                    metrics_to_agg = [
+                        'overall_accuracy_mean', 'overall_accuracy_std',
+                        'mal_accuracy_mean', 'mal_accuracy_std',
+                        'norm_accuracy_mean', 'norm_accuracy_std',
+                        'roc_auc_mean', 'roc_auc_std'
+                    ]
+                    agg_metrics_df = raw_metrics_df.groupby('alpha')[metrics_to_agg].agg('mean').reset_index()
+                    agg_metrics_df['group'] = 'all_patients'
+                    agg_metrics_df.to_csv(agg_path, index=False)
+                    results['metrics'] = agg_metrics_df
+                else:
+                    agg_path = all_patients_dir / "all_patients_metrics.csv"
+                    self.logger.info(f"Non-CV run detected. Aggregating metrics and saving to {agg_path}")
+                    agg_metrics_df = self._calculate_aggregated_metrics(raw_metrics_df)
+                    agg_metrics_df.to_csv(agg_path, index=False)
+                    results['metrics'] = agg_metrics_df
+            else:
+                # For per-patient runs, just use the concatenated data as is.
+                results['metrics'] = raw_metrics_df
 
         return results
 
@@ -143,117 +179,288 @@ class ExperimentAnalyzer:
             return pd.concat(all_metrics, ignore_index=True)
         else:
             return pd.DataFrame()
-    def _plot_metrics_and_coefficients(self, metrics_df, coefs_df, patient_id_for_filtering="all_samples", 
-                                      display_patient_id=None, top_n=10, alpha_idx=None, 
-                                      n_factors_info=None):
-        # This is the user's function, integrated into the class
-        if display_patient_id is None:
-            display_patient_id = patient_id_for_filtering
 
-        metrics_results = metrics_df[metrics_df['group'] == patient_id_for_filtering]
+    def _plot_metrics_and_coefficients(self, metrics_df: pd.DataFrame, coefs_df: pd.DataFrame, 
+                                       patient_id_for_filtering: str, n_factors_info: str, best_alpha: Optional[float] = None) -> plt.Figure:
+        """
+        Internal helper to create the detailed 2-panel stacked plot for classification metrics.
+        This is the restored original plotting function.
+        """
+        metrics_for_patient = metrics_df[metrics_df['group'] == patient_id_for_filtering].copy()
+        if metrics_for_patient.empty:
+            self.logger.warning(f"No metrics found for patient {patient_id_for_filtering} in the provided DataFrame.")
+            return None
+
+        is_cv_run = 'roc_auc_std' in metrics_for_patient.columns
         
-        if metrics_results.empty:
-            print(f"No metrics found for patient_id_for_filtering (group) '{patient_id_for_filtering}'")
-            return None
-
-        try:
-            alphas = coefs_df.columns.astype(float).values
-        except ValueError:
-            print("Error: Could not convert coefficient DataFrame columns to float for alpha values.")
-            return None
-            
-        coef_results_arr = np.array(coefs_df)
-        feature_names = coefs_df.index
-
-        overall_acc = metrics_results['overall_accuracy'].values
-        mal_accuracy = metrics_results['mal_accuracy'].values
-        norm_accuracy = metrics_results['norm_accuracy'].values
-        has_roc = 'roc_auc' in metrics_results.columns
-        roc_auc = metrics_results['roc_auc'].values if has_roc else None
-        surviving_features_count = (coefs_df != 0).sum(axis=0).values
-        majority_num = metrics_results['majority_num'].values[0] if 'majority_num' in metrics_results.columns and len(metrics_results['majority_num'].values)>0 else "N/A"
-        minority_num = metrics_results['minority_num'].values[0] if 'minority_num' in metrics_results.columns and len(metrics_results['minority_num'].values)>0 else "N/A"
-
-        non_zero_counts_per_feature = (coefs_df != 0).sum(axis=1)
-        actual_top_n = min(top_n, len(feature_names))
-        if actual_top_n == 0:
-            top_features_idx = []
-        else:
-            top_features_idx = np.argsort(non_zero_counts_per_feature)[-actual_top_n:]
-
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 12), gridspec_kw={'height_ratios': [2, 3]})
-        fig.patch.set_facecolor('white')
-
+        # Define the color palette
+        color_palette = {
+            'Normal Cells': 'darkgreen',
+            'Cancer Cells': 'darkblue',
+            'Overall Accuracy': 'skyblue',
+            'ROC AUC': 'purple',
+            'Surviving Features': 'gold'
+        }
+        
+        fig, axes = plt.subplots(2, 1, figsize=(16, 12))
+        
+        # --- Top Panel: Metrics vs. Regularization ---
+        ax1 = axes[0]
+        alphas = metrics_for_patient['alpha']
         log_alphas = np.log10(alphas)
-
-        ax1.plot(log_alphas, overall_acc, 'o-', label="Overall Accuracy", color='skyblue', linewidth=1.5, alpha=0.8, markersize=5)
-        ax1.plot(log_alphas, mal_accuracy, '^-', label="Cancer Cell Accuracy", color='darkblue', linewidth=1.5, alpha=0.8, markersize=5)
-        ax1.plot(log_alphas, norm_accuracy, 's-', label="Normal Cell Accuracy", color='green', linewidth=1.5, alpha=0.8, markersize=5)
-
-        if "trivial_accuracy" in metrics_results.columns and len(metrics_results['trivial_accuracy'].values) > 0:
-            trivial_acc = metrics_results['trivial_accuracy'].values
-            if not np.all(np.isnan(trivial_acc)):
-                ax1.plot(log_alphas, trivial_acc, '--', label=f"Trivial (Majority) Acc = {trivial_acc[~np.isnan(trivial_acc)][0]:.3f}", color='red', linewidth=2, alpha=0.7)
-
-        if roc_auc is not None:
-            ax1.plot(log_alphas, roc_auc, 'd-', label="ROC AUC", color='purple', linewidth=1.5, alpha=0.8, markersize=5)
-
-        ax1.set_xlabel(r"$\log_{10}(\lambda)$", fontsize=12)
-        ax1.set_ylabel("Accuracy / AUC", fontsize=12)
-        ax1.grid(True, linestyle='--', alpha=0.7)
-        ax1.set_xlim(np.min(log_alphas) - 0.5, np.max(log_alphas) + 0.5)
         
-        ax1_2 = ax1.twinx()
-        surviving_features_percent = (surviving_features_count / len(feature_names) * 100) if len(feature_names) > 0 else np.zeros_like(surviving_features_count)
-        ax1_2.plot(log_alphas, surviving_features_percent, 'p-', color='orange', label="Surviving Features (%)", alpha=0.8, markersize=5)
-        ax1_2.set_ylabel("Surviving Features (%)", fontsize=12)
-        ax1_2.set_ylim([-5, 105])
-
-        title_str = f"Classification Metrics & Feature Survival vs. Regularization (Patient: {display_patient_id})"
-        if n_factors_info:
-            title_str += f"\n{n_factors_info}"
-        ax1.set_title(title_str, fontsize=14, pad=20)
-
-        if alpha_idx is not None and 0 <= alpha_idx < len(alphas):
-            ax1.axvline(x=log_alphas[alpha_idx], color='dimgray', linestyle='-.', linewidth=2.5, label=f"Selected $\lambda$={alphas[alpha_idx]:.2e}", alpha=0.7)
-
-        lines_1, labels_1 = ax1.get_legend_handles_labels()
-        lines_2, labels_2 = ax1_2.get_legend_handles_labels()
-        extra_labels_list = [f"Normal Cells (Maj.): {majority_num}", f"Cancer Cells (Min.): {minority_num}"]
-        dummy_lines = [plt.Line2D([0], [0], linestyle="none", c=c, marker='o') for c in ['green', 'darkblue']]
-        ax1.legend(dummy_lines + lines_1 + lines_2, extra_labels_list + labels_1 + labels_2, loc='center left', bbox_to_anchor=(1.20, 0.5), fontsize=10, frameon=True)
-
-        if len(top_features_idx) > 0:
-            colors = plt.cm.get_cmap('tab10' if actual_top_n <= 10 else 'viridis', actual_top_n)
-            for i, idx in enumerate(top_features_idx):
-                ax2.plot(log_alphas, coef_results_arr[idx], label=feature_names[idx], alpha=0.85, linewidth=1.5, color=colors(i))
+        # Plot main metrics
+        if is_cv_run:
+            # For CV runs, metrics have _mean and _std suffixes. We plot error bands for all.
+            # Plot Overall Accuracy with std dev band
+            ax1.plot(log_alphas, metrics_for_patient['overall_accuracy_mean'], 'o-', color=color_palette['Overall Accuracy'], label='Overall Accuracy')
+            ax1.fill_between(log_alphas,
+                             metrics_for_patient['overall_accuracy_mean'] - metrics_for_patient['overall_accuracy_std'],
+                             metrics_for_patient['overall_accuracy_mean'] + metrics_for_patient['overall_accuracy_std'],
+                             color=color_palette['Overall Accuracy'], alpha=0.2)
+            # Plot Cancer Cell Accuracy with std dev band
+            ax1.plot(log_alphas, metrics_for_patient['mal_accuracy_mean'], 'o-', color=color_palette['Cancer Cells'], label='Cancer Cell Accuracy')
+            ax1.fill_between(log_alphas,
+                             metrics_for_patient['mal_accuracy_mean'] - metrics_for_patient['mal_accuracy_std'],
+                             metrics_for_patient['mal_accuracy_mean'] + metrics_for_patient['mal_accuracy_std'],
+                             color=color_palette['Cancer Cells'], alpha=0.2)
+            # Plot Normal Cell Accuracy with std dev band
+            ax1.plot(log_alphas, metrics_for_patient['norm_accuracy_mean'], 'o-', color=color_palette['Normal Cells'], label='Normal Cell Accuracy')
+            ax1.fill_between(log_alphas,
+                             metrics_for_patient['norm_accuracy_mean'] - metrics_for_patient['norm_accuracy_std'],
+                             metrics_for_patient['norm_accuracy_mean'] + metrics_for_patient['norm_accuracy_std'],
+                             color=color_palette['Normal Cells'], alpha=0.2)
+            # Plot ROC AUC with std dev band
+            ax1.plot(log_alphas, metrics_for_patient['roc_auc_mean'], 'o-', color=color_palette['ROC AUC'], label='ROC AUC (Mean)')
+            ax1.fill_between(log_alphas, 
+                             metrics_for_patient['roc_auc_mean'] - metrics_for_patient['roc_auc_std'],
+                             metrics_for_patient['roc_auc_mean'] + metrics_for_patient['roc_auc_std'],
+                             color=color_palette['ROC AUC'], alpha=0.2, label='ROC AUC (CV std. dev.)')
         else:
-            ax2.text(0.5, 0.5, "No features to plot.", ha='center', va='center', transform=ax2.transAxes)
+            # Add cell counts to legend labels
+            majority_num = metrics_for_patient['majority_num'].iloc[0]
+            minority_num = metrics_for_patient['minority_num'].iloc[0]
+            
+            # --- Create custom legend handles ---
+            # Main metric lines
+            line1, = ax1.plot(log_alphas, metrics_for_patient['norm_accuracy'], 'o-', color=color_palette['Normal Cells'], label=f'Normal Cell Accuracy')
+            line2, = ax1.plot(log_alphas, metrics_for_patient['mal_accuracy'], 's-', color=color_palette['Cancer Cells'], label=f'Cancer Cell Accuracy')
+            line3, = ax1.plot(log_alphas, metrics_for_patient['overall_accuracy'], 'o-', color=color_palette['Overall Accuracy'], label='Overall Accuracy')
+            line4, = ax1.plot(log_alphas, metrics_for_patient['roc_auc'], '^-', color=color_palette['ROC AUC'], label='ROC AUC')
+            
+            # Trivial accuracy line
+            trivial_acc = metrics_for_patient['trivial_accuracy'].iloc[0]
+            line5 = ax1.axhline(y=trivial_acc, color='r', linestyle='--', label=f"Trivial (Majority) Acc = {trivial_acc:.3f}")
+            
+            # Dummy plots for cell counts in legend
+            dummy_norm = plt.Line2D([0], [0], marker='o', color='w', label=f'Normal Cells (Maj.): {majority_num}',
+                                  markerfacecolor=color_palette['Normal Cells'], markersize=10)
+            dummy_mal = plt.Line2D([0], [0], marker='s', color='w', label=f'Cancer Cells (Min.): {minority_num}',
+                                 markerfacecolor=color_palette['Cancer Cells'], markersize=10)
 
-        if alpha_idx is not None and 0 <= alpha_idx < len(alphas):
-            ax2.axvline(x=log_alphas[alpha_idx], color='dimgray', linestyle='-.', linewidth=2.5, alpha=0.7)
-
-        ax2.set_xlim(np.min(log_alphas) - 0.5, np.max(log_alphas) + 0.5)
-        ax2.set_xlabel(r"$\log_{10}(\lambda)$  ($\lambda$ = Lasso Regularization Strength)", fontsize=12)
-        ax2.set_ylabel("Coefficient Value", fontsize=12)
-        ax2.set_title(f"Top-{actual_top_n} Factor Coefficient Paths", fontsize=14, pad=10)
-        ax2.axhline(0, color='black', linestyle=':', lw=1.5)
-        if len(top_features_idx) > 0:
-            ax2.legend(loc='upper left', bbox_to_anchor=(1.02, 1), fontsize=9)
-        ax2.grid(True, linestyle='--', alpha=0.7)
-
-        plt.tight_layout(rect=[0, 0, 0.85, 1])
-        return fig
-    
-    def generate_lasso_path_2panels_report(self, experiment_id: str, output_dir: str = None):
-        """
-        Generate a standard set of analysis plots for an experiment.
+        ax1.set_xlabel('')
+        ax1.set_ylabel('Accuracy / AUC')
         
-        This includes:
-        - Per-patient classification metrics and coefficient paths.
-        - For Factor Analysis runs, diagnostic plots for SS Loadings and Communalities.
+        # Secondary y-axis for feature survival
+        ax2 = ax1.twinx()
+        survival_series = 100 * (coefs_df != 0).sum(axis=0) / len(coefs_df)
+        line_survival, = ax2.plot(log_alphas, survival_series, 'o-', color=color_palette['Surviving Features'], label='Surviving Features (%)')
+        ax2.set_ylabel('Surviving Features (%)', color='black')
+
+        # --- Combined Legend ---
+        if not is_cv_run:
+            handles = [dummy_norm, dummy_mal, line3, line2, line1, line5, line4, line_survival]
+            ax1.legend(handles=handles, bbox_to_anchor=(1.15, 1), loc='upper left', borderaxespad=0.)
+        else:
+            # Standard legend for CV case
+            lines, labels = ax1.get_legend_handles_labels()
+            lines2, labels2 = ax2.get_legend_handles_labels()
+            ax2.legend(lines + lines2, labels + labels2, bbox_to_anchor=(1.15, 1), loc='upper left')
+
+        title_prefix = "Cross-Validated " if is_cv_run else ""
+        ax1.set_title(f"{title_prefix}Classification Metrics vs. Regularization (Patient: {patient_id_for_filtering})\n{n_factors_info}")
+
+        # --- Bottom Panel: Coefficient Paths of Last Surviving Factors (Updated Logic) ---
+        ax3 = axes[1]
+        
+        # New logic: Find the last 10 factors to be regularized to zero
+        last_surviving_factors = set()
+        # Iterate backwards through regularization strengths (from strongest to weakest)
+        for alpha_col in reversed(coefs_df.columns):
+            non_zero_at_this_alpha = coefs_df.index[coefs_df[alpha_col] != 0]
+            
+            # Add these factors to our set
+            for factor in non_zero_at_this_alpha:
+                last_surviving_factors.add(factor)
+                if len(last_surviving_factors) >= 10:
+                    break
+            
+            if len(last_surviving_factors) >= 10:
+                # If we've found 10 or more, take the 10 with largest magnitude at this alpha
+                last_survivors_at_alpha = coefs_df.loc[list(last_surviving_factors), alpha_col].abs().nlargest(10).index
+                factors_to_plot = list(last_survivors_at_alpha)
+                break
+        else:
+            # If the loop finishes without finding 10 factors (unlikely), plot what we have
+            factors_to_plot = list(last_surviving_factors)
+        
+        if factors_to_plot:
+            coefs_df_to_plot = coefs_df.loc[factors_to_plot]
+            for factor in coefs_df_to_plot.index:
+                ax3.plot(log_alphas, coefs_df_to_plot.loc[factor], label=factor)
+        
+        ax3.axhline(0, color='black', linestyle='dotted')
+        ax3.set_xlabel('log10(λ) (λ = Lasso Regularization Strength)')
+        ax3.set_ylabel('Coefficient Value')
+        ax3.set_title('Top-10 Most Robust Factor Coefficient Paths')
+        ax3.legend(title="Factor", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+        plt.tight_layout(rect=[0, 0, 1, 0.96])
+        return fig
+
+    def generate_lasso_path_2panels_report(self, experiment_id: str, save_format: str = 'png', dpi: int = 300):
         """
-        print(f"--- Generating Standard Analysis Report for Experiment: {experiment_id} ---")
+        Generates and saves a 2-panel plot for each patient/group in an experiment.
+        This function intelligently handles both per-patient and pan-patient runs.
+        """
+        self.logger.info(f"--- Generating 2-Panel LASSO Reports for Experiment: {experiment_id} ---")
+        exp = self.experiment_manager.load_experiment(experiment_id)
+
+        classification_dir = exp.experiment_dir / "models" / "classification"
+        if not classification_dir.exists():
+            self.logger.warning(f"Classification directory not found for experiment {experiment_id}")
+            return
+
+        patient_ids = [p.name for p in classification_dir.iterdir() if p.is_dir()]
+        n_factors_info = f"{exp.config.get('dimension_reduction.n_components')} {exp.config.get('dimension_reduction.method').upper()} Factors"
+        
+        # Handle Pan-Patient case intelligently
+        if patient_ids == ['all_patients']:
+            self.logger.info("  Detected pan-patient run. Aggregating metrics for plotting...")
+            
+            all_patients_dir = classification_dir / "all_patients"
+            metrics_path = all_patients_dir / "metrics.csv"
+            agg_metrics_path = all_patients_dir / "all_patients_metrics.csv"
+            
+            if not metrics_path.exists():
+                self.logger.error(f"  Could not find metrics.csv for 'all_patients' group.")
+                return
+
+            per_patient_metrics_df = pd.read_csv(metrics_path)
+            agg_metrics_df = self._calculate_aggregated_metrics(per_patient_metrics_df)
+            agg_metrics_df.to_csv(agg_metrics_path, index=False)
+            self.logger.info(f"  Saved aggregated pan-patient metrics to {agg_metrics_path}")
+            
+            # Now, plot using this single aggregated file
+            metrics_df = pd.read_csv(agg_metrics_path)
+            coef_df = pd.read_csv(all_patients_dir / "coefficients.csv", index_col=0)
+            
+            fig = self._plot_metrics_and_coefficients(metrics_df, coef_df, 'all_patients', n_factors_info)
+            if fig:
+                save_path = exp.get_path('summary_plots') / f"pan_patient_aggregated_metrics.{save_format}"
+                fig.savefig(save_path, format=save_format, dpi=dpi, bbox_inches='tight')
+                plt.close(fig)
+                self.logger.info(f"  Saved aggregated plot to {save_path}")
+
+        else:
+            # Original behavior for per-patient runs
+            self.logger.info("Plotting summary for each patient...")
+            metrics_path = classification_dir / patient_ids[0] / "metrics.csv" # Path logic might need adjustment if metrics are split
+            
+            try:
+                # Assuming metrics for all patients are in one file, which might not be the case.
+                # Let's load them per patient.
+                for patient_id in patient_ids:
+                    self.logger.info(f"  Generating plot for patient: {patient_id}")
+                    metrics_df = pd.read_csv(exp.get_path('patient_metrics', patient_id=patient_id))
+                    coef_df = pd.read_csv(exp.get_path('patient_coefficients', patient_id=patient_id), index_col=0)
+                    
+                    fig = self._plot_metrics_and_coefficients(metrics_df, coef_df, patient_id, n_factors_info)
+                    if fig:
+                        save_path = exp.get_path('summary_plots') / f"patient_{patient_id}_metrics_and_coefficients.{save_format}"
+                        fig.savefig(save_path, format=save_format, dpi=dpi, bbox_inches='tight')
+                        plt.close(fig)
+                        self.logger.info(f"  Saved plot to {save_path}")
+
+            except FileNotFoundError:
+                 self.logger.error(f"Could not find metrics/coefficients for patient {patient_id}. Ensure all per-patient files exist.")
+
+    def _calculate_aggregated_metrics(self, per_patient_metrics_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Aggregates per-patient metrics from a pan-patient run into a single pan-patient metric DataFrame.
+        """
+        is_cv_run = any('_mean' in col for col in per_patient_metrics_df.columns)
+
+        if is_cv_run:
+            # --- Robust aggregation for CV runs ---
+            # Define all possible columns we want to aggregate
+            possible_agg_cols = {
+                'overall_accuracy_mean': 'mean',
+                'mal_accuracy_mean': 'mean',
+                'norm_accuracy_mean': 'mean',
+                'roc_auc_mean': 'mean',
+                'roc_auc_std': lambda x: np.sqrt(np.mean(x**2)), # Pool std dev
+                'trivial_accuracy_mean': 'first' # Trivial accuracy should be constant
+            }
+            # Find which of these columns actually exist in the dataframe
+            agg_cols_to_use = {k: v for k, v in possible_agg_cols.items() if k in per_patient_metrics_df.columns}
+            
+            if not agg_cols_to_use:
+                self.logger.error("  No recognizable CV metric columns found for aggregation.")
+                return pd.DataFrame()
+
+            # For CV runs, we focus on aggregating the mean and std of key metrics
+            agg_metrics = per_patient_metrics_df.groupby('alpha').agg(agg_cols_to_use).reset_index()
+
+            # Rename for consistency with the plotting function
+            rename_dict = {
+                'roc_auc_mean': 'roc_auc',
+                'overall_accuracy_mean': 'overall_accuracy',
+                'mal_accuracy_mean': 'mal_accuracy',
+                'norm_accuracy_mean': 'norm_accuracy',
+                'trivial_accuracy_mean': 'trivial_accuracy'
+            }
+            # Only rename columns that exist
+            agg_metrics.rename(columns={k: v for k, v in rename_dict.items() if k in agg_metrics.columns}, inplace=True)
+
+        else:
+            # For non-CV runs, we sum fundamental counts and recalculate all metrics
+            agg_metrics = per_patient_metrics_df.groupby('alpha')[['tp', 'fp', 'tn', 'fn', 'majority_num', 'minority_num']].sum().reset_index()
+            with np.errstate(divide='ignore', invalid='ignore'):
+                # --- Recalculate ALL metrics from aggregated counts ---
+                agg_metrics['overall_accuracy'] = (agg_metrics['tp'] + agg_metrics['tn']) / \
+                                                  (agg_metrics['tp'] + agg_metrics['tn'] + agg_metrics['fp'] + agg_metrics['fn'])
+                
+                # Malignant (Positive Class) Metrics
+                agg_metrics['mal_accuracy'] = agg_metrics['tp'] / (agg_metrics['tp'] + agg_metrics['fn']) # Recall
+                agg_metrics['mal_precision'] = agg_metrics['tp'] / (agg_metrics['tp'] + agg_metrics['fp'])
+                agg_metrics['mal_recall'] = agg_metrics['mal_accuracy'] # Recall is the same as accuracy for this class
+                agg_metrics['mal_f1'] = 2 * (agg_metrics['mal_precision'] * agg_metrics['mal_recall']) / \
+                                        (agg_metrics['mal_precision'] + agg_metrics['mal_recall'])
+
+                # Normal (Negative Class) Metrics
+                agg_metrics['norm_accuracy'] = agg_metrics['tn'] / (agg_metrics['tn'] + agg_metrics['fp']) # Specificity
+                agg_metrics['norm_precision'] = agg_metrics['tn'] / (agg_metrics['tn'] + agg_metrics['fn'])
+                agg_metrics['norm_recall'] = agg_metrics['norm_accuracy'] # Recall for the negative class is specificity
+                agg_metrics['norm_f1'] = 2 * (agg_metrics['norm_precision'] * agg_metrics['norm_recall']) / \
+                                       (agg_metrics['norm_precision'] + agg_metrics['norm_recall'])
+                
+                agg_metrics['trivial_accuracy'] = agg_metrics['majority_num'] / (agg_metrics['majority_num'] + agg_metrics['minority_num'])
+                
+                # ROC AUC cannot be perfectly recalculated from TP/FP rates, so we average the patient-level AUCs
+                agg_metrics['roc_auc'] = per_patient_metrics_df.groupby('alpha')['roc_auc'].mean().values
+
+        agg_metrics['group'] = 'all_patients'
+        # Fill any potential NaN values that result from division by zero
+        agg_metrics.fillna(0, inplace=True)
+        return agg_metrics
+
+    def generate_lasso_path_2panels_report_internal_CV(self, experiment_id: str, output_dir: str = None, save_format: str = 'png', dpi: int = 300):
+        """
+        Generate a standard set of analysis plots for an experiment that used internal CV.
+        This version plots mean metrics with standard deviation bands.
+        """
+        print(f"--- Generating Internal CV Analysis Report for Experiment: {experiment_id} ---")
         exp = self.experiment_manager.load_experiment(experiment_id)
         dr_method = exp.config.get('dimension_reduction.method')
         n_components = exp.config.get('dimension_reduction.n_components')
@@ -272,18 +479,11 @@ class ExperimentAnalyzer:
         metrics_df = results['metrics']
         coefficients_dict = results['coefficients']
         
+        # The extract_classification_results function now correctly aggregates pan-patient CV runs,
+        # so we can use a single, unified loop for plotting.
         for patient_id, coefs_df in coefficients_dict.items():
             print(f"Generating plot for patient: {patient_id}")
             
-            # The plotting function expects alpha values as floats in the column headers
-            try:
-                # Store original columns before modification
-                original_cols = coefs_df.columns
-                coefs_df.columns = [float(col.split('_')[1]) for col in coefs_df.columns]
-            except (ValueError, IndexError) as e:
-                 print(f"  Warning: Could not parse alpha values from column headers for patient {patient_id}. Error: {e}")
-                 continue # Skip this patient if columns are not in the expected format
-
             fig = self._plot_metrics_and_coefficients(
                 metrics_df=metrics_df,
                 coefs_df=coefs_df,
@@ -291,32 +491,31 @@ class ExperimentAnalyzer:
                 n_factors_info=f"{n_components} {dr_method.upper()} Factors"
             )
 
-            # Restore original column names if needed elsewhere, though not necessary here
-            coefs_df.columns = original_cols
-
             if fig:
-                save_filepath = output_path / f"patient_{patient_id}_metrics_and_coefficients.png"
-                fig.savefig(save_filepath, dpi=300, bbox_inches='tight')
+                # Create a filename that works for both pan-patient and per-patient
+                if patient_id == 'all_patients':
+                    filename = f"pan_patient_CV_metrics_and_coefficients.{save_format}"
+                else:
+                    filename = f"patient_{patient_id}_CV_metrics_and_coefficients.{save_format}"
+                
+                save_filepath = output_path / filename
+                fig.savefig(save_filepath, format=save_format, dpi=dpi, bbox_inches='tight')
                 print(f"  Saved plot to {save_filepath}")
                 plt.close(fig)
 
-        # For FA experiments, add model diagnostic plots
-        if dr_method and dr_method.lower() == 'fa':
-            print("\nGenerating FA-specific diagnostic plots...")
-            self._create_fa_specific_plots(exp, n_components, output_path)
-            
     def _create_fa_specific_plots(self, exp, n_factors, output_path):
-        """Create FA-specific plots by calling the integrated helper methods."""
-        print("Attempting to generate FA-specific diagnostic plots...")
-        # Note: These functions rely on files that may not be generated by the current pipeline.
-        # They are included here to match your previous workflow.
-        
+        """Creates FA-specific diagnostic plots."""
+        dr_results_dir = exp.experiment_dir / "models" / f"fa_{n_factors}"
+        if not dr_results_dir.exists():
+            print(f"  WARNING: FA results directory not found for {n_factors} factors. Skipping FA-specific plots.")
+            return
+
         # Construct path to a potential summary file from the experiment directory
-        fa_summary_file_path = exp.experiment_dir / "models" / f"fa_{n_factors}" / "model_summary.txt"
+        fa_summary_file_path = dr_results_dir / "model_summary.txt"
         self._plot_factor_ss_loadings(fa_summary_file_path, n_factors, output_path)
 
         # Construct path to a potential communalities file
-        communalities_csv_path = exp.experiment_dir / "models" / f"fa_{n_factors}" / "gene_communalities.csv"
+        communalities_csv_path = dr_results_dir / "gene_communalities.csv"
         self._plot_communality_distribution(communalities_csv_path, n_factors, output_path)
 
     def _plot_factor_ss_loadings(self, fa_summary_file_path, n_factors, output_path):
@@ -1866,6 +2065,1302 @@ class ExperimentAnalyzer:
             print(f"    - ERROR creating summary plot for {csv_path}: A required column is missing. {e}")
         except Exception as e:
             print(f"    - ERROR creating summary plot for {csv_path}: {e}")
+
+    def plot_accuracy_vs_n_factors_summary(self, experiment_id: str, output_dir: str = None, metric: str = 'overall_accuracy'):
+        """
+        Generates a summary plot comparing classification accuracy against the number of selected factors for all patients.
+
+        Args:
+            experiment_id: The ID of the experiment to analyze.
+            output_dir: Custom output directory. Defaults to the experiment's summary_plots dir.
+            metric: The accuracy metric to plot. e.g., 'overall_accuracy', 'mal_accuracy', 'roc_auc'.
+                    The function will look for '{metric}_mean' and fallback to '{metric}'.
+        """
+        print(f"--- Generating Accuracy vs. Number of Factors Summary for Experiment: {experiment_id} ---")
+        exp = self.experiment_manager.load_experiment(experiment_id)
+        
+        if output_dir is None:
+            output_path = exp.get_path('summary_plots')
+        else:
+            output_path = Path(output_dir)
+        output_path.mkdir(exist_ok=True, parents=True)
+
+        results = self.extract_classification_results(experiment_id)
+        if 'metrics' not in results or 'coefficients' not in results:
+            print("No classification results found. Cannot generate plot.")
+            return
+
+        all_metrics_df = results['metrics']
+        all_coefficients = results['coefficients']
+        
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        patients = sorted(all_coefficients.keys())
+        colors = plt.cm.get_cmap('tab10', len(patients))
+
+        for i, patient_id in enumerate(patients):
+            patient_metrics = all_metrics_df[all_metrics_df['group'] == patient_id].copy()
+            patient_coefs = all_coefficients[patient_id].copy()
+            
+            if patient_metrics.empty or patient_coefs.empty:
+                print(f"Warning: Missing metrics or coefficients for patient {patient_id}. Skipping.")
+                continue
+
+            # --- Dynamically select metric columns based on availability ---
+            is_cv_data = f"{metric}_mean" in patient_metrics.columns
+            metric_col = f"{metric}_mean" if is_cv_data else metric
+            y_label_suffix = " (CV Mean)" if is_cv_data else ""
+
+            if metric_col not in patient_metrics.columns:
+                print(f"Warning: Metric '{metric_col}' not found for patient {patient_id}. Skipping.")
+                continue
+            # --- End dynamic selection ---
+
+            # Ensure metrics are sorted by alpha to make a proper line plot
+            patient_metrics.sort_values('alpha', inplace=True)
+            
+            # Align number of features with metrics
+            try:
+                # Handle cases where columns might not be in 'alpha_...' format
+                try:
+                    coef_alphas = np.array([float(col.split('_')[1]) for col in patient_coefs.columns])
+                except (ValueError, IndexError):
+                    coef_alphas = patient_coefs.columns.astype(float)
+                    
+                metric_alphas = patient_metrics['alpha'].values
+                
+                surviving_features_count = (patient_coefs != 0).sum(axis=0).values
+                
+                # Interpolate to align feature counts with metric alphas
+                aligned_features = np.interp(metric_alphas, coef_alphas, surviving_features_count)
+            except Exception as e:
+                print(f"Warning: Could not align features for patient {patient_id}. Error: {e}")
+                continue
+
+            metric_values = patient_metrics[metric_col].values
+            
+            # Sort by number of features for a clean plot
+            sort_indices = np.argsort(aligned_features)
+            ax.plot(aligned_features[sort_indices], metric_values[sort_indices], 'o-', label=patient_id, color=colors(i), alpha=0.8)
+
+        ax.set_xlabel("Number of Selected Factors", fontsize=12)
+        ax.set_ylabel(f"{metric.replace('_', ' ').title()}{y_label_suffix}", fontsize=12)
+        ax.set_title(f"Model Performance vs. Number of Factors ({experiment_id})", fontsize=14)
+        ax.grid(True, linestyle='--', alpha=0.7)
+        ax.legend(title="Patient ID", loc='lower right')
+        plt.tight_layout()
+
+        save_path = output_path / f"summary_accuracy_vs_n_factors_{metric}.png"
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Saved summary plot to {save_path}")
+        plt.close(fig)
+
+    def plot_factors_for_good_accuracy_summary(self, experiment_id: str, output_dir: str = None, margin: float = 0.0):
+        """
+        Generates a bar plot showing the minimum number of factors required to achieve "good" accuracy for each patient.
+        
+        "Good" accuracy is defined as the first point in the regularization path where both cancer and normal
+        cell accuracies exceed the trivial accuracy (plus an optional margin). Handles both CV and non-CV results.
+
+        Args:
+            experiment_id: The ID of the experiment to analyze.
+            output_dir: Custom output directory. Defaults to the experiment's summary_plots dir.
+            margin: An optional margin to add to the trivial accuracy threshold (e.g., 0.1 for 10% better).
+        """
+        print(f"--- Generating 'Factors for Good Accuracy' Summary for Experiment: {experiment_id} ---")
+        exp = self.experiment_manager.load_experiment(experiment_id)
+        
+        if output_dir is None:
+            output_path = exp.get_path('summary_plots')
+        else:
+            output_path = Path(output_dir)
+        output_path.mkdir(exist_ok=True, parents=True)
+
+        results = self.extract_classification_results(experiment_id)
+        if 'metrics' not in results or 'coefficients' not in results:
+            print("No classification results found. Cannot generate plot.")
+            return
+
+        all_metrics_df = results['metrics']
+        all_coefficients = results['coefficients']
+        
+        factors_for_good_accuracy = {}
+        patients = sorted(all_coefficients.keys())
+
+        for patient_id in patients:
+            patient_metrics = all_metrics_df[all_metrics_df['group'] == patient_id].copy()
+            patient_coefs = all_coefficients[patient_id].copy()
+            
+            if patient_metrics.empty or patient_coefs.empty:
+                print(f"Warning: Missing data for patient {patient_id}. Skipping.")
+                continue
+
+            # --- Dynamically select metric columns based on availability ---
+            is_cv_data = 'trivial_accuracy_mean' in patient_metrics.columns
+            trivial_col = 'trivial_accuracy_mean' if is_cv_data else 'trivial_accuracy'
+            mal_col = 'mal_accuracy_mean' if is_cv_data else 'mal_accuracy'
+            norm_col = 'norm_accuracy_mean' if is_cv_data else 'norm_accuracy'
+
+            required_cols = [trivial_col, mal_col, norm_col]
+            if not all(col in patient_metrics.columns for col in required_cols):
+                print(f"Warning: Missing one of required columns {required_cols} for patient {patient_id}. Skipping.")
+                continue
+            # --- End dynamic selection ---
+            
+            # Sort by alpha from largest to smallest (strongest to weakest regularization)
+            # This finds the most parsimonious model (fewest factors) that meets the criteria.
+            patient_metrics.sort_values('alpha', inplace=True, ascending=False)
+            
+            good_enough_point = None
+            for _, row in patient_metrics.iterrows():
+                trivial_acc_threshold = row[trivial_col] + margin
+                if row[mal_col] > trivial_acc_threshold and row[norm_col] > trivial_acc_threshold:
+                    good_enough_point = row
+                    break
+            
+            if good_enough_point is not None:
+                target_alpha = good_enough_point['alpha']
+                
+                # Find the closest alpha in coefficient data
+                try:
+                    # Handle cases where columns might not be in 'alpha_...' format
+                    try:
+                        coef_alphas = np.array([float(col.split('_')[1]) for col in patient_coefs.columns])
+                    except (ValueError, IndexError):
+                        coef_alphas = patient_coefs.columns.astype(float)
+
+                    closest_alpha_idx = (np.abs(coef_alphas - target_alpha)).argmin()
+                    target_col_name = patient_coefs.columns[closest_alpha_idx]
+                    
+                    n_factors = (patient_coefs[target_col_name] != 0).sum()
+                    factors_for_good_accuracy[patient_id] = n_factors
+                except Exception as e:
+                    print(f"Warning: Could not process coefficients for patient {patient_id}. Error: {e}")
+                    factors_for_good_accuracy[patient_id] = np.nan
+            else:
+                print(f"Warning: No point found meeting 'good accuracy' criteria for patient {patient_id}.")
+                factors_for_good_accuracy[patient_id] = np.nan
+
+        # Generate the bar plot
+        if not factors_for_good_accuracy:
+            print("No data to plot.")
+            return
+            
+        fig, ax = plt.subplots(figsize=(max(10, len(patients) * 0.8), 6))
+        
+        factor_series = pd.Series(factors_for_good_accuracy).dropna()
+        
+        if factor_series.empty:
+            print("No patients met the criteria for plotting.")
+            return
+
+        factor_series.plot(kind='bar', ax=ax, color='steelblue', alpha=0.9)
+        
+        ax.set_ylabel("Number of Factors for 'Good' Accuracy", fontsize=12)
+        ax.set_xlabel("Patient ID", fontsize=12)
+        ax.set_title(f"Factors Needed for Good Performance (>{margin*100:.0f}% above Trivial)", fontsize=14)
+        ax.tick_params(axis='x', rotation=45)
+        ax.grid(axis='y', linestyle='--', alpha=0.7)
+        
+        for i, val in enumerate(factor_series.values):
+            ax.text(i, val + 0.5, str(int(val)), ha='center', va='bottom')
+
+        plt.tight_layout()
+        save_path = output_path / "summary_factors_for_good_accuracy.png"
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Saved summary bar plot to {save_path}")
+        plt.close(fig)
+
+    def plot_patient_cluster_w_factor_coefs_at_best_reg_strength(self, experiment_id: str, output_dir: str = None, margin: float = 0.0):
+        """
+        Clusters patients based on their factor coefficients at their optimal regularization strength.
+
+        For each patient, it first identifies the most parsimonious model (strongest regularization)
+        that achieves "good performance". It then extracts the full coefficient vector for that model.
+        Finally, it performs hierarchical clustering on the resulting patient-factor matrix and
+        visualizes the result as a clustered heatmap.
+
+        Args:
+            experiment_id: The ID of the experiment to analyze.
+            output_dir: Custom output directory. Defaults to the experiment's summary_plots dir.
+            margin: An optional margin to add to the trivial accuracy threshold for defining "good performance".
+        """
+        print(f"--- Clustering Patients by Factor Coefficients for Experiment: {experiment_id} ---")
+        exp = self.experiment_manager.load_experiment(experiment_id)
+
+        if output_dir is None:
+            output_path = exp.get_path('summary_plots')
+        else:
+            output_path = Path(output_dir)
+        output_path.mkdir(exist_ok=True, parents=True)
+
+        results = self.extract_classification_results(experiment_id)
+        if 'metrics' not in results or 'coefficients' not in results:
+            print("No classification results found. Cannot generate plot.")
+            return
+
+        all_metrics_df = results['metrics']
+        all_coefficients = results['coefficients']
+
+        optimal_coef_vectors = {}
+        patients = sorted(all_coefficients.keys())
+
+        for patient_id in patients:
+            patient_metrics = all_metrics_df[all_metrics_df['group'] == patient_id].copy()
+            patient_coefs = all_coefficients[patient_id].copy()
+
+            if patient_metrics.empty or patient_coefs.empty:
+                continue
+
+            is_cv_data = 'trivial_accuracy_mean' in patient_metrics.columns
+            trivial_col = 'trivial_accuracy_mean' if is_cv_data else 'trivial_accuracy'
+            mal_col = 'mal_accuracy_mean' if is_cv_data else 'mal_accuracy'
+            norm_col = 'norm_accuracy_mean' if is_cv_data else 'norm_accuracy'
+
+            required_cols = [trivial_col, mal_col, norm_col]
+            if not all(col in patient_metrics.columns for col in required_cols):
+                continue
+
+            patient_metrics.sort_values('alpha', inplace=True, ascending=False)
+
+            good_enough_point = None
+            for _, row in patient_metrics.iterrows():
+                trivial_acc_threshold = row[trivial_col] + margin
+                if row[mal_col] > trivial_acc_threshold and row[norm_col] > trivial_acc_threshold:
+                    good_enough_point = row
+                    break
+            
+            if good_enough_point is not None:
+                target_alpha = good_enough_point['alpha']
+                try:
+                    try:
+                        coef_alphas = np.array([float(col.split('_')[1]) for col in patient_coefs.columns])
+                    except (ValueError, IndexError):
+                        coef_alphas = patient_coefs.columns.astype(float)
+
+                    closest_alpha_idx = (np.abs(coef_alphas - target_alpha)).argmin()
+                    target_col_name = patient_coefs.columns[closest_alpha_idx]
+                    
+                    optimal_coef_vectors[patient_id] = patient_coefs[target_col_name]
+                except Exception as e:
+                    print(f"Warning: Could not process coefficients for patient {patient_id}. Error: {e}")
+            else:
+                 print(f"Warning: No 'good performance' point found for patient {patient_id}. Skipping.")
+
+
+        if not optimal_coef_vectors:
+            print("Could not determine optimal coefficients for any patient. Aborting.")
+            return
+
+        # Create the patient-factor matrix
+        patient_factor_df = pd.DataFrame(optimal_coef_vectors).T.fillna(0)
+        
+        # Remove factors that are zero for all patients to clean up the heatmap
+        patient_factor_df = patient_factor_df.loc[:, (patient_factor_df != 0).any(axis=0)]
+
+        if patient_factor_df.empty:
+            print("No factors with non-zero coefficients found across all patients. Aborting heatmap generation.")
+            return
+
+        # Create the clustermap
+        try:
+            g = sns.clustermap(
+                patient_factor_df,
+                method='ward',      # Clustering method
+                metric='euclidean', # Distance metric
+                cmap='RdBu_r',      # Color map, centered at zero
+                center=0,
+                figsize=(max(15, patient_factor_df.shape[1] * 0.2), 
+                         max(8, patient_factor_df.shape[0] * 0.5)),
+                xticklabels=True,
+                yticklabels=True,
+                cbar_kws={'label': 'Coefficient Value'}
+            )
+            
+            # Use suptitle for a figure-level title to avoid overlap
+            g.fig.suptitle(f"Patient Clustering based on Factor Coefficients\n(at Optimal Regularization, >{margin*100:.0f}% above Trivial)", fontsize=14)
+            
+            g.ax_heatmap.set_xlabel("Factors", fontsize=10)
+            g.ax_heatmap.set_ylabel("Patients", fontsize=10)
+            
+            # Adjust layout to make space for the super title
+            g.fig.tight_layout(rect=[0, 0, 1, 0.96])
+
+            plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90, fontsize=8)
+            plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0, fontsize=8)
+
+            save_path = output_path / "patient_factor_coefficient_clustermap.png"
+            g.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Saved patient clustering heatmap to {save_path}")
+            plt.close()
+
+        except Exception as e:
+            print(f"Error generating clustermap: {e}")
+
+    def visualize_gene_in_factor_space(self, experiment_id: str, genes_of_interest: List[str], output_dir: str = None):
+        """
+        Visualizes how a specific list of genes is represented in the factor space.
+
+        This function performs two main tasks:
+        1. Calculates and prints the communality score for each gene, which indicates how
+           well the gene's variance is explained by the factor model as a whole.
+        2. Generates a heatmap of the factor loadings for the specified genes, showing
+           which specific factors each gene is associated with.
+
+        Args:
+            experiment_id: The ID of the experiment to analyze.
+            genes_of_interest: A list of gene symbols to visualize (e.g., ['PTH2R', 'GNG11']).
+            output_dir: Custom output directory. Defaults to the experiment's unsupervised_dr_analysis dir.
+        """
+        print(f"--- Visualizing Genes in Factor Space for Experiment: {experiment_id} ---")
+        exp = self.experiment_manager.load_experiment(experiment_id)
+
+        if output_dir is None:
+            output_dir = exp.experiment_dir / "analysis" / "unsupervised_dr_analysis"
+        output_dir.mkdir(exist_ok=True, parents=True)
+
+        # Load the transformed adata to get loadings and gene names
+        try:
+            dr_method = exp.config.get('dimension_reduction.method')
+            n_components = exp.config.get('dimension_reduction.n_components')
+            transformed_adata_path = exp.get_path('transformed_data', dr_method=dr_method, n_components=n_components)
+            transformed_adata = sc.read_h5ad(transformed_adata_path)
+
+            if f'{dr_method.upper()}_loadings' not in transformed_adata.varm:
+                print(f"Error: '{dr_method.upper()}_loadings' not found in transformed_adata.varm. Cannot proceed.")
+                return
+
+            loadings = transformed_adata.varm[f'{dr_method.upper()}_loadings']
+            loading_df = pd.DataFrame(loadings, 
+                                      index=transformed_adata.var_names, 
+                                      columns=[f'X_{dr_method}_{i+1}' for i in range(loadings.shape[1])])
+        except (FileNotFoundError, KeyError) as e:
+            print(f"Error loading required data: {e}. Aborting.")
+            return
+
+        # 1. Calculate and report communality
+        print("\n--- Communality Scores ---")
+        communalities = (loading_df ** 2).sum(axis=1)
+        
+        valid_genes = []
+        for gene in genes_of_interest:
+            if gene in communalities.index:
+                print(f"  - {gene}: {communalities[gene]:.4f}")
+                valid_genes.append(gene)
+            else:
+                print(f"  - {gene}: Not found in the model's gene list.")
+        
+        if not valid_genes:
+            print("\nNone of the specified genes were found. Cannot generate heatmap.")
+            return
+
+        # 2. Generate loading heatmap
+        gene_loadings_df = loading_df.loc[valid_genes]
+
+        # Filter out factors where all specified genes have near-zero loadings to make the heatmap cleaner
+        significant_factors = gene_loadings_df.loc[:, (gene_loadings_df.abs() > 0.01).any(axis=0)]
+
+        if significant_factors.empty:
+            print("\nNo factors with significant loadings for the specified genes. Heatmap not generated.")
+            return
+        
+        # Only show annotations if the plot is likely to be readable
+        show_annotations = significant_factors.shape[1] <= 25
+
+        plt.figure(figsize=(max(15, significant_factors.shape[1] * 0.3), 
+                            max(6, significant_factors.shape[0] * 0.5)))
+        
+        sns.heatmap(significant_factors, cmap='coolwarm', center=0, annot=show_annotations, fmt=".2f", linewidths=.5)
+        
+        plt.title(f"Factor Loadings for Genes of Interest", fontsize=16)
+        plt.xlabel("Factors", fontsize=12)
+        plt.ylabel("Genes", fontsize=12)
+        plt.xticks(rotation=90)
+        plt.yticks(rotation=0)
+
+        save_path = output_dir / f"gene_loadings_heatmap_{'_'.join(valid_genes)}.png"
+        plt.tight_layout()
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+
+        print(f"\nSaved gene loading heatmap to: {save_path}")
+
+    def plot_patient_cluster_in_gene_space(self, experiment_id: str, output_dir: str = None, margin: float = 0.0, n_top_genes: int = 100):
+        """
+        Calculates a "predictive loading" for each patient and clusters them in gene space.
+
+        This function first calculates a patient-specific gene signature by taking the dot product
+        of the factor loading matrix (L) and the patient's optimal LASSO coefficient vector (β).
+        It then clusters patients based on these gene-level signatures to find biologically
+        interpretable subgroups.
+
+        Args:
+            experiment_id: The ID of the experiment to analyze.
+            output_dir: Custom output directory. Defaults to the experiment's summary_plots dir.
+            margin: An optional margin to add to the trivial accuracy threshold for defining "good performance".
+            n_top_genes: The number of most variable genes (across patient signatures) to use for the heatmap.
+        """
+        print(f"--- Clustering Patients in Gene Space for Experiment: {experiment_id} ---")
+        exp = self.experiment_manager.load_experiment(experiment_id)
+
+        if output_dir is None:
+            output_path = exp.get_path('summary_plots')
+        else:
+            output_path = Path(output_dir)
+        output_path.mkdir(exist_ok=True, parents=True)
+
+        # 1. Get optimal coefficient vectors (β) for each patient
+        results = self.extract_classification_results(experiment_id)
+        if 'metrics' not in results or 'coefficients' not in results:
+            print("No classification results found. Cannot proceed.")
+            return
+        
+        all_metrics_df = results['metrics']
+        all_coefficients = results['coefficients']
+        optimal_coef_vectors = {}
+        patients = sorted(all_coefficients.keys())
+
+        for patient_id in patients:
+            # This logic is duplicated from the previous function, could be refactored
+            patient_metrics = all_metrics_df[all_metrics_df['group'] == patient_id].copy()
+            patient_coefs = all_coefficients[patient_id].copy()
+            if patient_metrics.empty or patient_coefs.empty: continue
+            is_cv_data = 'trivial_accuracy_mean' in patient_metrics.columns
+            trivial_col, mal_col, norm_col = ('trivial_accuracy_mean', 'mal_accuracy_mean', 'norm_accuracy_mean') if is_cv_data else ('trivial_accuracy', 'mal_accuracy', 'norm_accuracy')
+            if not all(col in patient_metrics.columns for col in [trivial_col, mal_col, norm_col]): continue
+            patient_metrics.sort_values('alpha', inplace=True, ascending=False)
+            good_enough_point = None
+            for _, row in patient_metrics.iterrows():
+                if row[mal_col] > row[trivial_col] + margin and row[norm_col] > row[trivial_col] + margin:
+                    good_enough_point = row
+                    break
+            if good_enough_point is not None:
+                target_alpha = good_enough_point['alpha']
+                try:
+                    coef_alphas = patient_coefs.columns.astype(float)
+                except ValueError:
+                    coef_alphas = np.array([float(c.split('_')[1]) for c in patient_coefs.columns])
+                closest_alpha_idx = (np.abs(coef_alphas - target_alpha)).argmin()
+                optimal_coef_vectors[patient_id] = patient_coefs.iloc[:, closest_alpha_idx]
+
+        if not optimal_coef_vectors:
+            print("Could not determine optimal coefficients for any patient. Aborting.")
+            return
+        patient_factor_df = pd.DataFrame(optimal_coef_vectors).T.fillna(0)
+
+        # 2. Get Factor Loading matrix (L)
+        try:
+            dr_method = exp.config.get('dimension_reduction.method')
+            n_components = exp.config.get('dimension_reduction.n_components')
+            transformed_adata = sc.read_h5ad(exp.get_path('transformed_data', dr_method=dr_method, n_components=n_components))
+            loadings = transformed_adata.varm[f'{dr_method.upper()}_loadings']
+            loading_df = pd.DataFrame(loadings, index=transformed_adata.var_names)
+        except (FileNotFoundError, KeyError) as e:
+            print(f"Error loading factor loadings: {e}. Aborting.")
+            return
+
+        # 3. Calculate patient-specific gene signatures (S = L @ β.T)
+        # Ensure factor orders match between loadings and coefficients
+        patient_factor_df.columns = loading_df.columns # Ensure column names match for dot product
+        predictive_loadings = patient_factor_df @ loading_df.T
+        
+        # 4. Select top variable genes for visualization
+        gene_variance = predictive_loadings.var(axis=0)
+        top_genes = gene_variance.nlargest(n_top_genes).index
+        plot_df = predictive_loadings[top_genes]
+
+        # 5. Generate clustermap
+        print(f"Clustering patients based on the top {n_top_genes} most variable signature genes.")
+        g = sns.clustermap(
+            plot_df,
+            method='ward', metric='euclidean',
+            cmap='viridis', z_score=0, # z_score along rows (genes) to see pattern, not magnitude
+            figsize=(max(15, plot_df.shape[1] * 0.15), 
+                     max(8, plot_df.shape[0] * 0.5)),
+            xticklabels=True, yticklabels=True
+        )
+
+        g.fig.suptitle(f"Patient Clustering in Gene Space\n(Top {n_top_genes} Genes)", fontsize=16)
+        g.ax_heatmap.set_xlabel("Genes", fontsize=10)
+        g.ax_heatmap.set_ylabel("Patients", fontsize=10)
+        g.fig.tight_layout(rect=[0, 0, 1, 0.95])
+        
+        save_path = output_path / "patient_gene_space_clustermap.png"
+        g.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Saved gene-space clustering heatmap to: {save_path}")
+        plt.close()
+
+    def analyze_factor_similarity(self, experiment_id: str, top_n_genes: int = 50, output_dir: str = None):
+        """
+        Analyzes the similarity between factors in a model using two methods:
+        1.  Factor-Factor Correlation: Calculates the Pearson correlation between factor loading vectors.
+        2.  Top Gene Overlap: Calculates the Jaccard similarity of the top N genes for each factor.
+
+        This helps identify redundant factors or groups of factors representing similar biological programs.
+
+        Args:
+            experiment_id: The ID of the experiment to analyze.
+            top_n_genes: The number of top genes (by absolute loading) to use for the overlap calculation.
+            output_dir: Custom output directory. Defaults to the experiment's unsupervised_dr_analysis dir.
+        """
+        print(f"--- Analyzing Factor Similarity for Experiment: {experiment_id} ---")
+        exp = self.experiment_manager.load_experiment(experiment_id)
+
+        if output_dir is None:
+            output_path = exp.experiment_dir / "analysis" / "unsupervised_dr_analysis"
+        else:
+            output_path = Path(output_dir)
+        output_path.mkdir(exist_ok=True, parents=True)
+
+        # 1. Load Factor Loading matrix (L)
+        try:
+            dr_method = exp.config.get('dimension_reduction.method')
+            n_components = exp.config.get('dimension_reduction.n_components')
+            transformed_adata = sc.read_h5ad(exp.get_path('transformed_data', dr_method=dr_method, n_components=n_components))
+            loadings = transformed_adata.varm[f'{dr_method.upper()}_loadings']
+            loading_df = pd.DataFrame(loadings, 
+                                      index=transformed_adata.var_names, 
+                                      columns=[f'X_{dr_method}_{i+1}' for i in range(loadings.shape[1])])
+        except (FileNotFoundError, KeyError) as e:
+            print(f"Error loading factor loadings: {e}. Aborting.")
+            return
+
+        # 2. Method 1: Factor-Factor Correlation
+        print("  Calculating factor-factor correlation...")
+        factor_corr = loading_df.corr(method='pearson')
+
+        g_corr = sns.clustermap(
+            factor_corr,
+            cmap='vlag', # A diverging colormap is good for correlations
+            center=0,
+            figsize=(14, 12)
+        )
+        g_corr.fig.suptitle('Factor-Factor Correlation based on Gene Loadings', fontsize=16)
+        g_corr.ax_heatmap.set_xlabel("Factors")
+        g_corr.ax_heatmap.set_ylabel("Factors")
+        g_corr.fig.tight_layout(rect=[0, 0, 1, 0.95])
+        
+        corr_save_path = output_path / "factor_loading_correlation_heatmap.png"
+        g_corr.savefig(corr_save_path, dpi=300)
+        print(f"  Saved factor correlation heatmap to: {corr_save_path}")
+        plt.close()
+
+        # 3. Method 2: Top Gene Overlap
+        print(f"  Calculating top {top_n_genes} gene overlap (Jaccard Index)...")
+        top_genes_per_factor = {}
+        for factor in loading_df.columns:
+            top_genes = loading_df[factor].abs().nlargest(top_n_genes).index
+            top_genes_per_factor[factor] = set(top_genes)
+
+        overlap_matrix = pd.DataFrame(index=loading_df.columns, columns=loading_df.columns, dtype=float)
+        for factor1 in loading_df.columns:
+            for factor2 in loading_df.columns:
+                set1 = top_genes_per_factor[factor1]
+                set2 = top_genes_per_factor[factor2]
+                jaccard_index = len(set1.intersection(set2)) / len(set1.union(set2))
+                overlap_matrix.loc[factor1, factor2] = jaccard_index
+                
+        g_overlap = sns.clustermap(
+            overlap_matrix,
+            cmap='viridis',
+            figsize=(14, 12)
+        )
+        g_overlap.fig.suptitle(f'Factor Similarity based on Top {top_n_genes} Gene Overlap (Jaccard Index)', fontsize=16)
+        g_overlap.ax_heatmap.set_xlabel("Factors")
+        g_overlap.ax_heatmap.set_ylabel("Factors")
+        g_overlap.fig.tight_layout(rect=[0, 0, 1, 0.95])
+        
+        overlap_save_path = output_path / "factor_top_gene_overlap_heatmap.png"
+        g_overlap.savefig(overlap_save_path, dpi=300)
+        print(f"  Saved gene overlap heatmap to: {overlap_save_path}")
+        plt.close()
+
+    def generate_fa_diagnostic_plots(self, experiment_id: str):
+        """
+        Generates and saves diagnostic plots specific to a Factor Analysis model.
+        """
+        print("--- Generating FA-specific diagnostic plots ---")
+        exp = self.experiment_manager.load_experiment(experiment_id)
+        if exp.config.get('dimension_reduction.method') != 'fa':
+            print("  Skipping: Experiment is not a Factor Analysis run.")
+            return
+
+        output_dir = exp.experiment_dir / "analysis" / "dimension_reduction_diagnostics"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Load data
+        dr_method = exp.config.get('dimension_reduction.method')
+        n_components = exp.config.get('dimension_reduction.n_components')
+        adata_path = exp.get_path('transformed_data', dr_method=dr_method, n_components=n_components)
+        if not adata_path.exists():
+            print(f"  Could not find transformed data at {adata_path}")
+            return
+            
+        adata = sc.read_h5ad(adata_path)
+
+        # Plot SS Loadings
+        ss_loadings = adata.uns.get('fa', {}).get('ss_loadings_per_factor')
+        if ss_loadings is not None:
+            plt.figure(figsize=(10, 6))
+            plt.bar(range(len(ss_loadings)), ss_loadings)
+            plt.title(f"SS Loadings per Factor\n({exp.config.experiment_id})")
+            plt.xlabel("Factor Index")
+            plt.ylabel("SS Loadings")
+            save_path = output_dir / "ss_loadings_per_factor.png"
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            print(f"  Saved SS Loadings plot to {save_path}")
+        else:
+            print("  Could not find 'ss_loadings_per_factor' in AnnData .uns field.")
+
+        # Plot Communality
+        if 'communality' in adata.var.columns:
+            plt.figure(figsize=(10, 6))
+            sns.histplot(adata.var['communality'], bins=50, kde=True)
+            plt.title(f"Gene Communality Distribution\n({exp.config.experiment_id})")
+            plt.xlabel("Gene Communality")
+            plt.ylabel("Density")
+            save_path = output_dir / "gene_communality_distribution.png"
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            print(f"  Saved Gene Communality plot to {save_path}")
+        else:
+            print("  Could not find 'communality' in AnnData .var field.")
+
+    def run_predictive_loading_gsea(self, experiment_id: str, patient_reg_strength_indices: dict, 
+                                    gene_sets_path: str = '/home/minhang/mds_project/data/cohort_adata/gene_sets/h.all.v2024.1.Hs.symbols.gmt'):
+        """
+        For each patient and specified regularization strength, calculates the "predictive loadings"
+        and runs GSEA to find enriched pathways driving the classification.
+        """
+        print(f"--- Running Predictive Loading GSEA for Experiment: {experiment_id} ---")
+        exp = self.experiment_manager.load_experiment(experiment_id)
+        
+        # Load the base data needed for all patients
+        dr_method = exp.config.get('dimension_reduction.method')
+        n_components = exp.config.get('dimension_reduction.n_components')
+        adata_transformed = sc.read_h5ad(exp.get_path('transformed_data', dr_method=dr_method, n_components=n_components))
+        factor_loadings = pd.DataFrame(adata_transformed.varm['FA_loadings'], 
+                                       index=adata_transformed.var_names, 
+                                       columns=[f'X_fa_{i+1}' for i in range(n_components)])
+
+        for patient_id, indices in patient_reg_strength_indices.items():
+            print(f"\n  Processing Patient: {patient_id}")
+            
+            # Load patient-specific coefficients
+            try:
+                coef_df = pd.read_csv(exp.get_path('patient_coefficients', patient_id=patient_id), index_col=0)
+            except FileNotFoundError:
+                print(f"    WARNING: Coefficient file not found for patient {patient_id}. Skipping.")
+                continue
+
+            for alpha_idx in indices:
+                # 0-based index for DataFrame access
+                alpha_idx_0based = alpha_idx - 1 
+                if alpha_idx_0based >= len(coef_df.columns):
+                    print(f"    WARNING: Alpha index {alpha_idx} is out of bounds for patient {patient_id}. Skipping.")
+                    continue
+                
+                col_name = coef_df.columns[alpha_idx_0based]
+                print(f"    Running GSEA for alpha index {alpha_idx} ({col_name})...")
+
+                # Get the coefficient vector for this alpha
+                factor_coefficients = coef_df.iloc[:, alpha_idx_0based]
+                
+                # Calculate predictive loadings: (gene x factor) @ (factor x 1) -> (gene x 1)
+                predictive_loadings = factor_loadings.dot(factor_coefficients)
+                
+                # Rank genes by their predictive loading score
+                ranked_genes = predictive_loadings.sort_values(ascending=False).dropna()
+
+                # Define output directory
+                output_dir = exp.experiment_dir / "analysis" / "predictive_loading_gsea" / patient_id / f"alpha_idx_{alpha_idx}"
+                output_dir.mkdir(parents=True, exist_ok=True)
+                
+                try:
+                    # Run GSEA Prerank
+                    prerank_res = gseapy.prerank(
+                        rnk=ranked_genes, gene_sets=gene_sets_path, outdir=str(output_dir),
+                        min_size=5, max_size=1000, seed=42, no_plot=True
+                    )
+                    
+                    # Generate and save the summary barplot
+                    results_csv_path = output_dir / "gseapy.gene_set.prerank.report.csv"
+                    plot_title = f"Predictive Loading GSEA - {patient_id} @ alpha_idx {alpha_idx}"
+                    plot_path = output_dir / "GSEA_summary_barplot.png"
+                    self._plot_gsea_results(results_csv_path, plot_title, gene_sets_path, plot_path)
+                    print(f"      GSEA results saved to: {output_dir}")
+
+                except Exception as e:
+                    print(f"      ERROR running GSEA for {patient_id} at index {alpha_idx}: {e}")
+
+    def plot_roc_auc_vs_alpha(self, metrics_df: pd.DataFrame, ax, group_name: str, plot_std: bool = False):
+        """Plots ROC AUC vs. Alpha on a given matplotlib axis."""
+        ax.plot(metrics_df['alpha'], metrics_df['roc_auc'], 'o-', label=group_name)
+        if plot_std and 'roc_auc_std' in metrics_df.columns:
+            ax.fill_between(
+                metrics_df['alpha'],
+                metrics_df['roc_auc'] - metrics_df['roc_auc_std'],
+                metrics_df['roc_auc'] + metrics_df['roc_auc_std'],
+                alpha=0.2
+            )
+        ax.set_xscale('log')
+        ax.set_xlabel("Alpha (Regularization Strength)")
+        ax.set_ylabel("ROC AUC")
+        ax.set_title("Performance vs. Regularization")
+        ax.grid(True)
+
+    def plot_coefficient_paths(self, coef_df: pd.DataFrame, alphas: pd.Series, ax):
+        """Plots coefficient paths on a given matplotlib axis."""
+        for factor_idx, row in coef_df.iterrows():
+            ax.plot(alphas, row.values, label=factor_idx if coef_df.shape[0] < 20 else None)
+        ax.set_xscale('log')
+        ax.set_xlabel("Alpha (Regularization Strength)")
+        ax.set_ylabel("Coefficient Value")
+        ax.set_title("Factor Coefficients vs. Regularization")
+        if coef_df.shape[0] < 20:
+            ax.legend(title="Factor", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    def plot_patient_lasso_metrics(self, experiment_id: str, patient_id_for_filtering: str, 
+                                   metrics_file_override: Optional[str] = None):
+        """
+        Generates and saves a 2-panel plot for a single patient (or patient group) showing
+        the relationship between regularization strength (alpha) and classification metrics.
+        """
+        exp = self.experiment_manager.load_experiment(experiment_id)
+        
+        # --- REFACTOR: Allow overriding the metrics file path ---
+        if metrics_file_override:
+            metrics_path = Path(metrics_file_override)
+            patient_id_for_filtering = 'all_patients' # Ensure we filter for the correct group name
+        else:
+            metrics_path = exp.get_path('patient_metrics', patient_id=patient_id_for_filtering)
+
+        output_dir = exp.get_path('summary_plots')
+        output_dir.mkdir(exist_ok=True, parents=True)
+
+        try:
+            metrics_df_full = pd.read_csv(metrics_path)
+            coef_df = pd.read_csv(exp.get_path('patient_coefficients', patient_id=patient_id_for_filtering), index_col=0)
+        except FileNotFoundError:
+            print(f"  Could not find metrics or coefficients for patient {patient_id_for_filtering}. Skipping.")
+            return
+
+        # Filter metrics for the specific patient/group if the file contains multiple
+        metrics_df = metrics_df_full[metrics_df_full['group'] == patient_id_for_filtering].copy()
+
+        if metrics_df.empty:
+            print(f"No metrics found for patient_id_for_filtering (group) '{patient_id_for_filtering}'")
+            return
+
+        # Determine if this is a CV run to plot error bars
+        plot_std = 'roc_auc_std' in metrics_df.columns
+
+        # --- REVERT TO STACKED PLOT LAYOUT ---
+        fig, axes = plt.subplots(2, 1, figsize=(16, 12)) # 2 rows, 1 column
+        title_group = 'Pan-Patient (Aggregated)' if metrics_file_override else f'Patient: {patient_id_for_filtering}'
+        fig.suptitle(f"{title_group}\nExperiment: {experiment_id}", fontsize=16)
+
+        # --- Top Panel: Metrics vs. Regularization ---
+        self.plot_roc_auc_vs_alpha(metrics_df, ax=axes[0], group_name=patient_id_for_filtering, plot_std=plot_std)
+        # Add secondary y-axis for feature survival
+        ax2 = axes[0].twinx()
+        survival_series = 100 * (coef_df != 0).sum(axis=0) / len(coef_df)
+        ax2.plot(metrics_df['alpha'], survival_series, 'o-', color='purple', label='Surviving Features (%)')
+        ax2.set_ylabel('Surviving Features (%)')
+        ax2.legend(loc='center right')
+        axes[0].legend(loc='center left')
+
+        # --- Bottom Panel: Top-10 Factor Coefficient Paths ---
+        # Identify top 10 factors by max absolute coefficient value
+        top_10_factors = coef_df.abs().max(axis=1).nlargest(10).index
+        coef_df_top10 = coef_df.loc[top_10_factors]
+        self.plot_coefficient_paths(coef_df_top10, metrics_df['alpha'], ax=axes[1])
+        axes[1].set_title("Top-10 Factor Coefficient Paths")
+
+
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+        
+        save_name = 'pan_patient_aggregated' if metrics_file_override else f'patient_{patient_id_for_filtering}'
+        save_path = output_dir / f"{save_name}_metrics_and_coefficients.png"
+        plt.savefig(save_path, dpi=300)
+        plt.close(fig)
+        print(f"  Saved plot to {save_path}")
+
+    def find_best_tradeoff_alpha(self, patient_metrics_df: pd.DataFrame, patient_coefficients_df: pd.DataFrame, performance_metric: str = 'roc_auc') -> float:
+        """
+        (New, more robust version)
+        Finds the optimal alpha by maximizing the difference between performance and the fraction of surviving features.
+
+        This algorithm calculates a simple score for each regularization strength:
+        Trade-off Score = (Performance Score) - (Fraction of Surviving Features)
+        
+        It joins metrics and coefficients on the actual 'alpha' values, rounding to
+        handle floating-point precision issues, making it robust to data ordering.
+        """
+        perf_col = performance_metric
+
+        if perf_col not in patient_metrics_df.columns:
+            raise KeyError(f"Performance column '{perf_col}' not found. Available: {patient_metrics_df.columns.tolist()}")
+
+        # --- 1. Calculate Sparsity from Coefficients ---
+        n_total_features = patient_coefficients_df.shape[0]
+        n_nonzero_coefs = (patient_coefficients_df != 0).sum(axis=0)
+        surviving_pct = (n_nonzero_coefs / n_total_features) * 100.0
+        
+        # Robustly extract alpha values from column names
+        try:
+            coef_alphas = np.array([float(c.split('_')[1]) for c in patient_coefficients_df.columns])
+        except (ValueError, IndexError):
+            coef_alphas = patient_coefficients_df.columns.astype(float)
+
+        sparsity_df = pd.DataFrame({
+            'alpha': coef_alphas,
+            'surviving_features_pct': surviving_pct.values
+        })
+
+        # --- 2. Merge on Alpha using a nearest-value approach for robustness ---
+        # Sort both dataframes by alpha to enable efficient merging
+        metrics_sorted = patient_metrics_df.sort_values('alpha').reset_index()
+        sparsity_sorted = sparsity_df.sort_values('alpha').reset_index()
+
+        # `merge_asof` is ideal for joining ordered data with near-matching keys
+        merged_df = pd.merge_asof(
+            metrics_sorted,
+            sparsity_sorted,
+            on='alpha',
+            direction='nearest', # Finds the closest alpha in sparsity_df for each alpha in metrics_df
+            suffixes=('_metrics', '_coefs')
+        )
+
+        if merged_df.empty:
+            raise ValueError("Could not merge performance and sparsity data.")
+
+        # --- Filter out trivial models with zero features ---
+        non_trivial_df = merged_df[merged_df['surviving_features_pct'] > 0].copy()
+
+        if non_trivial_df.empty:
+            raise ValueError("All regularization strengths resulted in a model with zero features.")
+
+        # --- Prioritize models that have performed some feature selection ---
+        regularized_df = non_trivial_df[non_trivial_df['surviving_features_pct'] < 100].copy()
+        
+        df_to_score = regularized_df if not regularized_df.empty else non_trivial_df
+        # --- DEBUG: Print the dataframe before scoring ---
+        # print("\n--- Debugging Dataframe ---")
+        # print(df_to_score[['alpha', perf_col, 'surviving_features_pct']].to_string())
+        # print("---------------------------\n")
+        # ---------------------------------------------
+        
+        # --- 3. Calculate the Trade-off Score (Performance - Cost) ---
+        perf_score = df_to_score[perf_col]
+        feature_cost = df_to_score['surviving_features_pct'] / 100.0
+        df_to_score['tradeoff_score'] = perf_score - feature_cost
+        print(f'{df_to_score["tradeoff_score"].max()} is the trade-off score of the best point')
+        # --- 4. Find the Alpha with the Maximum Score ---
+        best_point = df_to_score.loc[df_to_score['tradeoff_score'].idxmax()]
+        
+        # Return the original alpha value from the metrics dataframe
+        return best_point['alpha']
+
+    def _parse_gsea_results(self, exp, patient_id, alpha_idx, fdr_threshold=0.01):
+        """
+        Parses a GSEA result file and returns a set of significant pathways.
+        """
+        try:
+            exp_dir = exp.experiment_dir
+            gsea_path = exp_dir / "analysis" / "supervised_gsea" / patient_id / f"alpha_idx_{alpha_idx}" / "gseapy.gene_set.prerank.report.csv"
+
+            if not gsea_path.exists():
+                return set()
+
+            gsea_df = pd.read_csv(gsea_path)
+            
+            if 'FDR q-val' not in gsea_df.columns or 'Term' not in gsea_df.columns:
+                return set()
+
+            # Convert to numeric, coercing errors to NaN
+            numeric_fdr = pd.to_numeric(gsea_df['FDR q-val'], errors='coerce')
+            
+            significant_pathways = gsea_df[numeric_fdr < fdr_threshold]
+            
+            return set(significant_pathways['Term'])
+
+        except Exception:
+            # This is a silent failure, which is acceptable for this analysis function
+            return set()
+
+    def analyze_gsea_stability(self, experiment_id, patient_reg_strength_indices):
+        """
+        Quantifies the stability of top GSEA pathways across varying regularization strengths.
+
+        Args:
+            experiment_id (str): The ID of the experiment.
+            patient_reg_strength_indices (dict): A dictionary where keys are patient IDs
+                                                 and values are lists of alpha indices to analyze.
+
+        Returns:
+            dict: A dictionary containing stability analysis results for each patient.
+                  Each patient's entry contains:
+                  - 'jaccard_scores' (dict): Jaccard similarity scores between consecutive alpha indices.
+                  - 'overlap_fractions' (dict): Overlap fractions between consecutive alpha indices.
+                  - 'all_pathways_union' (set): The union of all significant pathways across all indices.
+                  - 'pathway_stability' (pd.Series): The fraction of times each pathway appeared as significant.
+        """
+        print(f"--- Starting GSEA Stability Analysis for Experiment: {experiment_id} ---")
+        
+        # Load the experiment object once to avoid redundant loads and print statements
+        try:
+            exp = self.experiment_manager.load_experiment(experiment_id)
+        except Exception as e:
+            print(f"  ERROR: Could not load experiment {experiment_id}. Aborting analysis. Details: {e}")
+            return {}
+
+        stability_results = {}
+
+        for patient_id, alpha_indices in patient_reg_strength_indices.items():
+            print(f"\nAnalyzing patient: {patient_id}")
+            
+            # --- 1. Collect Significant Pathways for Each Alpha ---
+            pathway_sets = {}
+            for idx in sorted(alpha_indices):
+                pathway_sets[idx] = self._parse_gsea_results(exp, patient_id, idx)
+
+            # --- 2. Quantify Stability Between Consecutive Strengths ---
+            jaccard_scores = {}
+            overlap_fractions = {}
+            sorted_indices = sorted(alpha_indices)
+
+            for i in range(len(sorted_indices) - 1):
+                idx1 = sorted_indices[i]
+                idx2 = sorted_indices[i+1]
+                
+                set1 = pathway_sets[idx1]
+                set2 = pathway_sets[idx2]
+
+                intersection_size = len(set1.intersection(set2))
+                union_size = len(set1.union(set2))
+                
+                # Jaccard Similarity
+                if union_size == 0:
+                    jaccard = 1.0 if not set1 and not set2 else 0.0
+                else:
+                    jaccard = intersection_size / union_size
+                jaccard_scores[f'{idx1}_vs_{idx2}'] = jaccard
+                
+                # Overlap Fraction (relative to the smaller set)
+                min_set_size = min(len(set1), len(set2))
+                if min_set_size == 0:
+                    overlap = 1.0 if not set1 and not set2 else 0.0
+                else:
+                    overlap = intersection_size / min_set_size
+                overlap_fractions[f'{idx1}_vs_{idx2}'] = overlap
+
+            # --- 3. Overall Pathway Stability (Voting Scheme) ---
+            all_pathways_list = [pathway for idx in sorted_indices for pathway in pathway_sets[idx]]
+            
+            if not all_pathways_list:
+                print(f"  No significant pathways found for patient {patient_id} across any alpha.")
+                pathway_stability_series = pd.Series(dtype=float)
+                all_pathways_union = set()
+            else:
+                pathway_counts = pd.Series(all_pathways_list).value_counts()
+                pathway_stability_series = pathway_counts / len(sorted_indices)
+                all_pathways_union = set(all_pathways_list)
+
+            # --- 4. Store Results ---
+            stability_results[patient_id] = {
+                'jaccard_scores': jaccard_scores,
+                'overlap_fractions': overlap_fractions,
+                'all_pathways_union': all_pathways_union,
+                'pathway_stability': pathway_stability_series.sort_values(ascending=False)
+            }
+            
+            # Print summary for the patient
+            print(f"  - Found {len(all_pathways_union)} unique significant pathways across {len(sorted_indices)} regularization strengths.")
+            if jaccard_scores:
+                avg_jaccard = np.mean(list(jaccard_scores.values()))
+                print(f"  - Average Jaccard similarity between consecutive strengths: {avg_jaccard:.3f}")
+            if pathway_stability_series.any():
+                top_5_stable = pathway_stability_series.head(5)
+                print("  - Top 5 most stable pathways:")
+                for term, stability in top_5_stable.items():
+                    print(f"    - {term} (appeared in {stability:.2%} of runs)")
+
+        print("\n--- GSEA Stability Analysis Complete ---")
+        return stability_results
+
+    def calculate_cell_type_activity_score(
+        self, 
+        adata: AnnData, 
+        factors: list, 
+        cell_type_col: str = 'predicted.annotation'
+    ) -> pd.DataFrame:
+        """
+        Calculates the mean activity score for specified factors across different cell types.
+
+        Args:
+            adata: An AnnData object containing factor scores in .obs and cell types in .obs.
+            factors: A list of factor names to analyze (e.g., ['X_fa_36', 'X_fa_46']).
+            cell_type_col: The name of the .obs column containing cell type annotations.
+
+        Returns:
+            A pandas DataFrame where rows are cell types, columns are factors,
+            and values are the mean activity scores.
+        """
+        if cell_type_col not in adata.obs.columns:
+            raise KeyError(f"Cell type column '{cell_type_col}' not found in adata.obs.")
+        
+        # Factor scores are in adata.obsm['X_fa']. We need to construct a temporary DataFrame.
+        # The factor names in the `factors` list (e.g., 'X_fa_36') need to be mapped to column indices.
+        try:
+            factor_indices = [int(f.split('_')[-1]) for f in factors]
+        except (ValueError, IndexError):
+            raise ValueError(f"Could not parse factor indices from factor names: {factors}. Expected format 'X_fa_N'.")
+
+        if 'X_fa' not in adata.obsm:
+            raise KeyError("Factor scores 'X_fa' not found in adata.obsm.")
+            
+        # Create a DataFrame for the factor scores
+        fa_scores_df = pd.DataFrame(adata.obsm['X_fa'][:, factor_indices], index=adata.obs.index, columns=factors)
+        
+        # Combine with cell type information
+        data_to_agg = pd.concat([adata.obs[[cell_type_col]], fa_scores_df], axis=1)
+        
+        # Calculate the mean score for each factor, grouped by cell type
+        activity_scores = data_to_agg.groupby(cell_type_col).mean()
+        
+        return activity_scores
+
+    def calculate_cell_type_activity_score_grouped(self, adata: anndata.AnnData, factors: list, cell_type_col: str, grouping_col: str) -> tuple[dict, dict]:
+        """
+        Calculates the mean factor activity score, grouped by cell type and another category (e.g., malignancy).
+
+        Args:
+            adata: Transformed AnnData object with factor scores in .obsm['X_fa'].
+            factors: List of factor names to analyze.
+            cell_type_col: The column in adata.obs to use for cell type labels.
+            grouping_col: The column in adata.obs to use for the primary grouping (e.g., 'CN.label').
+
+        Returns:
+            A tuple containing two dictionaries:
+            - scores_by_group: {group: DataFrame_of_scores}
+            - counts_by_group: {group: Series_of_counts}
+        """
+        if cell_type_col not in adata.obs.columns:
+            raise KeyError(f"Cell type column '{cell_type_col}' not found in adata.obs.")
+        if grouping_col not in adata.obs.columns:
+            raise KeyError(f"Grouping column '{grouping_col}' not found in adata.obs.")
+
+        factor_indices = [int(f.split('_')[-1]) for f in factors]
+        fa_scores_df = pd.DataFrame(adata.obsm['X_fa'][:, factor_indices], index=adata.obs.index, columns=factors)
+        
+        data_to_agg = pd.concat([adata.obs[[cell_type_col, grouping_col]], fa_scores_df], axis=1)
+        
+        scores_by_group = {}
+        counts_by_group = {}
+        
+        all_cell_types = adata.obs[cell_type_col].unique()
+
+        for group_name, group_df in data_to_agg.groupby(grouping_col):
+            # Calculate mean scores
+            mean_scores = group_df.groupby(cell_type_col)[factors].mean().reindex(all_cell_types)
+            scores_by_group[group_name] = mean_scores
+            
+            # Calculate cell counts
+            counts = group_df[cell_type_col].value_counts().reindex(all_cell_types, fill_value=0)
+            counts_by_group[group_name] = counts
+            
+        return scores_by_group, counts_by_group
+
+    def analyze_unsupervised_gsea_overlap(self, experiment_id: str, factors: list, pathway_name: str) -> dict:
+        """
+        Analyzes GSEA results from unsupervised factor loadings to find leading-edge genes for a specific pathway and computes their overlap.
+
+        Args:
+            experiment_id: The ID of the experiment to analyze.
+            factors: A list of factor names (e.g., ['X_fa_36', 'X_fa_46']).
+            pathway_name: The exact name of the pathway to look for in the GSEA reports.
+
+        Returns:
+            A dictionary where keys are factor names and values are the sets of leading-edge genes for the specified pathway.
+        """
+        exp = self.experiment_manager.load_experiment(experiment_id)
+        exp_path = exp.experiment_dir
+        gsea_base_path = exp_path / "analysis" / "factor_interpretation" / "gsea_on_factors_original"
+        
+        leading_edge_genes = {}
+        
+        print(f"--- Analyzing GSEA results for pathway: '{pathway_name}' ---")
+        print(f"Source directory: {gsea_base_path}")
+
+        for factor in factors:
+            gsea_report_path = gsea_base_path / factor / "gseapy.gene_set.prerank.report.csv"
+            
+            if not gsea_report_path.exists():
+                print(f"  - WARNING: GSEA report not found for {factor} at {gsea_report_path}")
+                leading_edge_genes[factor] = set()
+                continue
+            
+            try:
+                gsea_df = pd.read_csv(gsea_report_path)
+                pathway_row = gsea_df[gsea_df['Term'] == pathway_name]
+                
+                if pathway_row.empty:
+                    print(f"  - INFO: Pathway '{pathway_name}' not found or not significant in {factor}.")
+                    leading_edge_genes[factor] = set()
+                    continue
+                
+                # The column name is 'Lead_genes' based on your provided `head` output
+                genes_str = pathway_row.iloc[0]['Lead_genes']
+                if isinstance(genes_str, str) and genes_str:
+                    genes = set(genes_str.split(';'))
+                    leading_edge_genes[factor] = genes
+                    print(f"  - Found {len(genes)} leading-edge genes for {factor}.")
+                else:
+                    leading_edge_genes[factor] = set()
+
+            except Exception as e:
+                print(f"  - ERROR: Could not process file for {factor}. Reason: {e}")
+                leading_edge_genes[factor] = set()
+
+        return leading_edge_genes
+
+    def analyze_unsupervised_gsea_overlap_signed(self, experiment_id: str, factors: list, pathway_name: str) -> tuple[dict, dict]:
+        """
+        Analyzes GSEA results to find leading-edge genes, separated by positive or negative enrichment.
+
+        Args:
+            experiment_id: The ID of the experiment.
+            factors: A list of factor names.
+            pathway_name: The name of the pathway to analyze.
+
+        Returns:
+            A tuple containing two dictionaries:
+            - positive_genes: {factor: {genes}} for pathways with positive NES.
+            - negative_genes: {factor: {genes}} for pathways with negative NES.
+        """
+        exp = self.experiment_manager.load_experiment(experiment_id)
+        gsea_base_path = exp.experiment_dir / "analysis" / "factor_interpretation" / "gsea_on_factors_original"
+        
+        positive_genes = {}
+        negative_genes = {}
+        
+        print(f"--- Analyzing Signed GSEA results for pathway: '{pathway_name}' ---")
+        print(f"Source directory: {gsea_base_path}")
+
+        for factor in factors:
+            gsea_report_path = gsea_base_path / factor / "gseapy.gene_set.prerank.report.csv"
+            
+            positive_genes[factor] = set()
+            negative_genes[factor] = set()
+
+            if not gsea_report_path.exists():
+                print(f"  - WARNING: GSEA report not found for {factor} at {gsea_report_path}")
+                continue
+            
+            try:
+                gsea_df = pd.read_csv(gsea_report_path)
+                pathway_row = gsea_df[gsea_df['Term'] == pathway_name]
+                
+                if pathway_row.empty:
+                    print(f"  - INFO: Pathway '{pathway_name}' not found in {factor}.")
+                    continue
+                
+                nes_score = pathway_row.iloc[0]['NES']
+                genes_str = pathway_row.iloc[0]['Lead_genes']
+                
+                if isinstance(genes_str, str) and genes_str:
+                    genes = set(genes_str.split(';'))
+                    if nes_score > 0:
+                        positive_genes[factor] = genes
+                        print(f"  - Found {len(genes)} positively associated genes for {factor} (NES: {nes_score:.2f}).")
+                    else:
+                        negative_genes[factor] = genes
+                        print(f"  - Found {len(genes)} negatively associated genes for {factor} (NES: {nes_score:.2f}).")
+
+            except Exception as e:
+                print(f"  - ERROR: Could not process file for {factor}. Reason: {e}")
+
+        return positive_genes, negative_genes
+
+    def calculate_factor_separation_scores(self, experiment_id: str) -> pd.DataFrame:
+        """
+        Calculates the distinguishing power of each factor for separating malignant vs. healthy cells
+        on a per-patient basis.
+
+        The distinguishing power is measured as a signed AUC-ROC score: 2 * (AUC - 0.5).
+        - A score of +1 means the factor perfectly separates cells, with high values indicating malignancy.
+        - A score of -1 means perfect separation, with high values indicating health.
+        - A score of 0 means the factor has no distinguishing power.
+
+        Args:
+            experiment_id: The ID of the experiment to analyze.
+
+        Returns:
+            A pandas DataFrame where rows are patients, columns are factors, and values
+            are the signed AUC-ROC separation scores.
+        """
+        self.logger.info(f"--- Calculating Factor Separation Scores for Experiment: {experiment_id} ---")
+        exp = self.experiment_manager.load_experiment(experiment_id)
+
+        # Path to the data after dimension reduction
+        dr_method = exp.config.get('dimension_reduction.method', 'fa')
+        n_components = exp.config.get('dimension_reduction.n_components', 100)
+        adata_path = exp.get_path(
+            'transformed_data',
+            dr_method=dr_method,
+            n_components=n_components
+        )
+        if not adata_path.exists():
+            self.logger.error(f"Could not find transformed_data.h5ad for experiment {experiment_id} at {adata_path}.")
+            return pd.DataFrame()
+
+        adata = sc.read_h5ad(adata_path)
+
+        patient_col = exp.config.get('classification.patient_column', 'patient')
+        target_col = exp.config.get('preprocessing.target_column', 'CN.label')
+        positive_class = exp.config.get('preprocessing.positive_class', 'cancer')
+
+        patients = sorted(adata.obs[patient_col].unique())
+        n_factors = adata.obsm['X_fa'].shape[1]
+        factor_names = [f'fa_{i+1}' for i in range(n_factors)]
+        
+        all_scores = {}
+
+        for patient_id in patients:
+            self.logger.info(f"  Processing patient: {patient_id}")
+            adata_patient = adata[adata.obs[patient_col] == patient_id].copy()
+
+            # Prepare target variable y (0s and 1s)
+            y_true = (adata_patient.obs[target_col] == positive_class).astype(int)
+
+            if len(y_true.unique()) < 2:
+                self.logger.warning(f"  Skipping {patient_id}: only one class present.")
+                continue
+
+            patient_scores = []
+            X_patient = adata_patient.obsm['X_fa']
+
+            for i in range(n_factors):
+                y_scores = X_patient[:, i]
+                try:
+                    auc = roc_auc_score(y_true, y_scores)
+                    signed_auc = 2 * (auc - 0.5)
+                    patient_scores.append(signed_auc)
+                except ValueError:
+                    patient_scores.append(np.nan)
+            
+            all_scores[patient_id] = patient_scores
+
+        if not all_scores:
+            self.logger.warning("No scores were calculated for any patient.")
+            return pd.DataFrame()
+
+        scores_df = pd.DataFrame.from_dict(all_scores, orient='index', columns=factor_names)
+        
+        self.logger.info("Factor separation score calculation complete.")
+        return scores_df
 
 def main():
     """Main function for experiment analysis."""

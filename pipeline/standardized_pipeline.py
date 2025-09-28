@@ -6,6 +6,9 @@ This script provides a unified pipeline that can run both Factor Analysis and NM
 with consistent preprocessing, classification, and result tracking.
 """
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="anndata")
+
 import os
 import sys
 import time
@@ -15,7 +18,6 @@ import pandas as pd
 import scanpy as sc
 from pathlib import Path
 import logging
-import warnings
 
 # Add project root to path
 SCRIPT_DIR = Path(__file__).parent
@@ -26,9 +28,10 @@ from utils.experiment_manager import ExperimentManager, create_standard_config
 from utils.preprocessing import PreprocessingPipeline, create_preprocessing_config, random_downsample_stratified
 from dimension_reduction.factor_analysis import FactorAnalysis
 from dimension_reduction.nmf import NMF
+from dimension_reduction.factor_analysis_R import FactorAnalysis_R
 from classification_methods.lr_lasso import LRLasso
 
-warnings.filterwarnings("ignore", category=FutureWarning, module="anndata.utils")
+# warnings.filterwarnings("ignore", category=FutureWarning, module="anndata.utils") # This line is now at the top and more general
 
 class StandardizedPipeline:
     """Standardized pipeline for single-cell classification."""
@@ -102,13 +105,16 @@ class StandardizedPipeline:
         adata_raw = sc.read_h5ad(input_data_path)
         
         # Create preprocessing configuration
+        gene_selection_pipeline = experiment.config.get('preprocessing.gene_selection_pipeline', None)
         preproc_config = create_preprocessing_config(
             n_top_genes=experiment.config.get('preprocessing.n_top_genes', 3000),
             standardize=experiment.config.get('preprocessing.standardize', True),
             timepoint_filter=experiment.config.get('preprocessing.timepoint_filter', 'MRD'),
             target_column=experiment.config.get('preprocessing.target_column', 'CN.label'),
             positive_class=experiment.config.get('preprocessing.positive_class', 'cancer'),
-            negative_class=experiment.config.get('preprocessing.negative_class', 'normal')
+            negative_class=experiment.config.get('preprocessing.negative_class', 'normal'),
+            tech_filter=experiment.config.get('preprocessing.tech_filter', None),
+            gene_selection_pipeline=gene_selection_pipeline
         )
         
         # Run preprocessing
@@ -120,7 +126,10 @@ class StandardizedPipeline:
             results['adata'],
             results['hvg_list'],
             results['scaler'],
-            results['summary']
+            {
+                'summary_text': results['summary'],
+                'gene_log': results['info'].get('gene_log', {})
+            }
         )
         
         return results
@@ -133,7 +142,7 @@ class StandardizedPipeline:
         # Get DR method from config, raise error if not specified
         dr_method = dr_config.get('method')
         if not dr_method:
-            raise ValueError("Dimension reduction 'method' must be specified in the config (e.g., 'fa' or 'nmf').")
+            raise ValueError("Dimension reduction 'method' must be specified in the config (e.g., 'fa', 'fa_r', or 'nmf').")
 
         n_components = dr_config.get('n_components', 100)
         random_state = dr_config.get('random_state', 42)
@@ -178,6 +187,30 @@ class StandardizedPipeline:
             fa_info = adata_transformed.uns.get('fa', {})
             summary = "Factor Analysis Summary:\n" + json.dumps(fa_info, indent=2, default=str)
             
+        elif dr_method.lower() == 'fa_r':
+            dr_model_instance = FactorAnalysis_R()
+            save_dir = experiment.experiment_dir / "models" / f"fa_r_{n_components}"
+            fa_r_params = {
+                'n_components': n_components,
+                'random_state': random_state,
+                'standardize_input': False, # Already done in preprocessing
+                'fm': dr_config.get('fm', 'ml'),
+                'rotate': dr_config.get('rotate', 'varimax'),
+                'n_iter': dr_config.get('n_iter', 100),
+                'save_fitted_models': True,
+                'model_save_dir': str(save_dir)
+            }
+            adata_transformed = dr_model_instance.fit_transform(adata, **fa_r_params)
+            model = adata_transformed.uns.get('_temp_fa_r_model_obj')
+            
+            if '_temp_fa_r_model_obj' in adata_transformed.uns:
+                del adata_transformed.uns['_temp_fa_r_model_obj']
+            if '_temp_scaler_obj' in adata_transformed.uns:
+                del adata_transformed.uns['_temp_scaler_obj']
+
+            fa_r_info = adata_transformed.uns.get('fa_r', {})
+            summary = "Factor Analysis (R) Summary:\n" + json.dumps(fa_r_info, indent=2, default=str)
+
         elif dr_method.lower() == 'nmf':
             input_standardized = experiment.config.get('preprocessing.standardize', True)
             handle_negative_values = dr_config.get('handle_negative_values', 'error')
@@ -231,7 +264,29 @@ class StandardizedPipeline:
                 f"  Mean SS loading: {np.mean(fa_info.get('ss_loadings_per_factor', [])):.4f}",
             ])
             
+            summary_lines.extend([
+                "",
+                "Factor Sufficiency Test:",
+                "  Goodness-of-fit test (e.g., Chi-squared test) is not available in the scikit-learn FactorAnalysis implementation.",
+                "  Please use the 'fa_r' method with the R 'psych' package for model fit statistics."
+            ])
+            
             summary = "\n".join(summary_lines)
+            
+        elif dr_method.lower() == 'fa_r':
+            fa_r_info = adata_transformed.uns.get('fa_r', {})
+            summary_lines = [
+                f"Factor Analysis (R) Summary",
+                "=" * 50,
+                f"Number of components: {fa_r_info.get('n_factors', 'N/A')}",
+                f"Random state: {fa_r_info.get('random_state', 'N/A')}",
+                f"Estimation method (fm): {fa_r_info.get('fm', 'N/A')}",
+                f"Rotation method: {fa_r_info.get('rotate', 'N/A')}",
+                f"Bootstrap iterations for SE: {fa_r_info.get('n_iter', 'N/A')}",
+                f"Standardized input: {fa_r_info.get('standardized_input', 'N/A')}",
+            ]
+            summary = "\n".join(summary_lines)
+
         elif dr_method.lower() == 'nmf':
             summary = dr_model.generate_model_summary(adata_transformed)
         else:
@@ -293,7 +348,8 @@ class StandardizedPipeline:
             classifier = LRLasso(
                 adata=adata_patient,
                 target_col=target_col,
-                target_value=experiment.config.get('preprocessing.positive_class', 'cancer')
+                target_value=experiment.config.get('preprocessing.positive_class', 'cancer'),
+                random_state=42 # Ensure random_state is passed to LRLasso
             )
             
             # Prepare data and check for sufficient classes
@@ -306,10 +362,23 @@ class StandardizedPipeline:
                 self.logger.warning(f"Patient {patient} has only one class label. Skipping classification.")
                 continue
 
-            results = classifier.fit_along_regularization_path(
-                X, y, feature_names, alphas=alphas, metrics_grouping='patient'
-            )
+            cv_folds = experiment.config.get('classification.cv_folds', 0)
             
+            if cv_folds > 1:
+                self.logger.info(f"  Performing classification with {cv_folds}-fold repeated CV...")
+                cv_repeats = experiment.config.get('classification.cv_repeats', 1)
+                metrics_grouping_col = experiment.config.get('classification.metrics_grouping', patient_col)
+                results = classifier.fit_along_regularization_path_cv(
+                    X, y, feature_names, alphas=alphas, metrics_grouping=metrics_grouping_col,
+                    cv_folds=cv_folds, cv_repeats=cv_repeats
+                )
+            else:
+                self.logger.info(f"  Performing classification without CV (metrics on full dataset)...")
+                metrics_grouping_col = experiment.config.get('classification.metrics_grouping', patient_col)
+                results = classifier.fit_along_regularization_path(
+                    X, y, feature_names, alphas=alphas, metrics_grouping=metrics_grouping_col
+                )
+
             patient_metrics_df = pd.DataFrame(results['group_metrics_path'])
             patient_coefs_df = pd.DataFrame(
                 results['coefs'],

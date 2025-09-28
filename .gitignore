@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Results and experiments output
+experiments/
+pipeline/results_fa_lrlasso_mrd_pipeline_donor_downsampled_projection_ready_may31/
+pipeline/results_fa_lrlasso_mrd_pipeline_prestd_hvg_may31/
+pipeline/results_multivi_classification/
+
+# Ignore all files in pipeline, but keep standardized_pipeline.py
+pipeline/*
+!pipeline/standardized_pipeline.py
+
+# Ignore figures and plots
+*.png
+*.pdf
+
+# Cache files
+.cache/
