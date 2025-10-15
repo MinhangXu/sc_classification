@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sc_classification"
+version = "0.1.0"
+description = "A pipeline for single-cell classification analysis."
+readme = "README.md"
+requires-python = ">=3.8"
+# Add your dependencies here, e.g.,
+# dependencies = [
+#     "numpy",
+#     "pandas",
+#     "scanpy",
+#     "scikit-learn",
+# ]
+
+[tool.setuptools.packages.find]
+where = ["src"]
