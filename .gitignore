@@ -23,3 +23,9 @@ pipeline/*
 
 # Cache files
 .cache/
+
+# Build artifacts
+*.egg-info/
+
+# Generated results in new src/ pipeline
+src/sc_classification/pipeline/results_*/
