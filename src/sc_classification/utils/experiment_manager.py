@@ -295,6 +295,176 @@ class Experiment:
                 'completion_date': datetime.now().isoformat()
             }
         })
+
+    def save_dr_arrays(
+        self,
+        dr_method: str,
+        n_components: int,
+        obs_names: List[str],
+        var_names: List[str],
+        scores: np.ndarray,
+        loadings: np.ndarray,
+        summary_text: str,
+        extras: Optional[Dict[str, Any]] = None,
+        model: Optional[Any] = None,
+        keys: Optional[Dict[str, str]] = None,
+    ):
+        """
+        Save compact DR outputs (arrays + identifiers + extras) without full AnnData.
+        Files written into: experiments/{exp_id}/models/{dr_method}_{n_components}/
+        - scores.npy (n_cells × k)
+        - loadings.npy (n_genes × k)
+        - obs_names.txt, var_names.txt
+        - model_summary.txt
+        - Optional extras:
+          - psi.npy
+          - explained_variance.npy
+          - explained_variance_ratio.npy
+          - singular_values.npy
+          - reconstruction_error.json
+          - dr_metrics.json (generic metrics dict if provided)
+          - keys.json (mapping of default obsm/varm keys)
+        - Optional model.pkl if model provided
+        """
+        model_dir = self.experiment_dir / "models" / f"{dr_method}_{n_components}"
+        model_dir.mkdir(parents=True, exist_ok=True)
+
+        # Arrays
+        np.save(model_dir / "scores.npy", np.asarray(scores))
+        np.save(model_dir / "loadings.npy", np.asarray(loadings))
+
+        # Identifiers
+        with open(model_dir / "obs_names.txt", "w") as f:
+            for name in obs_names:
+                f.write(f"{name}\n")
+        with open(model_dir / "var_names.txt", "w") as f:
+            for name in var_names:
+                f.write(f"{name}\n")
+
+        # Summary
+        with open(model_dir / "model_summary.txt", "w") as f:
+            f.write(summary_text)
+
+        # Extras
+        extras = extras or {}
+        if "psi" in extras and extras["psi"] is not None:
+            np.save(model_dir / "psi.npy", np.asarray(extras["psi"]))
+        if "explained_variance" in extras and extras["explained_variance"] is not None:
+            np.save(model_dir / "explained_variance.npy", np.asarray(extras["explained_variance"]))
+        if "explained_variance_ratio" in extras and extras["explained_variance_ratio"] is not None:
+            np.save(model_dir / "explained_variance_ratio.npy", np.asarray(extras["explained_variance_ratio"]))
+        if "singular_values" in extras and extras["singular_values"] is not None:
+            np.save(model_dir / "singular_values.npy", np.asarray(extras["singular_values"]))
+        if "reconstruction_error" in extras and extras["reconstruction_error"] is not None:
+            with open(model_dir / "reconstruction_error.json", "w") as f:
+                json.dump({"reconstruction_error": float(extras["reconstruction_error"])}, f, indent=2)
+        if "dr_metrics" in extras and extras["dr_metrics"] is not None:
+            with open(model_dir / "dr_metrics.json", "w") as f:
+                json.dump(extras["dr_metrics"], f, indent=2)
+
+        # Keys mapping (for attach helper)
+        if keys is not None:
+            with open(model_dir / "keys.json", "w") as f:
+                json.dump(keys, f, indent=2)
+
+        # Optional model
+        if model is not None:
+            with open(model_dir / "model.pkl", "wb") as f:
+                pickle.dump(model, f)
+
+        # Update metadata
+        current_metadata = self.load_metadata()
+        stages = current_metadata.get('stages_completed', [])
+        if 'dr' not in stages:
+            stages.append('dr')
+        self.update_metadata({
+            'status': 'dr_complete',
+            'stages_completed': stages,
+            'dr': {
+                'method': dr_method,
+                'n_components': n_components,
+                'completion_date': datetime.now().isoformat(),
+                'arrays_only': True
+            }
+        })
+
+    def attach_dr_to_adata(
+        self,
+        adata: sc.AnnData,
+        dr_method: str,
+        n_components: int,
+        obsm_key: str,
+        varm_key: str,
+        var_psi_key: Optional[str] = None,
+        strict_name_match: bool = True
+    ) -> sc.AnnData:
+        """
+        Attach saved DR arrays back to an AnnData object.
+        Requires matching obs_names and var_names (strict by default).
+        """
+        model_dir = self.experiment_dir / "models" / f"{dr_method}_{n_components}"
+        if not model_dir.exists():
+            raise FileNotFoundError(f"Model directory not found: {model_dir}")
+
+        scores = np.load(model_dir / "scores.npy")
+        loadings = np.load(model_dir / "loadings.npy")
+
+        with open(model_dir / "obs_names.txt", "r") as f:
+            saved_obs_names = [line.strip() for line in f]
+        with open(model_dir / "var_names.txt", "r") as f:
+            saved_var_names = [line.strip() for line in f]
+
+        # Validate shapes
+        if scores.shape[0] != len(saved_obs_names):
+            raise ValueError("scores rows and obs_names length mismatch.")
+        if loadings.shape[0] != len(saved_var_names):
+            raise ValueError("loadings rows and var_names length mismatch.")
+
+        # Name alignment
+        if strict_name_match:
+            if list(adata.obs_names) != saved_obs_names:
+                raise ValueError("AnnData obs_names do not match saved obs_names. Set strict_name_match=False to relax.")
+            if list(adata.var_names) != saved_var_names:
+                raise ValueError("AnnData var_names do not match saved var_names. Set strict_name_match=False to relax.")
+            adata.obsm[obsm_key] = scores
+            adata.varm[varm_key] = loadings
+        else:
+            # Reindex scores and loadings to the intersection; fill missing with zeros
+            obs_index = {n: i for i, n in enumerate(saved_obs_names)}
+            var_index = {n: i for i, n in enumerate(saved_var_names)}
+            # Scores
+            score_mat = np.zeros((adata.n_obs, scores.shape[1]), dtype=scores.dtype)
+            keep_obs = [obs_index.get(n, None) for n in adata.obs_names]
+            for i, j in enumerate(keep_obs):
+                if j is not None:
+                    score_mat[i, :] = scores[j, :]
+            adata.obsm[obsm_key] = score_mat
+            # Loadings
+            load_mat = np.zeros((adata.n_vars, loadings.shape[1]), dtype=loadings.dtype)
+            keep_vars = [var_index.get(n, None) for n in adata.var_names]
+            for i, j in enumerate(keep_vars):
+                if j is not None:
+                    load_mat[i, :] = loadings[j, :]
+            adata.varm[varm_key] = load_mat
+
+        # Optional psi
+        psi_path = model_dir / "psi.npy"
+        if var_psi_key and psi_path.exists():
+            psi = np.load(psi_path)
+            if strict_name_match and psi.shape[0] != adata.n_vars:
+                raise ValueError("psi length does not match adata.n_vars.")
+            if not strict_name_match:
+                # map by name
+                var_index = {n: i for i, n in enumerate(saved_var_names)}
+                psi_full = np.zeros((adata.n_vars,), dtype=psi.dtype)
+                for i, n in enumerate(adata.var_names):
+                    j = var_index.get(n, None)
+                    if j is not None:
+                        psi_full[i] = psi[j]
+                psi = psi_full
+            adata.var[var_psi_key] = psi
+
+        return adata
     
     def save_classification_results(self, patient_id: str, coefficients: pd.DataFrame, 
                                   metrics: pd.DataFrame, correctness: pd.DataFrame, 

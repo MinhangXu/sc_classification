@@ -107,6 +107,11 @@ class PreprocessingPipeline:
                 adata_current, gene_log = self._select_all_genes_filtered(adata_current, step_config)
             elif method == 'deg_weak_screen':
                 adata_current, gene_log = self._select_degs_weak_screen(adata_current, step_config)
+            elif method in ("hvg_plus_rescue_union", "hybrid_hvg_rescue"):
+                # Hybrid selection: HVG ∪ all_filtered rescue genes (rare malignant-enriched).
+                # Note: this must operate on the current AnnData WITHOUT sequentially subsetting away
+                # the low-expression genes; so it runs as a single step.
+                adata_current, gene_log = self._select_hvg_plus_rescue_union(adata_current, step_config)
             else:
                 self.logger.warning(f"Unknown gene selection method '{method}'. Skipping step.")
                 continue
@@ -115,6 +120,123 @@ class PreprocessingPipeline:
         self.logger.info(f"Gene selection pipeline complete. Final selected genes: {len(final_gene_list)}")
         
         return adata_current, gene_log
+
+    def _compute_all_filtered_rescue_genes(
+        self,
+        adata: sc.AnnData,
+        min_cells_fraction: float,
+        enrichment_ratio_threshold: float | None,
+    ) -> List[str]:
+        """
+        Compute the all_filtered-style rescue gene set without subsetting the matrix.
+
+        Rescue genes are those that fail a minimum expressed-cells filter but have high
+        expression prevalence enrichment in the positive class vs others.
+        """
+        if enrichment_ratio_threshold is None:
+            return []
+
+        target_col = self.config.get('target_column', 'CN.label')
+        positive_class = self.config.get('positive_class', 'cancer')
+
+        X = adata.X
+        if sparse.issparse(X):
+            expressed_counts = np.asarray((X > 0).sum(axis=0)).ravel()
+        else:
+            expressed_counts = np.sum(X > 0, axis=0)
+
+        min_cells = max(1, int(min_cells_fraction * adata.n_obs))
+        initial_keep_mask = expressed_counts >= min_cells
+
+        genes_to_check_mask = ~initial_keep_mask
+        if np.sum(genes_to_check_mask) == 0:
+            return []
+
+        genes_to_check_names = adata.var_names[genes_to_check_mask]
+        adata_check = adata[:, genes_to_check_names].copy()
+
+        if target_col not in adata_check.obs.columns:
+            self.logger.warning(f"Target column '{target_col}' not found. Cannot compute rescue genes.")
+            return []
+
+        malignant_mask = adata_check.obs[target_col] == positive_class
+        normal_mask = ~malignant_mask  # intentionally broad
+
+        n_malignant = int(np.sum(malignant_mask))
+        n_normal = int(np.sum(normal_mask))
+        if n_malignant == 0 or n_normal == 0:
+            self.logger.warning("Not enough positive/negative cells to compute rescue genes. Returning empty rescue set.")
+            return []
+
+        X_check = adata_check.X
+        if sparse.issparse(X_check):
+            expr_in_mal = np.asarray((X_check[malignant_mask, :] > 0).sum(axis=0)).ravel()
+            expr_in_norm = np.asarray((X_check[normal_mask, :] > 0).sum(axis=0)).ravel()
+        else:
+            expr_in_mal = np.sum(X_check[malignant_mask, :] > 0, axis=0)
+            expr_in_norm = np.sum(X_check[normal_mask, :] > 0, axis=0)
+
+        prop_mal = expr_in_mal / n_malignant
+        prop_norm = expr_in_norm / n_normal
+        enrichment_ratio = prop_mal / (prop_norm + 1e-9)
+
+        rescue_mask = enrichment_ratio > float(enrichment_ratio_threshold)
+        return genes_to_check_names[rescue_mask].tolist()
+
+    def _select_hvg_plus_rescue_union(
+        self,
+        adata: sc.AnnData,
+        gs_config: Dict[str, Any],
+    ) -> Tuple[sc.AnnData, Dict[str, List[str]]]:
+        """
+        Hybrid gene selection: HVG ∪ all_filtered rescue genes.
+
+        Intended behavior:
+        - take a standard HVG set (size n_top_genes)
+        - additionally include lowly-expressed genes that are highly enriched in the positive class
+          (the all_filtered rescue step)
+        - do NOT otherwise expand to the full all_filtered keep set; the goal is a small “top-up”
+          to recover rare malignant markers.
+        """
+        self.logger.info(f"Applying 'hvg_plus_rescue_union' with config: {gs_config}")
+
+        n_top_genes = int(gs_config.get('n_top_genes', self.config.get('n_top_genes', 3000)))
+        min_cells_fraction = float(gs_config.get('min_cells_fraction', 0.01))
+        enrichment_ratio_threshold = gs_config.get('malignant_enrichment_ratio', None)
+
+        # --- HVG gene list ---
+        ad_hvg = adata.copy()
+        try:
+            sc.pp.highly_variable_genes(ad_hvg, n_top_genes=n_top_genes, flavor='seurat_v3')
+            hvg_genes = ad_hvg.var_names[ad_hvg.var['highly_variable']].tolist()
+        except Exception as e:
+            self.logger.warning(f"HVG selection failed ({e}); falling back to simple variance.")
+            X = ad_hvg.X.toarray() if hasattr(ad_hvg.X, 'toarray') else ad_hvg.X
+            vars_ = np.var(X, axis=0)
+            idx = np.argsort(vars_)[-n_top_genes:]
+            hvg_genes = ad_hvg.var_names[idx].tolist()
+
+        # --- Rescue gene list (from full adata, not HVG-subsetted) ---
+        rescue_genes = self._compute_all_filtered_rescue_genes(
+            adata=adata,
+            min_cells_fraction=min_cells_fraction,
+            enrichment_ratio_threshold=enrichment_ratio_threshold,
+        )
+
+        union_set = set(hvg_genes) | set(rescue_genes)
+        keep_mask = adata.var_names.isin(union_set)
+        adata_sel = adata[:, keep_mask].copy()
+
+        gene_log = {
+            "hvg_genes": hvg_genes,
+            "genes_rescued_enrichment": rescue_genes,
+            "final_gene_set": adata_sel.var_names.tolist(),
+        }
+        self.logger.info(
+            f"Hybrid HVG∪rescue selected {adata_sel.n_vars} genes "
+            f"(HVG={len(hvg_genes)}, rescued={len(rescue_genes)})."
+        )
+        return adata_sel, gene_log
 
     def _select_all_genes_filtered(self, adata: sc.AnnData, gs_config: Dict[str, Any]) -> Tuple[sc.AnnData, Dict[str, List[str]]]:
         """
@@ -313,8 +435,15 @@ class PreprocessingPipeline:
                 )
             except Exception as e:
                 self.logger.warning(f"HVG selection with 'seurat_v3' failed: {e}. Falling back to simple variance.")
-                gene_variances = np.var(adata.X.toarray() if hasattr(adata.X, 'toarray') else adata.X, axis=0)
-                hvg_indices = np.argsort(gene_variances)[-n_top_genes:]
+                X = adata.X
+                # IMPORTANT: do not densify large sparse matrices
+                if sparse.issparse(X):
+                    gene_means = np.asarray(X.mean(axis=0)).ravel()
+                    sq_means = np.asarray(X.power(2).mean(axis=0)).ravel()
+                    gene_variances = sq_means - np.square(gene_means)
+                else:
+                    gene_variances = np.var(X, axis=0)
+                hvg_indices = np.argsort(np.asarray(gene_variances).ravel())[-n_top_genes:]
                 adata.var['highly_variable'] = False
                 adata.var.iloc[hvg_indices, adata.var.columns.get_loc('highly_variable')] = True
         
