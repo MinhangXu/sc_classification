@@ -2,8 +2,7 @@
 """
 Generate per-factor volcano plots comparing loadings vs significance.
 
-Outputs three sets of plots (if inputs available):
-  - just_loading/: x = loading, y = |loading|
+Outputs two sets of plots (if inputs available):
   - loading_model_based_sig/: x = loading, y = -log10(model {q|p})
   - loading_bootstrap_based_sig/: x = loading, y = -log10(bootstrap q)
 
@@ -96,23 +95,6 @@ def _plot_volcano(
     plt.close()
 
 
-def _volcano_just_loading(
-    adata,
-    out_dir: Path,
-    label_top: int,
-    dpi: int,
-) -> Tuple[int, int]:
-    L = np.asarray(adata.varm["fs_loadings"])  # (p, k)
-    genes = adata.var_names.to_numpy()
-    p, k = L.shape
-    for j in range(k):
-        x = L[:, j]
-        y = np.abs(L[:, j])  # pseudo-volcano: magnitude vs signed
-        out_png = out_dir / f"factor_{j:03d}.png"
-        _plot_volcano(x, y, genes, out_png, f"Factor {j} — |loading| vs loading", None, label_top, dpi)
-    return p, k
-
-
 def _volcano_model(
     adata,
     out_dir: Path,
@@ -187,23 +169,13 @@ def main():
 
     out_root = Path(args.out_root)
     # Directories
-    dir_just = out_root / "just_loading"
     dir_model = out_root / "loading_model_based_sig"
     dir_boot = out_root / "loading_bootstrap_based_sig"
 
     ad_boot = _read_adata(args.bootstrap_h5ad)
     ad_model = _read_adata(args.model_h5ad)
 
-    # Choose a source AnnData for "just_loading" (prefer bootstrap if available)
-    ad_for_loadings = ad_boot if ad_boot is not None else ad_model
-    if ad_for_loadings is None:
-        raise SystemExit("No AnnData available to derive loadings.")
-
-    # 1) just_loading
-    _ensure_dir(dir_just)
-    p1, k1 = _volcano_just_loading(ad_for_loadings, dir_just, args.label_top, args.dpi)
-
-    # 2) model-based
+    # 1) model-based
     if ad_model is not None:
         _ensure_dir(dir_model)
         p2, k2 = _volcano_model(
@@ -215,7 +187,7 @@ def main():
             label_top=args.label_top,
             dpi=args.dpi,
         )
-    # 3) bootstrap-based
+    # 2) bootstrap-based
     if ad_boot is not None:
         _ensure_dir(dir_boot)
         p3, k3 = _volcano_bootstrap(
