@@ -12,3 +12,14 @@ This project follows a standard `src` layout to cleanly separate the installable
 *   `notebooks/`: This directory is for Jupyter notebooks used for exploratory data analysis, visualization, and interpretation of results.
 
 *   `DESIGN.md`: Provides a high-level overview of the software architecture and pipeline workflow. 
+
+## Reorganization status
+
+- Active plan-driven runs are under `scripts/comprehensive_run/`.
+- Stage orchestration scaffolding is under `scripts/orchestrator/`.
+- Historical scripts are under `scripts/legacy/`.
+- The plan index and active study specs are in `scripts/comprehensive_run/plans/`.
+- Repository cleanup policy and archive guidance are documented in `REPO_ORGANIZATION.md`.
+- Operational docs:
+  - `docs/GITHUB_UPDATE_PLAYBOOK.md`
+  - `docs/AUTONOMOUS_COMPREHENSIVE_RUNS.md`

@@ -1,0 +1,38 @@
+# Copy this file into each new experiment directory as `run_manifest.yaml`.
+run:
+  objective: ""
+  command: ""
+  launched_at_utc: ""
+  finished_at_utc: ""
+  status: "running"  # running | completed | failed | stopped
+
+code:
+  git_commit: ""
+  branch: ""
+  repo_path: "sc_classification"
+
+data:
+  input_h5ad: ""
+  input_hash: ""
+  filters:
+    timepoint_filter: ""
+    tech_filter: ""
+    cohort_scope: ""
+
+params:
+  plan: ""  # plan0 | plan1 | plan2 | ...
+  preprocess_set: []
+  dr_methods: []
+  k_by_method: {}
+  seeds: []
+  cv_folds: 0
+  cv_repeats: 0
+
+artifacts:
+  experiment_dir: ""
+  key_outputs: []
+
+notes:
+  summary: ""
+  follow_up: ""
+
