@@ -1,0 +1,8 @@
+objective: "Example comprehensive run orchestration"
+
+stages:
+  - name: "plan0_smoke"
+    command: "python sc_classification/scripts/comprehensive_run/run_gene_filter_dr_grid.py plan0 --input-h5ad <path> --experiments-dir experiments --ks 20 --seeds 1 --methods fa,pca"
+  - name: "plan1_smoke"
+    command: "python sc_classification/scripts/comprehensive_run/run_gene_filter_dr_grid.py plan1 --input-h5ad <path> --experiments-dir experiments --preprocess-set hvg --dr-methods fa,pca --k-by-method fa=20,pca=20 --seeds 1 --cv-folds 0"
+
