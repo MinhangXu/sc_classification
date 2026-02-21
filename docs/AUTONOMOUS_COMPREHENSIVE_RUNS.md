@@ -88,9 +88,14 @@ Initial scaffold now lives at:
 - `scripts/orchestrator/run_goal_orchestrator.py`
 - `scripts/orchestrator/spec_example.yaml`
 
-Next increment:
+Implemented increment:
 
-- wire real stage command execution
-- add validation gate hooks
-- support explicit resume policy (`--resume-from-state`)
+- stage command execution with retries
+- validation gates (`file_exists`, `glob_exists`)
+- explicit resume policy (`--resume-from-state`)
+
+Still recommended next:
+
+- add metric-based validation hooks (not only file existence)
+- add bounded auto-retry policy by failure category
 

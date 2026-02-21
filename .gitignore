@@ -29,3 +29,6 @@ pipeline/*
 
 # Generated results in new src/ pipeline
 src/sc_classification/pipeline/results_*/
+
+# Single-cell data artifacts
+*.h5ad

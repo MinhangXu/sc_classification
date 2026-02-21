@@ -1,8 +1,21 @@
 objective: "Example comprehensive run orchestration"
+working_dir: "../.."
+timeout_seconds: 7200
+retries: 1
+stop_on_stage_failure: true
+stop_on_validation_failure: true
 
 stages:
   - name: "plan0_smoke"
     command: "python sc_classification/scripts/comprehensive_run/run_gene_filter_dr_grid.py plan0 --input-h5ad <path> --experiments-dir experiments --ks 20 --seeds 1 --methods fa,pca"
+    validations:
+      - type: "glob_exists"
+        root: "."
+        pattern: "experiments/*/analysis/plan0/k_selection_summary.csv"
   - name: "plan1_smoke"
     command: "python sc_classification/scripts/comprehensive_run/run_gene_filter_dr_grid.py plan1 --input-h5ad <path> --experiments-dir experiments --preprocess-set hvg --dr-methods fa,pca --k-by-method fa=20,pca=20 --seeds 1 --cv-folds 0"
+    validations:
+      - type: "glob_exists"
+        root: "."
+        pattern: "experiments/*/analysis/preprocess_cache/*/adata_with_dr.h5ad"
 

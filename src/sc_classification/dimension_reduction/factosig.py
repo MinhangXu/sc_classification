@@ -18,6 +18,7 @@ class FactoSigDR(DimensionReductionMethod):
         save_fitted_models: bool = False,
         model_save_dir: str = None,
         order_factors_by: str | None = "ss_loadings",
+        rotation: str = "varimax",
     ):
         """
         Perform FactoSig on the provided AnnData.
@@ -67,6 +68,7 @@ class FactoSigDR(DimensionReductionMethod):
             lr=lr,
             max_iter=max_iter,
             verbose=verbose,
+            rotation=str(rotation),
             order_factors_by=order_factors_by,
         )
         fs.fit(X)
@@ -90,7 +92,7 @@ class FactoSigDR(DimensionReductionMethod):
             "device": device,
             "lr": float(lr),
             "max_iter": int(max_iter),
-            "rotation": "varimax",
+            "rotation": str(rotation),
             "order_factors_by": order_factors_by,
             "factor_score_variances": factor_score_variances,
             "sum_factor_score_variances": float(np.sum(factor_score_variances)),
