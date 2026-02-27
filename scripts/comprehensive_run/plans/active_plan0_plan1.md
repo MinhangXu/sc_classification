@@ -4,6 +4,9 @@ This is the **human-readable** version of the active plan that is implemented by
 
 Provenance: derived from the raw Cursor snapshot `gene-filtering-eval-plan-iter3-cnmf_a09f862f.plan.md`.
 
+Post-hoc validation/evaluation is tracked in:
+- `posthoc_dr_validation_eval_plan.md` (canonical evaluation checklist and chunk status)
+
 ## Plan 0 — select \(K\) per DR method (incl. cNMF)
 
 ### Goal
@@ -27,6 +30,7 @@ Before comparing preprocess methods, select a reasonable \(K\) for each DR metho
 
 - **FA rotation**: the current comprehensive runner uses sklearn FA (no explicit rotation). We plan to add explicit FA rotation support (varimax/promax) for Plan 0 (and optionally Plan 1). See `plan0rotationseedsplan1stability.md`.
 - **Consensusness / multi-seed stability**: in Plan 0, FA/FactoSig consensus clustering is only meaningful when running **multiple seeds** (otherwise stability summaries are empty/degenerate). Plan 1 stability caches are described below but are not yet fully implemented in code; see `plan0rotationseedsplan1stability.md`.
+- **Evaluation caveats and interpretation**: metric comparability, rotation diagnostics, K-behavior debugging, and communality comparability are maintained in `posthoc_dr_validation_eval_plan.md` to avoid duplicating interpretation logic here.
 
 ### Outputs
 
@@ -75,6 +79,14 @@ with `K = [20, 40, 60]`, `cnmf_dt=0.5`.
   - Watch for “done markers” written by the resume script:
     `analysis/plan0/cnmf/k_<K>/consensus_stats.json`
   - Prefer `pgrep` on the **absolute script path** to avoid matching the watcher itself.
+- **Post-run organization (non-destructive)**:
+  - For easier downstream notebook IO, build a curated cNMF view:
+    `python sc_classification/scripts/comprehensive_run/reorganize_plan0_cnmf_curated.py --experiment-dir <EXP_DIR> --mode symlink`
+  - This creates `models/cnmf_plan0/curated/` with:
+    - `global/`
+    - `k_<K>/inputs/` and `k_<K>/consensus/`
+    - `MANIFEST.csv`, `README.md`
+  - Source files under `models/cnmf_plan0/plan0_cnmf/` remain untouched.
 
 Example watcher (uses newest log automatically):
 
@@ -128,4 +140,31 @@ Important: this is **classifier-only CV** unless/until DR fitting is nested late
 - Notes:
   - the `.h5ad` keeps only one embedding per method (first seed), to avoid file bloat
   - multi-seed replicate caches + stability/consensus diagnostics are intended to live under `analysis/plan1_stability/...` (see `plan0rotationseedsplan1stability.md`)
+
+## Plan 1.C — fixed-K supervised latent benchmark (next)
+
+### Goal
+
+At fixed `K=40`, evaluate latent-factor classification quality across DR methods and regularization families using:
+- pooled-cell repeated stratified CV (pan-patient), with per-patient metrics from OOF predictions
+- per-patient repeated stratified CV
+
+### Methods in scope
+
+- DR: `pca`, `fa`, `factosig`, `factosig_promax`, `cnmf`
+- penalties: L1, L2, Elastic Net
+- grids:
+  - `alpha = logspace(-4, 5, 20)` (`C=1/alpha`)
+  - elastic-net `l1_ratio in [0.1, 0.5, 0.9]`
+- downsampling variants:
+  - `none`
+  - `random` donor downsampling stratified by `predicted.annotation` with prior FA-era parameters
+
+### Plan doc
+
+- Detailed spec: `plan1c_cross_patient_supervised_latent_benchmark.md`
+
+### Implementation status
+
+- Planned runner: `../run_plan1c_supervised_latent_benchmark.py` *(not implemented yet)*
 

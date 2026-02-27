@@ -11,6 +11,7 @@ This folder is meant to keep **the runnable code next to the study plan** (good 
   - `resume_plan0_cnmf.py`: finish cNMF for an existing (crashed) Plan 0 experiment dir
   - `resume_plan0_standard_dr.py`: append missing PCA/FA/FactoSig replicate caches (multi-seed) into an existing Plan 0 experiment dir (no re-preprocessing)
   - `attach_plan0_dr_cache_to_preprocessed_adata.py`: rehydrate Plan 0 DR caches into `preprocessing/adata_processed*.h5ad`
+  - `reorganize_plan0_cnmf_curated.py`: build a non-destructive curated cNMF view (`models/cnmf_plan0/curated/`) with manifest and sequence-oriented folders
 - Plan 2–4 runner skeletons:
   - `run_gene_filter_dr_plan2_negative_controls.py`
   - `run_gene_filter_dr_plan3_representation_first.py`
@@ -55,6 +56,7 @@ Key outputs (under the created experiment directory):
 - `analysis/plan0/k_selection_summary.csv`: quick table to plot **stability vs variance-proxy** (and consensus silhouette for FA/FactoSig)
 - `analysis/plan0/stability/<method>/k_<K>/...`: per-K replicate caches and stability summaries
 - `models/cnmf_plan0/` + `analysis/plan0/cnmf/`: cNMF artifacts + consensus stats
+  - optional post-processing: `models/cnmf_plan0/curated/` (symlink/copy view with `global/`, `k_<K>/inputs/`, `k_<K>/consensus/`, `MANIFEST.csv`)
 
 Notes:
 - **FA rotation**: the current runner uses sklearn FA with no explicit rotation parameter. An in-progress engineering plan adds `--fa-rotation none|varimax|promax` for Plan 0 (and optionally Plan 1). See `plans/plan0rotationseedsplan1stability.md`.

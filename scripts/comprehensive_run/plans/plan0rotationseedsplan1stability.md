@@ -2,6 +2,9 @@
 
 Provenance: copied from Cursor plan `~/.cursor/plans/plan0rotationseedsplan1stability_2d1f91c1.plan.md` so it lives next to the curated comprehensive-run plan docs.
 
+This document is implementation-focused. For post-hoc validation/evaluation logic and status, use:
+- `posthoc_dr_validation_eval_plan.md`
+
 ---
 
 ## Goals
@@ -13,6 +16,7 @@ Provenance: copied from Cursor plan `~/.cursor/plans/plan0rotationseedsplan1stab
 - Ensure **PCA** is consistently supported/used (it is already supported, but needs to be run in Plan 0 experiments).
 - For **cNMF**, keep using the native output trees under `models/`, but add a **manifest** that points to the replicate NMF results that feed consensus.
 - Update the **plan docs** under `scripts/comprehensive_run/` to match actual runner behavior.
+- Keep interpretation guidance out of this file and centralized in `posthoc_dr_validation_eval_plan.md`.
 
 ## Key facts from current code
 
@@ -82,6 +86,12 @@ Provenance: copied from Cursor plan `~/.cursor/plans/plan0rotationseedsplan1stab
   - Contents: dt, k, n_iter, and a list of file paths inside `models/cnmf_plan0/...` that correspond to individual NMF replicates.
 - Plan 1: similarly write a manifest under `analysis/preprocess_cache/<tag>/cnmf_manifest.json` (or under `analysis/plan1_stability/<tag>/cnmf/...` if treating cnmf as part of stability).
 - Important: cnmf “replicates” (its internal `n_iter`) are distinct from our outer “seeds”; the manifest should make that explicit.
+
+Status update (implemented operationally):
+- A non-destructive post-run organizer now exists:
+  - `scripts/comprehensive_run/reorganize_plan0_cnmf_curated.py`
+- It creates `models/cnmf_plan0/curated/` with a `MANIFEST.csv` and sequence-oriented folders (`global/`, `k_<K>/inputs/`, `k_<K>/consensus/`) by symlink/copy.
+- This does not change native cnmf outputs and is intended for downstream notebook ergonomics.
 
 ### 7) Update plan docs under `scripts/comprehensive_run/`
 
