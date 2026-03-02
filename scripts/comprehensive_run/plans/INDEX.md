@@ -13,6 +13,8 @@ This folder is the **plan layer** for `sc_classification/scripts/comprehensive_r
 - **Active plan (0–1)**: `active_plan0_plan1.md`
 - **Later plans (2–4)**: `later_plans2_4.md`
 - **In-progress engineering plan (Feb 2026)**: `plan0rotationseedsplan1stability.md` (FA rotation + multi-seed stability + Plan 1 seeding/stability sync)
+- **Post-hoc validation checklist**: `posthoc_dr_validation_eval_plan.md` (chunked DR evaluation status + caveats)
+- **Web-LLM briefing memo (data + prompt template)**: `web_llm_research_brief_dr_gene_sets.md`
 - **Planned supervised benchmark (Plan 1.C)**: `plan1c_cross_patient_supervised_latent_benchmark.md`
 - **Operational note**: cNMF outputs can be reorganized non-destructively for analysis using `../reorganize_plan0_cnmf_curated.py` (creates `models/cnmf_plan0/curated/` with a manifest)
 - **Raw Cursor snapshots (do not edit; provenance only)**:
