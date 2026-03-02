@@ -1,0 +1,35 @@
+geneset_name	source	why_include	priority
+HALLMARK_INTERFERON_GAMMA_RESPONSE	H	IFNg/IFNa/TNF/NFkB/inflammation: core immune-pressure axis / inflammatory signaling	Core
+HALLMARK_INTERFERON_ALPHA_RESPONSE	H	IFNg/IFNa/TNF/NFkB/inflammation: core immune-pressure axis / inflammatory signaling	Core
+HALLMARK_TNFA_SIGNALING_VIA_NFKB	H	IFNg/IFNa/TNF/NFkB/inflammation: core immune-pressure axis / inflammatory signaling	Core
+HALLMARK_INFLAMMATORY_RESPONSE	H	IFNg/IFNa/TNF/NFkB/inflammation: core immune-pressure axis / inflammatory signaling	Core
+HALLMARK_IL6_JAK_STAT3_SIGNALING	H	IL6/JAK/STAT, IL2/STAT5: cytokine signaling axes	Core
+HALLMARK_IL2_STAT5_SIGNALING	H	IL6/JAK/STAT, IL2/STAT5: cytokine signaling axes	Optional
+HALLMARK_COMPLEMENT	H	TLR/complement/allograft rejection: innate/immune activation context	Optional
+HALLMARK_ALLOGRAFT_REJECTION	H	TLR/complement/allograft rejection: innate/immune activation context	Optional
+HALLMARK_APOPTOSIS	H	p53/apoptosis/hypoxia/UPR/ROS/DNA repair: stress/arrest programs	Core
+HALLMARK_P53_PATHWAY	H	p53/apoptosis/hypoxia/UPR/ROS/DNA repair: stress/arrest programs	Core
+HALLMARK_HYPOXIA	H	p53/apoptosis/hypoxia/UPR/ROS/DNA repair: stress/arrest programs	Core
+HALLMARK_UNFOLDED_PROTEIN_RESPONSE	H	p53/apoptosis/hypoxia/UPR/ROS/DNA repair: stress/arrest programs	Optional
+HALLMARK_DNA_REPAIR	H	p53/apoptosis/hypoxia/UPR/ROS/DNA repair: stress/arrest programs	Optional
+HALLMARK_E2F_TARGETS	H	E2F/G2M/MYC/OXPHOS/glycolysis/mTORC1: proliferation/metabolism counter-axis	Core
+HALLMARK_G2M_CHECKPOINT	H	E2F/G2M/MYC/OXPHOS/glycolysis/mTORC1: proliferation/metabolism counter-axis	Core
+HALLMARK_MYC_TARGETS_V1	H	E2F/G2M/MYC/OXPHOS/glycolysis/mTORC1: proliferation/metabolism counter-axis	Core
+HALLMARK_MYC_TARGETS_V2	H	E2F/G2M/MYC/OXPHOS/glycolysis/mTORC1: proliferation/metabolism counter-axis	Optional
+HALLMARK_OXIDATIVE_PHOSPHORYLATION	H	E2F/G2M/MYC/OXPHOS/glycolysis/mTORC1: proliferation/metabolism counter-axis	Core
+HALLMARK_GLYCOLYSIS	H	E2F/G2M/MYC/OXPHOS/glycolysis/mTORC1: proliferation/metabolism counter-axis	Optional
+HALLMARK_MTORC1_SIGNALING	H	E2F/G2M/MYC/OXPHOS/glycolysis/mTORC1: proliferation/metabolism counter-axis	Optional
+HALLMARK_REACTIVE_OXYGEN_SPECIES_PATHWAY	H	p53/apoptosis/hypoxia/UPR/ROS/DNA repair: stress/arrest programs	Optional
+HALLMARK_TGF_BETA_SIGNALING	H	TGFbeta/EMT: immunosuppression / plasticity axis	Core
+HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION	H	TGFbeta/EMT: immunosuppression / plasticity axis	Optional
+REACTOME_INTERFERON_SIGNALING	Reactome	IFNg/IFNa/TNF/NFkB/inflammation: core immune-pressure axis / inflammatory signaling	Core
+REACTOME_INTERFERON_GAMMA_SIGNALING	Reactome	IFNg/IFNa/TNF/NFkB/inflammation: core immune-pressure axis / inflammatory signaling	Core
+REACTOME_CYTOKINE_SIGNALING_IN_IMMUNE_SYSTEM	Reactome	IL6/JAK/STAT, IL2/STAT5: cytokine signaling axes	Optional
+REACTOME_NF_KB_ACTIVATION	Reactome	IFNg/IFNa/TNF/NFkB/inflammation: core immune-pressure axis / inflammatory signaling	Core
+REACTOME_TNFR1_INDUCED_NFKB_SIGNALING_PATHWAY	Reactome	IFNg/IFNa/TNF/NFkB/inflammation: core immune-pressure axis / inflammatory signaling	Optional
+REACTOME_ANTIGEN_PRESENTATION_FOLDING_ASSEMBLY_AND_PEPTIDE_LOADING_OF_CLASS_I_MHC	Reactome	Antigen presentation (Reactome/KEGG): required for IFNg-MHC decoupling tests	Core
+REACTOME_MHC_CLASS_I_ANTIGEN_PRESENTATION	Reactome	Antigen presentation (Reactome/KEGG): required for IFNg-MHC decoupling tests	Optional
+REACTOME_MHC_CLASS_II_ANTIGEN_PRESENTATION	Reactome	Antigen presentation (Reactome/KEGG): required for IFNg-MHC decoupling tests	Core
+KEGG_ANTIGEN_PROCESSING_AND_PRESENTATION	KEGG	Antigen presentation (Reactome/KEGG): required for IFNg-MHC decoupling tests	Core
+KEGG_JAK_STAT_SIGNALING_PATHWAY	KEGG	IL6/JAK/STAT, IL2/STAT5: cytokine signaling axes	Optional
+KEGG_TOLL_LIKE_RECEPTOR_SIGNALING_PATHWAY	KEGG	TLR/complement/allograft rejection: innate/immune activation context	Optional
