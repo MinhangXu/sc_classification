@@ -1,0 +1,14 @@
+patient,n_cells,has_MRD,has_Relapse,n_MRD_cancer,n_MRD_normal,n_Relapse_cancer,n_Relapse_normal,min_four_class_support,MRD_tech_values,Relapse_tech_values
+P06,3259,True,False,44,3215,0,0,0,CITE,
+P08,2853,True,True,0,1411,568,874,0,CITE,Multi
+P10,2715,True,False,0,2715,0,0,0,CITE,
+P11,4024,True,False,0,4024,0,0,0,CITE,
+P12,2488,True,False,0,2488,0,0,0,CITE,
+P13,10113,True,True,4,5770,3787,552,4,CITE,CITE
+P05,8694,True,True,8,4351,4166,169,8,CITE,Multi
+P04,8602,True,True,102,1026,7459,15,15,CITE,Multi
+P07,6602,True,True,22,2163,4320,97,22,CITE,Multi
+P01,21703,True,True,65,18899,1484,1255,65,"CITE,Multi",Multi
+P03,9793,True,True,758,3280,5586,169,169,"CITE,Multi",Multi
+P02,13581,True,True,230,2100,6460,4791,230,"CITE,Multi",Multi
+P09,18781,True,True,375,16751,1045,610,375,CITE,Multi
