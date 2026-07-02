@@ -32,3 +32,7 @@ src/sc_classification/pipeline/results_*/
 
 # Single-cell data artifacts
 *.h5ad
+
+# Generated notebook analysis outputs and figures (regenerable from notebooks + scorecards)
+**/notebooks/outputs/
+**/notebooks/figures/
