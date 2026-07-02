@@ -217,12 +217,13 @@ provenance and reusable code patterns, but they do **not** advance analysis of t
 
 ---
 
-## 8. Provenance risk — the code that produced this run is uncommitted
+## 8. Provenance — the code that produced this run is now committed (2026-07-02)
 
-- `experiment_config.yaml` records `git_commit: b381cd5` ("Add Relapse_MRD_DR_Classification pipeline").
-- But `run_stage0_mrd_old34_broad_screen.py`, `run_stage2_mrd_multiobjective_scorecard.py`, `run_expanded_stage0_genesets_stage0_to_stage2.sh`, `stage2_sharedness_plotting.py`, and **every current plan doc** are **untracked** (`git status` = `??`). Commit `b381cd5` does not contain them.
-- `experiments/` is git-ignored, so the run artifacts are intentionally out of version control.
-- **Consequence:** the run cannot currently be reproduced from the recorded commit. Before any manuscript claim, commit the current `scripts/comprehensive_run/` state and re-stamp (or annotate) the true commit hash. This is the highest-value, lowest-effort provenance fix.
+- `experiment_config.yaml` records `git_commit: b381cd5` ("Add Relapse_MRD_DR_Classification pipeline"). **That stamp is pre-commit**: at run time the Stage 0–2 runners and plans lived only in the working tree, so the recorded hash predates the code that produced the run.
+- **Resolved (Phase 1 git update, 2026-07-02):** the current Stage 0–2 codebase was committed in 9 logical commits on branch `sc_classification_gpu` (`ae7c78f` … `c0146fd`, on top of `b381cd5`), covering the runners (`run_stage0_mrd_old34_broad_screen.py`, `run_stage2_mrd_multiobjective_scorecard.py`, expanded wrapper), plotting/interactive tools, all current plans + this dossier, the analysis notebooks, the expanded geneset bundle + tests, and `src/` utils. As of writing these are **local only, not yet pushed** to `origin/sc_classification_gpu`.
+- `.gitignore` now excludes generated notebook `outputs/` and `figures/` (~405 MB), so run artifacts and regenerable outputs stay out of version control; `experiments/` remains ignored.
+- **Remaining nicety (optional):** the true code for this run now lives at commits `ae7c78f…c0146fd`, not at the `b381cd5` stamped in the config. For a hard provenance link, a future re-run should stamp `HEAD` at run time, or a note can be added to the run manifest pointing at these commit hashes.
+- **Deferred to Phase 2:** the physical `lib/ runs/ skeletons/ legacy/` reorg from `comprehensive_run_reorganization_plan.md` (kept separate from this provenance commit to avoid path-reference churn).
 
 ---
 
@@ -277,12 +278,17 @@ Mapping the three PI questions to concrete tests on this experiment:
 
 ## 11. Recommended next actions (ordered)
 
-1. **Commit the current `scripts/comprehensive_run/` code** and correct the recorded provenance commit (§8). Low effort, unblocks reproducibility.
-2. **Build the expanded-set analysis notebook** — an analogue of `stage2_mrd_figure3_sharedness_suite_v2_jun4` pointed at `analysis/scorecards/expanded_stage0_mrd_manuscript_axes_v1/`, plus a run-associated `postrun` write-up. This closes the single largest analytical gap (§9-analytical-1).
-3. **Implement Diagnostic Layers 3–5** (three-way taxonomy, interpretability audit, and especially **factor→gene grounding**) for old34, writing to `analysis/scorecards/stage2_diagnostic/`. Layer 5 is required for the Q3 story and currently produces an empty file.
-4. **Run controls through multi-objective Stage 2** (`full_34`, `core_only`, HVG anchors, and size-matched HVG for shortlisted panels) to enable Layer 6 gene-budget calibration and the knowledge-prior-delta claim.
+Agreed working order (2026-07-02): finish the **old34** analytical side with explicit
+figure-based thinking, then port it to the expanded set (#2).
+
+0. **[DONE, Phase 1]** Commit the current codebase + plans + dossier and add `.gitignore` rules for generated outputs (§8). Physical reorg deferred to Phase 2.
+1. **Figure catalog for old34.** Walk `stage2_mrd_figure3_sharedness_suite_v2_jun4.ipynb` plot-by-plot with the four-element framing (§10) to decide which plots are team-tested and figure-worthy; the interactive Fig 3A tool (§6b) is the exploration companion. Output: a figure catalog / manuscript-panel shortlist.
+2. **Extend figure-based thinking to the remaining analytical layers** — Diagnostic Layers 3–5 (three-way taxonomy, interpretability audit, and especially **factor→gene grounding**, currently an empty file), each framed as a candidate figure with a stated null.
+3. **#2 — build the expanded-set analysis** — an analogue of the v2 suite pointed at `analysis/scorecards/expanded_stage0_mrd_manuscript_axes_v1/`, plus a run-associated write-up. Closes the largest analytical gap (§9-analytical-1).
+4. **Run controls through multi-objective Stage 2** (`full_34`, `core_only`, HVG anchors, size-matched HVG) to enable Layer 6 gene-budget calibration and the knowledge-prior-delta claim.
 5. **Reconcile Set B against Set A** — one comparison table/plot: best LOPO lift per expanded family vs the best old34 curated program, on matched Stage 1/2 settings.
-6. **Optional hardening:** resurrect Plan 2 label-permutation negative controls for shortlisted panels; add an inductive (refit-per-fold) sensitivity check; add a second Stage 1 seed for stability.
+6. **Optional hardening:** resurrect Plan 2 label-permutation negative controls; add an inductive (refit-per-fold) sensitivity check; add a second Stage 1 seed for stability.
+7. **[Phase 2, later]** Physical repo reorg into `lib/ runs/ skeletons/ legacy/` per `comprehensive_run_reorganization_plan.md`, as a standalone change with reference updates.
 
 ---
 
