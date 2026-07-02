@@ -101,6 +101,64 @@ def _load_adata(input_h5ad: str) -> sc.AnnData:
     return ad
 
 
+def _parse_gmt_union_genes(gmt_path: str) -> List[str]:
+    """
+    Parse a GMT file and return the union of all gene symbols.
+    """
+    genes: set[str] = set()
+    with open(gmt_path, "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split("\t")
+            if len(parts) < 3:
+                continue
+            for g in parts[2:]:
+                gg = str(g).strip()
+                if gg:
+                    genes.add(gg)
+    return sorted(genes)
+
+
+def _restrict_adata_to_gmt_union(
+    adata: sc.AnnData,
+    *,
+    gmt_path: str,
+    case_sensitive: bool = False,
+) -> Tuple[sc.AnnData, Dict[str, Any]]:
+    """
+    Restrict AnnData genes to those present in the GMT union.
+    """
+    gmt_union = _parse_gmt_union_genes(gmt_path)
+    if len(gmt_union) == 0:
+        raise ValueError(f"No genes found in GMT: {gmt_path}")
+
+    if case_sensitive:
+        keep_mask = adata.var_names.isin(gmt_union)
+    else:
+        gset_upper = {g.upper() for g in gmt_union}
+        keep_mask = adata.var_names.astype(str).str.upper().isin(gset_upper)
+
+    n_before = int(adata.n_vars)
+    n_after = int(np.sum(np.asarray(keep_mask)))
+    if n_after == 0:
+        raise ValueError(
+            f"GMT restriction kept zero genes. gmt_path={gmt_path}, "
+            f"case_sensitive={case_sensitive}"
+        )
+
+    ad_sub = adata[:, keep_mask].copy()
+    info = {
+        "gmt_path": str(gmt_path),
+        "case_sensitive": bool(case_sensitive),
+        "n_genes_in_gmt_union": int(len(gmt_union)),
+        "n_genes_before_restrict": n_before,
+        "n_genes_after_restrict": n_after,
+    }
+    return ad_sub, info
+
+
 def _ensure_timepoint_type(
     adata: sc.AnnData,
     *,
@@ -489,6 +547,12 @@ def plan0(
     methods: List[str],
     cnmf_n_iter: int,
     cnmf_dt: str,
+    reference_selection_method: str = "hvg",
+    reference_allfiltered_min_frac: float = 0.01,
+    reference_allfiltered_ratio: Optional[float] = None,
+    reference_allfiltered_variance_filter: bool = True,
+    restrict_genes_gmt: Optional[str] = None,
+    restrict_genes_case_sensitive: bool = False,
     factosig_rotation: str = "varimax",
     factosig_order_factors_by: Optional[str] = "ss_loadings",
 ) -> str:
@@ -504,8 +568,10 @@ def plan0(
         "preprocessing": {
             "timepoint_filter": timepoint_filter,
             "tech_filter": tech_filter,
-            "gene_selection_pipeline": [{"method": "hvg", "n_top_genes": int(reference_hvg)}],
+            "gene_selection_pipeline": [],
             "standardize": True,
+            "restrict_genes_gmt": restrict_genes_gmt,
+            "restrict_genes_case_sensitive": bool(restrict_genes_case_sensitive),
         },
         "plan0": {
             "ks": ks,
@@ -513,6 +579,12 @@ def plan0(
             "methods": methods,
             "cnmf_n_iter": int(cnmf_n_iter),
             "cnmf_dt": str(cnmf_dt),
+            "reference_selection_method": str(reference_selection_method),
+            "reference_allfiltered_min_frac": float(reference_allfiltered_min_frac),
+            "reference_allfiltered_ratio": (
+                None if reference_allfiltered_ratio is None else float(reference_allfiltered_ratio)
+            ),
+            "reference_allfiltered_variance_filter": bool(reference_allfiltered_variance_filter),
             "factosig_rotation": str(factosig_rotation),
             "factosig_order_factors_by": factosig_order_factors_by,
         },
@@ -520,11 +592,42 @@ def plan0(
         "classification": {"cv_folds": 0},
         "downsampling": {"method": "none"},
     }
+    reference_selection_method_l = str(reference_selection_method).strip().lower()
+    if reference_selection_method_l == "hvg":
+        reference_gene_pipeline = [{"method": "hvg", "n_top_genes": int(reference_hvg)}]
+    elif reference_selection_method_l == "all_filtered":
+        step: Dict[str, Any] = {
+            "method": "all_filtered",
+            "min_cells_fraction": float(reference_allfiltered_min_frac),
+            "variance_filter": bool(reference_allfiltered_variance_filter),
+        }
+        if reference_allfiltered_ratio is not None:
+            step["malignant_enrichment_ratio"] = float(reference_allfiltered_ratio)
+        reference_gene_pipeline = [step]
+    else:
+        raise ValueError(
+            "Unknown --reference-selection-method for plan0. "
+            "Expected one of: hvg, all_filtered"
+        )
+    config["preprocessing"]["gene_selection_pipeline"] = reference_gene_pipeline
+
     em = ExperimentManager(experiments_dir)
     exp = em.create_experiment(ExperimentConfig(config))
     print(f"[plan0] Experiment directory: {exp.experiment_dir}")
 
     adata_raw = _ensure_timepoint_type(_load_adata(input_h5ad))
+    if restrict_genes_gmt:
+        adata_raw, gmt_info = _restrict_adata_to_gmt_union(
+            adata_raw,
+            gmt_path=str(restrict_genes_gmt),
+            case_sensitive=bool(restrict_genes_case_sensitive),
+        )
+        _write_json(exp.experiment_dir / "analysis" / "plan0" / "gmt_restriction.json", gmt_info)
+        print(
+            "[plan0] Applied GMT restriction: "
+            f"vars {gmt_info['n_genes_before_restrict']} -> {gmt_info['n_genes_after_restrict']} "
+            f"(union genes={gmt_info['n_genes_in_gmt_union']})"
+        )
 
     # Two views:
     # - standardized (PCA/FA/FactoSig)
@@ -533,7 +636,7 @@ def plan0(
         adata_raw=adata_raw,
         timepoint_filter=timepoint_filter,
         tech_filter=tech_filter,
-        gene_selection_pipeline=[{"method": "hvg", "n_top_genes": int(reference_hvg)}],
+        gene_selection_pipeline=reference_gene_pipeline,
         standardize=True,
         n_top_genes=int(reference_hvg),
     )
@@ -541,7 +644,7 @@ def plan0(
         adata_raw=adata_raw,
         timepoint_filter=timepoint_filter,
         tech_filter=tech_filter,
-        gene_selection_pipeline=[{"method": "hvg", "n_top_genes": int(reference_hvg)}],
+        gene_selection_pipeline=reference_gene_pipeline,
         standardize=False,
         n_top_genes=int(reference_hvg),
     )
@@ -895,6 +998,38 @@ def main():
     p0.add_argument("--timepoint-filter", default="MRD")
     p0.add_argument("--tech-filter", default="CITE")
     p0.add_argument("--reference-hvg", type=int, default=10000)
+    p0.add_argument(
+        "--reference-selection-method",
+        default="hvg",
+        help="Plan0 reference gene selection: hvg | all_filtered",
+    )
+    p0.add_argument(
+        "--reference-allfiltered-min-frac",
+        type=float,
+        default=0.01,
+        help="Used when --reference-selection-method=all_filtered.",
+    )
+    p0.add_argument(
+        "--reference-allfiltered-ratio",
+        type=float,
+        default=None,
+        help="Optional malignant enrichment rescue ratio for all_filtered (default: disabled).",
+    )
+    p0.add_argument(
+        "--reference-allfiltered-no-variance-filter",
+        action="store_true",
+        help="Disable all_filtered variance/noise filter in plan0 reference preprocessing.",
+    )
+    p0.add_argument(
+        "--restrict-genes-gmt",
+        default=None,
+        help="Optional GMT path; if set, input genes are restricted to the GMT union before preprocessing.",
+    )
+    p0.add_argument(
+        "--restrict-genes-case-sensitive",
+        action="store_true",
+        help="Use case-sensitive matching for --restrict-genes-gmt (default: case-insensitive).",
+    )
     # Accept both "--ks 20,40,60" and "--ks 20, 40, 60"
     p0.add_argument("--ks", nargs="+", default=["20,40,60"])
     # Default to one seed for fast K screening; you can rerun later with more seeds
@@ -965,6 +1100,12 @@ def main():
             methods=methods,
             cnmf_n_iter=args.cnmf_n_iter,
             cnmf_dt=args.cnmf_dt,
+            reference_selection_method=str(args.reference_selection_method),
+            reference_allfiltered_min_frac=float(args.reference_allfiltered_min_frac),
+            reference_allfiltered_ratio=args.reference_allfiltered_ratio,
+            reference_allfiltered_variance_filter=(not bool(args.reference_allfiltered_no_variance_filter)),
+            restrict_genes_gmt=(None if args.restrict_genes_gmt in (None, "", "none", "None") else str(args.restrict_genes_gmt)),
+            restrict_genes_case_sensitive=bool(args.restrict_genes_case_sensitive),
             factosig_rotation=str(args.factosig_rotation),
             factosig_order_factors_by=(None if str(args.factosig_order_factors_by).lower() == "none" else str(args.factosig_order_factors_by)),
         )

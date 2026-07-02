@@ -1,0 +1,49 @@
+name: expanded_stage0_mrd_manuscript_axes_v1
+experiment_dir: /home/minhang/mds_project/sc_classification/experiments/20260525_060508_stage0_mrd_old34_broad_screen_82db5093
+bundle_dir: /home/minhang/mds_project/sc_classification/scripts/knowledge_driven_embedding/expanded_stage0_genesets
+genesets_gmt: /home/minhang/mds_project/sc_classification/scripts/knowledge_driven_embedding/expanded_stage0_genesets/final_bundle.gmt
+manifest_tsv: /home/minhang/mds_project/sc_classification/scripts/knowledge_driven_embedding/expanded_stage0_genesets/final_manifest.tsv
+
+stage0:
+  output_branch: expanded_stage0_mrd_manuscript_axes_v1
+  panel_types:
+    - atomic_sets
+    - family_union_sets
+    - core_anchor_sets
+    - single_group_only
+    - leave_one_family_out
+    - full_control
+    - core_only
+    - hvg_anchor_control
+    - all_filtered_control
+  hvg_anchor_sizes: [500, 1000, 3000, 10000]
+  fairness_controls:
+    - size_matched_hvg_controls
+    - all_filtered_control
+    - expanded_full
+    - expanded_core_anchor_only
+    - family_union_sets
+    - leave_one_family_out
+
+stage1:
+  scope: across_patient
+  methods: [pca, fa, factosig, factosig_promax]
+  requested_k: [5, 10, 20, 40]
+  seed: 42
+  small_panel_policy: direct_gene
+
+stage2:
+  run_id: expanded_stage0_mrd_manuscript_axes_v1_stage2
+  output_branch: expanded_stage0_mrd_manuscript_axes_v1
+  backend: gpu
+  conda_env: sc-classification-rapids-py311
+  launch_gpu_shards: true
+  panel_selection: shortlist_plus_controls
+  objectives:
+    - discovery_full_cohort_fit
+    - sharedness_lopo
+    - patient_specific
+  penalties: [l1, l2, elasticnet]
+  class_weight: balanced
+  seed: 42
+  note: Do not launch comprehensive Stage 2 unless explicitly passing --run-stage2 to the orchestrator.

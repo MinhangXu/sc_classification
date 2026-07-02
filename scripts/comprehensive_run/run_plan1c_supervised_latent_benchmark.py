@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -24,9 +25,18 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import scanpy as sc
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, average_precision_score, roc_auc_score
 from sklearn.model_selection import RepeatedStratifiedKFold
+
+# Allow running without editable install by injecting package src/ path.
+try:
+    from sc_classification.utils.logistic_backend import make_logistic_regression
+except Exception:
+    _pkg_root = Path(__file__).resolve().parents[2]  # .../sc_classification
+    _src = _pkg_root / "src"
+    if _src.exists():
+        sys.path.insert(0, str(_src))
+    from sc_classification.utils.logistic_backend import make_logistic_regression
 
 
 def log(msg: str) -> None:
@@ -210,6 +220,8 @@ def eval_cv_grid(
     cv_folds: int,
     cv_repeats: int,
     random_state: int,
+    ml_backend: str,
+    strict_gpu: bool,
 ) -> pd.DataFrame:
     rows: List[Dict] = []
     splitter = RepeatedStratifiedKFold(n_splits=cv_folds, n_repeats=cv_repeats, random_state=random_state)
@@ -220,17 +232,19 @@ def eval_cv_grid(
             l1_ratio = None
         if combo["penalty"] != "elasticnet":
             l1_ratio = None
+        backend_used = "cpu"
         for tr, te in splitter.split(X, y):
-            clf = LogisticRegression(
+            clf = make_logistic_regression(
                 penalty=combo["penalty"],
-                solver="saga",
                 C=float(combo["C"]),
                 l1_ratio=l1_ratio,
-                class_weight="balanced",
                 random_state=random_state,
                 max_iter=5000,
                 n_jobs=-1,
+                backend=ml_backend,
+                strict_gpu=strict_gpu,
             )
+            backend_used = clf.backend_used
             clf.fit(X[tr], y[tr])
             prob = clf.predict_proba(X[te])[:, 1]
             pred = (prob >= 0.5).astype(int)
@@ -242,6 +256,8 @@ def eval_cv_grid(
             row[f"{c}_mean"] = float(fdf[c].mean()) if c in fdf else np.nan
             row[f"{c}_std"] = float(fdf[c].std()) if c in fdf else np.nan
         row["folds_total"] = int(len(fdf))
+        row["ml_backend_requested"] = ml_backend
+        row["ml_backend_used"] = backend_used
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -252,6 +268,8 @@ def fit_full_path_coefficients(
     feature_names: List[str],
     combos: List[Dict],
     random_state: int,
+    ml_backend: str,
+    strict_gpu: bool,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     coef_rows: List[Dict] = []
     summary_rows: List[Dict] = []
@@ -262,15 +280,15 @@ def fit_full_path_coefficients(
         if combo["penalty"] != "elasticnet":
             l1_ratio = None
 
-        clf = LogisticRegression(
+        clf = make_logistic_regression(
             penalty=combo["penalty"],
-            solver="saga",
             C=float(combo["C"]),
             l1_ratio=l1_ratio,
-            class_weight="balanced",
             random_state=random_state,
             max_iter=5000,
             n_jobs=-1,
+            backend=ml_backend,
+            strict_gpu=strict_gpu,
         )
         clf.fit(X, y)
         c = clf.coef_.ravel()
@@ -283,6 +301,8 @@ def fit_full_path_coefficients(
                 "l1_ratio": combo.get("l1_ratio", np.nan),
                 "nonzero_coef_count_full_refit": nnz,
                 "coef_l1_norm_full_refit": float(np.sum(np.abs(c))),
+                "ml_backend_requested": ml_backend,
+                "ml_backend_used": clf.backend_used,
             }
         )
         for i, coef in enumerate(c):
@@ -310,6 +330,8 @@ def collect_oof_predictions(
     penalty: str,
     C: float,
     l1_ratio: Optional[float],
+    ml_backend: str,
+    strict_gpu: bool,
 ) -> Tuple[np.ndarray, np.ndarray]:
     splitter = RepeatedStratifiedKFold(n_splits=cv_folds, n_repeats=cv_repeats, random_state=random_state)
     probs = np.full((len(y),), np.nan, dtype=float)
@@ -318,15 +340,15 @@ def collect_oof_predictions(
         l1_ratio_eff = l1_ratio
         if penalty != "elasticnet":
             l1_ratio_eff = None
-        clf = LogisticRegression(
+        clf = make_logistic_regression(
             penalty=penalty,
-            solver="saga",
             C=float(C),
             l1_ratio=l1_ratio_eff,
-            class_weight="balanced",
             random_state=random_state,
             max_iter=5000,
             n_jobs=-1,
+            backend=ml_backend,
+            strict_gpu=strict_gpu,
         )
         clf.fit(X[tr], y[tr])
         p = clf.predict_proba(X[te])[:, 1]
@@ -416,6 +438,68 @@ def load_features(exp_dir: Path, k: int) -> Tuple[pd.DataFrame, Dict[str, np.nda
     return meta, features, feature_names
 
 
+def load_features_from_manifest(
+    exp_dir: Path,
+    k: int,
+    manifest_csv: Path,
+    *,
+    metadata_h5ad: Optional[Path] = None,
+) -> Tuple[pd.DataFrame, Dict[str, np.ndarray], Dict[str, List[str]]]:
+    base = metadata_h5ad or exp_dir / "preprocessing" / "adata_processed.h5ad"
+    ad = sc.read_h5ad(base, backed="r")
+    meta = ad.obs[["patient", "CN.label", "source", "predicted.annotation"]].copy()
+    meta.index = ad.obs_names.copy()
+    n_obs = len(meta)
+    del ad
+
+    manifest = pd.read_csv(manifest_csv)
+    if "status" in manifest.columns:
+        manifest = manifest.loc[manifest["status"].astype(str).eq("ok")].copy()
+    if "k" in manifest.columns:
+        manifest = manifest.loc[manifest["k"].astype(int).eq(int(k))].copy()
+    if manifest.empty:
+        raise ValueError(f"No usable feature rows in {manifest_csv} for k={k}.")
+
+    required = {"panel_id", "method", "score_source"}
+    missing = sorted(required - set(manifest.columns))
+    if missing:
+        raise ValueError(f"Feature manifest missing required columns: {missing}")
+
+    features: Dict[str, np.ndarray] = {}
+    feature_names: Dict[str, List[str]] = {}
+    feature_rows: List[Dict] = []
+    for _, row in manifest.iterrows():
+        score_path = Path(str(row["score_source"]))
+        if not score_path.is_absolute():
+            score_path = (manifest_csv.parent / score_path).resolve()
+        if not score_path.exists():
+            raise FileNotFoundError(f"Score source not found for {row['panel_id']} / {row['method']}: {score_path}")
+        feature_id = str(row.get("feature_id", "")).strip()
+        if not feature_id:
+            feature_id = f"{row['panel_id']}__{row['method']}"
+        X = np.load(score_path).astype(np.float32, copy=False)
+        if X.shape[0] != n_obs:
+            raise ValueError(f"Unexpected row count for {feature_id}: {X.shape[0]} != {n_obs}")
+        features[feature_id] = X
+        feature_names[feature_id] = [f"{feature_id}_{i+1}" for i in range(X.shape[1])]
+        feature_rows.append(
+            {
+                "feature_id": feature_id,
+                "panel_id": row["panel_id"],
+                "panel_type": row.get("panel_type", ""),
+                "panel_family": row.get("panel_family", ""),
+                "source_dictionary": row.get("source_dictionary", ""),
+                "method": row["method"],
+                "k": int(row.get("k", X.shape[1])),
+                "n_components": int(X.shape[1]),
+                "score_source": str(score_path),
+            }
+        )
+
+    pd.DataFrame(feature_rows).to_csv(manifest_csv.parent / "plan1c_feature_manifest_resolved.csv", index=False)
+    return meta, features, feature_names
+
+
 def write_input_diagnostics(meta: pd.DataFrame, out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     by_patient_label = meta.groupby(["patient", "CN.label"], observed=False).size().unstack(fill_value=0)
@@ -429,6 +513,19 @@ def write_input_diagnostics(meta: pd.DataFrame, out_dir: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run Plan 1.C supervised latent benchmark at K=40.")
     parser.add_argument("--experiment-dir", required=True)
+    parser.add_argument(
+        "--feature-manifest-csv",
+        default="",
+        help=(
+            "Optional CSV with panel_id, method, k, status, and score_source columns, "
+            "for running Plan 1.C on Stage 0 score artifacts."
+        ),
+    )
+    parser.add_argument(
+        "--metadata-h5ad",
+        default="",
+        help="Optional metadata AnnData. Defaults to <experiment-dir>/preprocessing/adata_processed.h5ad.",
+    )
     parser.add_argument("--k", type=int, default=40)
     parser.add_argument("--cv-folds", type=int, default=5)
     parser.add_argument("--cv-repeats", type=int, default=10)
@@ -445,20 +542,38 @@ def main() -> None:
     parser.add_argument("--alpha-num", type=int, default=20)
     parser.add_argument("--enet-l1-ratios", default="0.1,0.5,0.9")
     parser.add_argument("--output-subdir", default="analysis/plan1c_supervised_latent_k40")
+    parser.add_argument("--ml-backend", choices=["cpu", "gpu", "auto"], default="cpu")
+    parser.add_argument(
+        "--strict-gpu",
+        action="store_true",
+        help="If set with --ml-backend gpu/auto, do not fall back to CPU when cuML is unavailable.",
+    )
     args = parser.parse_args()
 
     exp_dir = Path(args.experiment_dir).resolve()
     out_root = exp_dir / args.output_subdir
     out_root.mkdir(parents=True, exist_ok=True)
+    log(f"ML backend request: {args.ml_backend} (strict_gpu={bool(args.strict_gpu)})")
 
     log(f"Loading metadata + DR features from {exp_dir}")
-    meta, features, feat_names = load_features(exp_dir, k=int(args.k))
+    if str(args.feature_manifest_csv).strip():
+        meta, features, feat_names = load_features_from_manifest(
+            exp_dir,
+            k=int(args.k),
+            manifest_csv=Path(args.feature_manifest_csv).resolve(),
+            metadata_h5ad=Path(args.metadata_h5ad).resolve() if str(args.metadata_h5ad).strip() else None,
+        )
+    else:
+        meta, features, feat_names = load_features(exp_dir, k=int(args.k))
     meta = meta.copy()
     meta["y"] = (meta["CN.label"].astype(str) == "cancer").astype(int)
 
     write_input_diagnostics(meta, out_root / "input_diagnostics")
 
     methods = split_csv_arg(args.methods)
+    default_method_tokens = ["pca", "fa", "factosig", "factosig_promax", "cnmf"]
+    if str(args.feature_manifest_csv).strip() and (methods == ["all"] or methods == default_method_tokens):
+        methods = sorted(features.keys())
     modes = set(split_csv_arg(args.modes))
     downsample_variants = split_csv_arg(args.downsampling_variants)
     penalties = split_csv_arg(args.penalties)
@@ -513,6 +628,8 @@ def main() -> None:
                         cv_folds=int(args.cv_folds),
                         cv_repeats=int(args.cv_repeats),
                         random_state=int(args.random_state),
+                        ml_backend=str(args.ml_backend),
+                        strict_gpu=bool(args.strict_gpu),
                     )
                     coef_path_df, coef_summary_df = fit_full_path_coefficients(
                         X=X_pool,
@@ -520,6 +637,8 @@ def main() -> None:
                         feature_names=feat_names[method],
                         combos=grid,
                         random_state=int(args.random_state),
+                        ml_backend=str(args.ml_backend),
+                        strict_gpu=bool(args.strict_gpu),
                     )
                     if not coef_summary_df.empty:
                         gdf = gdf.merge(
@@ -555,6 +674,8 @@ def main() -> None:
                         penalty=str(best["penalty"]),
                         C=float(best["C"]),
                         l1_ratio=best_l1_ratio,
+                        ml_backend=str(args.ml_backend),
+                        strict_gpu=bool(args.strict_gpu),
                     )
 
                     oof = meta_pool.copy()
@@ -665,6 +786,8 @@ def main() -> None:
                             cv_folds=folds,
                             cv_repeats=int(args.cv_repeats),
                             random_state=int(args.random_state),
+                            ml_backend=str(args.ml_backend),
+                            strict_gpu=bool(args.strict_gpu),
                         )
                         coef_path_df, coef_summary_df = fit_full_path_coefficients(
                             X=X_pd,
@@ -672,6 +795,8 @@ def main() -> None:
                             feature_names=feat_names[method],
                             combos=grid,
                             random_state=int(args.random_state),
+                            ml_backend=str(args.ml_backend),
+                            strict_gpu=bool(args.strict_gpu),
                         )
                         if not coef_summary_df.empty:
                             gdf = gdf.merge(
@@ -713,15 +838,15 @@ def main() -> None:
                         best_l1_ratio = best.get("l1_ratio", np.nan)
                         if pd.isna(best_l1_ratio):
                             best_l1_ratio = None
-                        clf = LogisticRegression(
+                        clf = make_logistic_regression(
                             penalty=str(best["penalty"]),
-                            solver="saga",
                             C=float(best["C"]),
                             l1_ratio=best_l1_ratio if str(best["penalty"]) == "elasticnet" else None,
-                            class_weight="balanced",
                             random_state=int(args.random_state),
                             max_iter=5000,
                             n_jobs=-1,
+                            backend=str(args.ml_backend),
+                            strict_gpu=bool(args.strict_gpu),
                         )
                         clf.fit(X_pd, y_pd)
                         coefs = clf.coef_.ravel()
@@ -738,6 +863,8 @@ def main() -> None:
                                     "alpha": float(best["alpha"]),
                                     "C": float(best["C"]),
                                     "l1_ratio": best.get("l1_ratio", np.nan),
+                                    "ml_backend_requested": str(args.ml_backend),
+                                    "ml_backend_used": clf.backend_used,
                                 }
                             )
 
@@ -775,6 +902,8 @@ def main() -> None:
 
     config = {
         "experiment_dir": str(exp_dir),
+        "feature_manifest_csv": str(Path(args.feature_manifest_csv).resolve()) if str(args.feature_manifest_csv).strip() else "",
+        "metadata_h5ad": str(Path(args.metadata_h5ad).resolve()) if str(args.metadata_h5ad).strip() else "",
         "k": int(args.k),
         "cv_folds": int(args.cv_folds),
         "cv_repeats": int(args.cv_repeats),
@@ -792,6 +921,8 @@ def main() -> None:
         "low_malignant_threshold": int(args.low_malignant_threshold),
         "skip_malignant_leq": int(args.skip_malignant_leq),
         "severe_ratio_after_threshold": float(args.severe_ratio_after_threshold),
+        "ml_backend": str(args.ml_backend),
+        "strict_gpu": bool(args.strict_gpu),
         "low_malignant_policy": {
             "pass1": {"ratio_threshold": 10.0, "min_cells_per_type": 5},
             "pass2_if_ratio_gt_20": {"ratio_threshold": 5.0, "min_cells_per_type": 5},
