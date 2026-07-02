@@ -14,3 +14,9 @@ Legacy outputs and notebooks were moved out to keep `src/` code-focused:
 
 The remaining `multiVI_batch_correct/` folder here is code-only.
 
+## Related package docs
+
+For package-level notes including GPU logistic backend usage and RAPIDS environment setup, see:
+
+- `src/sc_classification/README.md`
+

@@ -1,15 +1,23 @@
 # classification/lr_lasso.py
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_curve, auc
 from sklearn.model_selection import RepeatedStratifiedKFold
 from .base import Classifier
+from sc_classification.utils.logistic_backend import make_logistic_regression
 
 class LRLasso(Classifier):
     """Logistic Regression with L1 regularization for feature selection."""
     
-    def __init__(self, adata, target_col, target_value, random_state=42):
+    def __init__(
+        self,
+        adata,
+        target_col,
+        target_value,
+        random_state=42,
+        ml_backend="cpu",
+        strict_gpu=False,
+    ):
         """
         Initialize the LRLasso classifier.
         
@@ -21,6 +29,8 @@ class LRLasso(Classifier):
         """
         super().__init__(adata, target_col, target_value)
         self.random_state = random_state
+        self.ml_backend = str(ml_backend)
+        self.strict_gpu = bool(strict_gpu)
     
     def prepare_data(self, use_factorized=True, factorization_method='X_fa', selected_features=None):
         """
@@ -78,13 +88,15 @@ class LRLasso(Classifier):
         Returns:
         - Fitted classifier
         """
-        model = LogisticRegression(
-            penalty='l1', 
-            solver='saga', 
+        model = make_logistic_regression(
+            penalty="l1",
+            C=C,
+            l1_ratio=None,
+            random_state=self.random_state,
             max_iter=5000,
-            random_state=self.random_state, 
-            class_weight='balanced', 
-            C=C
+            n_jobs=-1,
+            backend=self.ml_backend,
+            strict_gpu=self.strict_gpu,
         )
         model.fit(X, y)
         self.model = model
@@ -206,13 +218,15 @@ class LRLasso(Classifier):
             if len(np.unique(y_val)) < 2:
                 continue
 
-            model = LogisticRegression(
-                penalty='l1',
-                solver='saga',
-                max_iter=5000,
+            model = make_logistic_regression(
+                penalty="l1",
+                C=C,
+                l1_ratio=None,
                 random_state=self.random_state,
-                class_weight='balanced',
-                C=C
+                max_iter=5000,
+                n_jobs=-1,
+                backend=self.ml_backend,
+                strict_gpu=self.strict_gpu,
             )
             model.fit(X_train, y_train)
             
