@@ -57,3 +57,4 @@ This folder implements the approved study direction without modifying the attach
 - This version does not yet add a tech-corrected RNA control arm.
 - `cNMF` and `NMF` are intentionally not first-class in v1 because the current lightweight runtime avoids the full Scanpy stack.
 - The patient-level gene selection is deliberately simple so the paired-timepoint design is easy to reason about before adding more aggressive supervised filtering.
+
