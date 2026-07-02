@@ -141,7 +141,7 @@ Important: this is **classifier-only CV** unless/until DR fitting is nested late
   - the `.h5ad` keeps only one embedding per method (first seed), to avoid file bloat
   - multi-seed replicate caches + stability/consensus diagnostics are intended to live under `analysis/plan1_stability/...` (see `plan0rotationseedsplan1stability.md`)
 
-## Plan 1.C — fixed-K supervised latent benchmark (next)
+## Plan 1.C — fixed-K supervised latent benchmark
 
 ### Goal
 
@@ -166,5 +166,6 @@ At fixed `K=40`, evaluate latent-factor classification quality across DR methods
 
 ### Implementation status
 
-- Planned runner: `../run_plan1c_supervised_latent_benchmark.py` *(not implemented yet)*
+- Implemented runner: `../run_plan1c_supervised_latent_benchmark.py`
+- Stage 0 follow-up: reuse this supervised layer downstream of old-geneset, huCIRA, and HVG stage-0 panel manifests after the stage-1 feature loader is made manifest-driven.
 

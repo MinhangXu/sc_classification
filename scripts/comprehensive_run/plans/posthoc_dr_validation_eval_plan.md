@@ -6,6 +6,7 @@ Scope:
 - validate metric comparability across methods (`pca`, `fa`, `factosig`, `factosig_promax`, `cnmf`)
 - debug suspicious patterns before downstream biological interpretation
 - keep a reproducible checklist of what has been validated vs pending
+- separate malignancy-first stage-0 decisions from structure-preservation diagnostics that may favor PCA-like upstream annotations
 
 Out of scope:
 - replacing Plan 0 / Plan 1 execution docs
@@ -149,6 +150,17 @@ Deliverables:
   - experiment directory
   - output files
   - short decision note
+
+## Stage 0 Evaluation Addendum
+
+The bottom-up stage-0 workflow should not use a single blended rank score as the primary decision rule. For stage-0 panel selection, use a malignancy-first leaderboard:
+
+- primary metrics: MRD malignant-vs-healthy AUROC and AUPRC
+- secondary metrics: malignant recall, malignant precision, balanced accuracy, and per-patient spread
+- parsimony metrics: number of genes, number of genesets, and nonzero classifier coefficients
+- diagnostic metrics: cell-type kNN purity, pseudotime smoothness, silhouette, and neighbor-homogeneity summaries
+
+Structure preservation remains important for debugging representation quality, but it should be reported separately because cell-type and pseudotime labels may inherit PCA/kNN-style bias from upstream workflows. Any claim that a knowledge-driven stage-0 panel is better than a data-driven panel should compare against matched HVG controls using the same cohort, label task, DR method, effective K, seed policy, classifier grid, and split policy.
 
 ## Chunk status tracker
 

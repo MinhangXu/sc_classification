@@ -1,21 +1,42 @@
-# Comprehensive runners: gene filtering × DR grids
+# Comprehensive Run Workflow Map
 
-This folder is meant to keep **the runnable code next to the study plan** (good for reproducibility + publication handoff).
+This folder keeps runnable experiment code next to the study plan so the current workflow can be rehydrated from code, plans, and experiment IDs.
 
-## What exists today
+## Current Entry Points
 
 - `run_gene_filter_dr_grid.py`
-  - **plan0**: K-sweep + multi-seed loading stability + optional cNMF K-selection
-  - **plan1**: preprocess-method × DR-method grid, plus **multi-seed stability/consensusness caches**
-- Helpers:
-  - `resume_plan0_cnmf.py`: finish cNMF for an existing (crashed) Plan 0 experiment dir
-  - `resume_plan0_standard_dr.py`: append missing PCA/FA/FactoSig replicate caches (multi-seed) into an existing Plan 0 experiment dir (no re-preprocessing)
-  - `attach_plan0_dr_cache_to_preprocessed_adata.py`: rehydrate Plan 0 DR caches into `preprocessing/adata_processed*.h5ad`
-  - `reorganize_plan0_cnmf_curated.py`: build a non-destructive curated cNMF view (`models/cnmf_plan0/curated/`) with manifest and sequence-oriented folders
-- Plan 2–4 runner skeletons:
-  - `run_gene_filter_dr_plan2_negative_controls.py`
-  - `run_gene_filter_dr_plan3_representation_first.py`
-  - `run_gene_filter_dr_plan4_two_stage_selection.py`
+  - Plan 0: K sweep, multi-seed loading stability, optional cNMF K selection.
+  - Plan 1: preprocess-method x DR-method grid.
+- `run_plan0_old_geneset_dr_suite.sh`
+  - April 2026 old 34-program Plan 0 DR suite on the GMT-restricted gene space.
+- `run_old_geneset_pruning_metrics.py`
+  - Top-down strict-ablation pruning metrics and the new Stage 0 bottom-up/HVG-control panel metrics.
+- `run_stage0_old_geneset_bottom_up.sh`
+  - Reproducible Stage 0 bottom-up screen for single genesets, single biology groups, HVG controls, and core/full controls.
+- `run_plan1c_supervised_latent_benchmark.py`
+  - Stage 2 supervised benchmark: pooled and per-patient repeated CV with L1/L2/elastic-net logistic paths.
+  - Can now read a Stage 0 score manifest through `--feature-manifest-csv`.
+
+## Important Experiment IDs
+
+- Old-geneset Plan 0 / pruning reference:
+  - `/home/minhang/mds_project/sc_classification/experiments/20260401_023024_plan0_k_sweep_60_none_all_filtered_8f5363e0`
+- HVG Plan 0 / Plan 1.C reference:
+  - `/home/minhang/mds_project/sc_classification/experiments/20260211_212806_plan0_k_sweep_60_none_hvg_c06f4886`
+
+## Legacy And Recovery Files
+
+- `legacy/` contains one-off watcher and pilot scripts that should not be used as current entry points.
+- The cNMF and standard-DR resume scripts remain at top level for now because the active Plan 0 incident notes still reference them:
+  - `resume_plan0_cnmf.py`
+  - `resume_plan0_standard_dr.py`
+  - `run_plan0_resume_standard_dr_varimax.sh`
+  - `run_plan0_resume_standard_dr_promax.sh`
+- Helper scripts that may become reusable library code:
+  - `attach_plan0_dr_cache_to_preprocessed_adata.py`
+  - `reorganize_plan0_cnmf_curated.py`
+  - `build_plan0_k_selection_summary.py`
+- Plan 2-4 skeletons are not current entry points unless explicitly revived.
 
 ## Where the “on-paper” plans are
 
@@ -23,6 +44,8 @@ For day-to-day use, use the curated plan docs + index:
 
 - `plans/INDEX.md`
 - `plans/active_plan0_plan1.md`
+- `plans/stage0_geneset_value_added_workflow.md`
+- `plans/comprehensive_run_reorganization_plan.md`
 - `plans/later_plans2_4.md`
 
 Raw Cursor snapshots and older drafts live in Cursor's internal plans area (provenance only):
@@ -91,6 +114,38 @@ Key outputs:
 
 Note:
 - As of now, Plan 1 seeding and `analysis/plan1_stability/...` caches are the intended design but are not yet fully wired in code. See `plans/plan0rotationseedsplan1stability.md`.
+
+### Stage 0 bottom-up old-geneset screen
+
+Example:
+
+```bash
+bash sc_classification/scripts/comprehensive_run/run_stage0_old_geneset_bottom_up.sh \
+  --methods fa,factosig,pca \
+  --ks 5,10,20,40
+```
+
+Key outputs:
+
+- `analysis/stage0_old_geneset_bottom_up/panel_manifest.csv`
+- `analysis/stage0_old_geneset_bottom_up/panel_dr_metric_rows.csv`
+- `analysis/stage0_old_geneset_bottom_up/panel_dr_leaderboard.csv`
+- `analysis/stage0_old_geneset_bottom_up/dr_cache_strict_ablation/<panel>/<method>/k_<K>/seed_<seed>/scores.npy`
+
+### Stage 2 on Stage 0 score artifacts
+
+Example:
+
+```bash
+python sc_classification/scripts/comprehensive_run/run_plan1c_supervised_latent_benchmark.py \
+  --experiment-dir /home/minhang/mds_project/sc_classification/experiments/20260401_023024_plan0_k_sweep_60_none_all_filtered_8f5363e0 \
+  --feature-manifest-csv /home/minhang/mds_project/sc_classification/experiments/20260401_023024_plan0_k_sweep_60_none_all_filtered_8f5363e0/analysis/stage0_old_geneset_bottom_up/panel_dr_metric_rows.csv \
+  --k 20 \
+  --methods all \
+  --modes pooled,per_patient \
+  --penalties l1,l2,elasticnet \
+  --output-subdir analysis/stage0_old_geneset_bottom_up/plan1c_supervised_from_scores_k20
+```
 
 ## Notes / known gaps vs iter3 plan (and “later” plans)
 

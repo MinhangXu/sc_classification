@@ -2,6 +2,8 @@
 
 This plan adds a supervised evaluation layer on top of the completed Plan 0 DR artifacts.
 
+Status: implemented as `../run_plan1c_supervised_latent_benchmark.py`. The same structure should be reused by the Stage 0 gene-set value-added workflow after arbitrary stage-0 panels have produced stage-1 DR score artifacts.
+
 Scope is intentionally narrow and execution-focused:
 - fixed experiment provenance
 - fixed latent dimensionality (`K=40`)
@@ -195,7 +197,7 @@ Selection is reported separately for:
 
 ## Implementation mapping
 
-Planned runner:
-- `../run_plan1c_supervised_latent_benchmark.py` (new)
+Implemented runner:
+- `../run_plan1c_supervised_latent_benchmark.py`
 
-This runner should not modify Plan 0 raw artifacts; it only reads them and writes analysis outputs.
+This runner should not modify Plan 0 raw artifacts; it only reads them and writes analysis outputs. For Stage 0 work, the next engineering step is to generalize the hard-coded Plan 0 artifact assumptions into a manifest-driven stage-1 feature loader.
