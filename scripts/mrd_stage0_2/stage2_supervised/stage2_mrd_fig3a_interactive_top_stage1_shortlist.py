@@ -19,7 +19,7 @@ from stage2_sharedness_plotting import _standardize_stage2_columns, resolve_col
 
 
 EXPERIMENT_ID = "20260525_060508_stage0_mrd_old34_broad_screen_82db5093"
-DEFAULT_EXPERIMENT_DIR = Path(__file__).resolve().parents[2] / "experiments" / EXPERIMENT_ID
+DEFAULT_EXPERIMENT_DIR = Path(__file__).resolve().parents[3] / "experiments" / EXPERIMENT_ID
 DEFAULT_SOURCE_REL = Path("analysis/scorecards/stage2_figure3_sharedness/fig3A_discovery_vs_lopo_sharedness_source.csv")
 DEFAULT_DISCOVERY_REL = Path("analysis/scorecards/stage2_discovery_full_cohort_scorecard.csv")
 DEFAULT_LOPO_REL = Path("analysis/scorecards/stage2_sharedness_lopo_scorecard.csv")

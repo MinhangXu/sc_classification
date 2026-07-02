@@ -440,8 +440,8 @@ Minimum columns for discussion and shortlist decisions:
 
 ## Implementation Notes
 
-- Reuse helpers in `scripts/comprehensive_run/stage2_sharedness_plotting.py` (`select_regularization_rows`, `infer_biological_theme`, etc.).
-- v2 notebook: `scripts/comprehensive_run/notebooks/stage2_mrd_figure3_sharedness_suite_v2_jun4.ipynb`
+- Reuse helpers in `scripts/mrd_stage0_2/stage2_supervised/stage2_sharedness_plotting.py` (`select_regularization_rows`, `infer_biological_theme`, etc.).
+- v2 notebook: `scripts/mrd_stage0_2/notebooks/stage0_2/stage2_mrd_figure3_sharedness_suite_v2_jun4.ipynb`
 - Suggested output root: `analysis/scorecards/stage2_diagnostic/`
 - Suggested next artifact: notebook or script `stage2_comprehensive_diagnostic_suite.ipynb` / `.py` implementing Layers 1–3 and the 41-row table first.
 

@@ -2,9 +2,9 @@
 
 This folder is the right home for long-running, goal-driven orchestration logic.
 
-## Why separate from `comprehensive_run/`
+## Why separate from the study runners
 
-- `comprehensive_run/` contains domain runners (`plan0`, `plan1`, ...)
+- `dr_feature_screening/` contains domain runners (`plan0`, `plan1`, ...)
 - `orchestrator/` coordinates stages, validation gates, resume, and logging
 
 ## Entry point

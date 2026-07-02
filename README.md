@@ -15,10 +15,10 @@ This project follows a standard `src` layout to cleanly separate the installable
 
 ## Reorganization status
 
-- Active plan-driven runs are under `scripts/comprehensive_run/`.
+- The current knowledge-prior Stage 0-2 study is under `scripts/mrd_stage0_2/` (start at its `plans/INDEX.md`).
+- Older DR method/K screening (Plan 0/1/1c/1d) is under `scripts/dr_feature_screening/`.
 - Stage orchestration scaffolding is under `scripts/orchestrator/`.
 - Historical scripts are under `scripts/legacy/`.
-- The plan index and active study specs are in `scripts/comprehensive_run/plans/`.
 - Repository cleanup policy and archive guidance are documented in `REPO_ORGANIZATION.md`.
 - Operational docs:
   - `docs/GITHUB_UPDATE_PLAYBOOK.md`

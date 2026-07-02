@@ -16,7 +16,7 @@ Strict GPU mode is available via `strict_gpu=True` to fail fast instead of falli
 
 ## Where it is used
 
-- `scripts/comprehensive_run/run_plan1c_supervised_latent_benchmark.py`
+- `scripts/dr_feature_screening/plan1c_supervised/run_plan1c_supervised_latent_benchmark.py`
   - New CLI flags:
     - `--ml-backend {cpu,gpu,auto}`
     - `--strict-gpu`

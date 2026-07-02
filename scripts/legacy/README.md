@@ -14,5 +14,5 @@ This folder keeps historical runners and helper scripts that are useful for prov
 
 ## Current primary workflow
 
-Use `scripts/comprehensive_run/` for ongoing plan-driven runs.
+Use `scripts/mrd_stage0_2/` (current Stage 0-2 study) and `scripts/dr_feature_screening/` (older DR method/K screening) for ongoing plan-driven runs.
 

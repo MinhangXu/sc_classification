@@ -1,154 +1,72 @@
-# Comprehensive Run Workflow Map
+# mrd_stage0_2 — knowledge-prior Stage 0-2 malignancy study
 
-This folder keeps runnable experiment code next to the study plan so the current workflow can be rehydrated from code, plans, and experiment IDs.
+Current study: build and biologically interpret a three-stage knowledge-prior malignant-vs-non-malignant
+classifier on the MRD cohort, then answer the three PI questions (robust shared model,
+patient-specific biology, breaking apart programs).
 
-## Current Entry Points
+**Start here:** `plans/INDEX.md`, then the rehydration dossier `plans/experiment_20260525_stage0_2_rehydration_dossier.md`
+(master map of the run: pipeline artifacts, provenance, gaps, per-plot framing).
 
-- `run_gene_filter_dr_grid.py`
-  - Plan 0: K sweep, multi-seed loading stability, optional cNMF K selection.
-  - Plan 1: preprocess-method x DR-method grid.
-- `run_plan0_old_geneset_dr_suite.sh`
-  - April 2026 old 34-program Plan 0 DR suite on the GMT-restricted gene space.
-- `run_old_geneset_pruning_metrics.py`
-  - Top-down strict-ablation pruning metrics and the new Stage 0 bottom-up/HVG-control panel metrics.
-- `run_stage0_old_geneset_bottom_up.sh`
-  - Reproducible Stage 0 bottom-up screen for single genesets, single biology groups, HVG controls, and core/full controls.
-- `run_plan1c_supervised_latent_benchmark.py`
-  - Stage 2 supervised benchmark: pooled and per-patient repeated CV with L1/L2/elastic-net logistic paths.
-  - Can now read a Stage 0 score manifest through `--feature-manifest-csv`.
+## The three stages
 
-## Important Experiment IDs
+- **Stage 0 — gene-space panels.** Restrict genes to a knowledge-prior panel (single genesets, biology
+  groups, family unions, leave-one-family-out, plus HVG/full/core controls).
+- **Stage 1 — representation learning.** DR on the panel: `pca`, `fa`, `factosig`, `factosig_promax` at `K in {5,10,20,40}`.
+- **Stage 2 — regularized supervised probes.** L1/L2/elastic-net logistic paths under three objectives:
+  discovery full-cohort fit, sharedness leave-one-patient-out (LOPO), and patient-specific.
 
-- Old-geneset Plan 0 / pruning reference:
-  - `/home/minhang/mds_project/sc_classification/experiments/20260401_023024_plan0_k_sweep_60_none_all_filtered_8f5363e0`
-- HVG Plan 0 / Plan 1.C reference:
-  - `/home/minhang/mds_project/sc_classification/experiments/20260211_212806_plan0_k_sweep_60_none_hvg_c06f4886`
+## Layout
 
-## Legacy And Recovery Files
+- `stage0_panels/` — Stage 0/1 (+ quick Stage 2) runners.
+  - `run_stage0_mrd_old34_broad_screen.py` — the Stage 0/1/quick-Stage-2 screen (both panel sets).
+  - `run_stage0_mrd_old34_broad_screen.sh` — thin wrapper that launched the old34 set (Set A).
+  - `run_expanded_stage0_genesets_stage0_to_stage2.sh` — builds the expanded manuscript-axes bundle
+    (Set B) and drives Stage 0 → multi-objective Stage 2.
+  - `configs/expanded_stage0_mrd_manuscript_axes.yaml` — expanded panel-set config.
+- `stage2_supervised/` — multi-objective Stage 2 + plotting/interactive tools.
+  - `run_stage2_mrd_multiobjective_scorecard.py` — discovery / LOPO / patient-specific reg-path scorecards.
+  - `stage2_sharedness_plotting.py` — shared plotting/label helpers imported by the notebooks and audit script.
+  - `stage2_mrd_fig3a_interactive.py`, `..._top_stage1_shortlist.py` — interactive Fig 3A HTML builders.
+  - `build_lopo_transfer_audit_tables.py` — patient-wise LOPO transfer audit tables/plots.
+- `notebooks/stage0_2/` — analysis notebooks (authoritative: `stage2_mrd_figure3_sharedness_suite_v2_jun4.ipynb`).
+- `plans/` — design + run-spec + diagnostic plans and the rehydration dossier (`INDEX.md` maps plan → implementation).
 
-- `legacy/` contains one-off watcher and pilot scripts that should not be used as current entry points.
-- The cNMF and standard-DR resume scripts remain at top level for now because the active Plan 0 incident notes still reference them:
-  - `resume_plan0_cnmf.py`
-  - `resume_plan0_standard_dr.py`
-  - `run_plan0_resume_standard_dr_varimax.sh`
-  - `run_plan0_resume_standard_dr_promax.sh`
-- Helper scripts that may become reusable library code:
-  - `attach_plan0_dr_cache_to_preprocessed_adata.py`
-  - `reorganize_plan0_cnmf_curated.py`
-  - `build_plan0_k_selection_summary.py`
-- Plan 2-4 skeletons are not current entry points unless explicitly revived.
+## Two panel sets in the run
 
-## Where the “on-paper” plans are
+The run `experiments/20260525_060508_stage0_mrd_old34_broad_screen_82db5093/` holds two Stage 0 panel sets:
 
-For day-to-day use, use the curated plan docs + index:
+- **Set A — old34**: curated single genesets / biology groups / controls (`genesets_v1.gmt`).
+- **Set B — expanded manuscript axes** (`--branch-name expanded_stage0_mrd_manuscript_axes_v1`): atomic sets,
+  family unions, and leave-one-family-out panels — the realization of `plans/stage0_geneset_value_added_workflow.md`.
 
-- `plans/INDEX.md`
-- `plans/active_plan0_plan1.md`
-- `plans/stage0_geneset_value_added_workflow.md`
-- `plans/comprehensive_run_reorganization_plan.md`
-- `plans/later_plans2_4.md`
+## Run the pipeline
 
-Raw Cursor snapshots and older drafts live in Cursor's internal plans area (provenance only):
-
-- `.cursor/plans/gene-filtering-eval-plan-iter2_e60076f2.plan.md`
-- `.cursor/plans/gene-filtering-eval-plan-iter3-cnmf_a09f862f.plan.md`
-- `.cursor/plans/gene-filtering-eval-plans_ed94c3ef.plan.md` (contains the unrefined plan 2–4 ideas)
-
-The intent (iter3) is: **do Plan 0 to pick K per DR method (including cNMF)**, then run the main **2-axis grid** (**DR method × preprocess method**) as Plan 1.A (no-CV) followed by Plan 1.B (classifier-only CV).
-
-## How to run
-
-### Plan 0 (K sweep / stability screen)
-
-Example:
+Old34 broad screen (Stage 0/1 + quick Stage 2):
 
 ```bash
-python sc_classification/scripts/comprehensive_run/run_gene_filter_dr_grid.py plan0 \
-  --input-h5ad path/to/input.h5ad \
-  --experiments-dir experiments \
-  --timepoint-filter MRD \
-  --tech-filter CITE \
-  --reference-hvg 10000 \
-  --ks 20,40,60,80 \
-  --seeds 1,2,3,4,5 \
-  --methods fa,factosig,pca,nmf,cnmf
+bash sc_classification/scripts/mrd_stage0_2/stage0_panels/run_stage0_mrd_old34_broad_screen.sh
 ```
 
-Key outputs (under the created experiment directory):
-
-- `analysis/plan0/k_selection_summary.csv`: quick table to plot **stability vs variance-proxy** (and consensus silhouette for FA/FactoSig)
-- `analysis/plan0/stability/<method>/k_<K>/...`: per-K replicate caches and stability summaries
-- `models/cnmf_plan0/` + `analysis/plan0/cnmf/`: cNMF artifacts + consensus stats
-  - optional post-processing: `models/cnmf_plan0/curated/` (symlink/copy view with `global/`, `k_<K>/inputs/`, `k_<K>/consensus/`, `MANIFEST.csv`)
-
-Notes:
-- **FA rotation**: the current runner uses sklearn FA with no explicit rotation parameter. An in-progress engineering plan adds `--fa-rotation none|varimax|promax` for Plan 0 (and optionally Plan 1). See `plans/plan0rotationseedsplan1stability.md`.
-- **Stability/consensusness requires multi-seed**: for FA/FactoSig, consensus clustering caches only run when you provide **2+ seeds**.
-
-### Plan 1 (grid run + multi-seed consensusness)
-
-Example:
+Expanded manuscript-axes set (build bundle → Stage 0 → multi-objective Stage 2):
 
 ```bash
-python sc_classification/scripts/comprehensive_run/run_gene_filter_dr_grid.py plan1 \
-  --input-h5ad path/to/input.h5ad \
-  --experiments-dir experiments \
-  --timepoint-filter MRD \
-  --tech-filter CITE \
-  --preprocess-set hvg,all_filtered,deg_weak_screen,hybrid \
-  --hvg-n 3000 \
-  --dr-methods pca,fa,nmf,factosig,cnmf \
-  --k-by-method pca=60,fa=60,nmf=60,factosig=60,cnmf=60 \
-  --seeds 1,2,3,4,5 \
-  --cv-folds 0
+bash sc_classification/scripts/mrd_stage0_2/stage0_panels/run_expanded_stage0_genesets_stage0_to_stage2.sh \
+  --experiment-dir sc_classification/experiments/20260525_060508_stage0_mrd_old34_broad_screen_82db5093 \
+  --run-stage2 --gpu-ids auto
 ```
 
-Key outputs:
-
-- `analysis/preprocess_cache/<tag>/adata_with_dr.h5ad`
-  - Contains **one embedding per DR method** (from the first seed in `--seeds`) to keep file size reasonable.
-- `analysis/plan1_stability/<tag>/<method>/k_<K>/...`
-  - Multi-seed replicate caches + stability summary and (FA/FactoSig) consensus clustering cache.
-- `analysis/classification_grid/<method>/...`
-  - L1-logistic-regression summaries (currently based on the embedding attached to the `.h5ad`).
-
-Note:
-- As of now, Plan 1 seeding and `analysis/plan1_stability/...` caches are the intended design but are not yet fully wired in code. See `plans/plan0rotationseedsplan1stability.md`.
-
-### Stage 0 bottom-up old-geneset screen
-
-Example:
+Multi-objective Stage 2 on an existing Stage 0 scorecard:
 
 ```bash
-bash sc_classification/scripts/comprehensive_run/run_stage0_old_geneset_bottom_up.sh \
-  --methods fa,factosig,pca \
-  --ks 5,10,20,40
+python sc_classification/scripts/mrd_stage0_2/stage2_supervised/run_stage2_mrd_multiobjective_scorecard.py \
+  --experiment-dir <EXP_DIR> --stage0-scorecard <scorecard.csv> --stage2-run-id <id> \
+  --run-discovery-full-cohort-fit --run-sharedness-lopo --run-patient-specific \
+  --penalties l1,l2,elasticnet
 ```
 
-Key outputs:
+Generated `experiments/.../` artifacts and notebook `outputs/`/`figures/` are gitignored (regenerable).
 
-- `analysis/stage0_old_geneset_bottom_up/panel_manifest.csv`
-- `analysis/stage0_old_geneset_bottom_up/panel_dr_metric_rows.csv`
-- `analysis/stage0_old_geneset_bottom_up/panel_dr_leaderboard.csv`
-- `analysis/stage0_old_geneset_bottom_up/dr_cache_strict_ablation/<panel>/<method>/k_<K>/seed_<seed>/scores.npy`
+## Related
 
-### Stage 2 on Stage 0 score artifacts
-
-Example:
-
-```bash
-python sc_classification/scripts/comprehensive_run/run_plan1c_supervised_latent_benchmark.py \
-  --experiment-dir /home/minhang/mds_project/sc_classification/experiments/20260401_023024_plan0_k_sweep_60_none_all_filtered_8f5363e0 \
-  --feature-manifest-csv /home/minhang/mds_project/sc_classification/experiments/20260401_023024_plan0_k_sweep_60_none_all_filtered_8f5363e0/analysis/stage0_old_geneset_bottom_up/panel_dr_metric_rows.csv \
-  --k 20 \
-  --methods all \
-  --modes pooled,per_patient \
-  --penalties l1,l2,elasticnet \
-  --output-subdir analysis/stage0_old_geneset_bottom_up/plan1c_supervised_from_scores_k20
-```
-
-## Notes / known gaps vs iter3 plan (and “later” plans)
-
-- The iter3 plan deliberately treats FA/FactoSig “consensusness” as **diagnostic in Plan 0**. This runner also caches multi-seed stability under Plan 1 so you can inspect grid runs without re-running DR, but classification still uses only the first-seed embedding attached to the `.h5ad`.
-- The unrefined “later” plans (2–4 in `.cursor/plans/gene-filtering-eval-plans_ed94c3ef.plan.md`) include stricter protocol ideas like **train-only gene selection** and **heldout splits within patient×timepoint_type**. Those are not enforced here yet (current runs operate on the full filtered dataset per preprocess method; CV, when enabled, is classifier-only).
-
+- Older DR method/K screening (Plan 0/1/1c/1d): `scripts/dr_feature_screening/`.
+- Upstream gene-space builders: `scripts/knowledge_driven_embedding/`.

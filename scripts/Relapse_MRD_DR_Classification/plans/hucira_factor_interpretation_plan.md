@@ -4,8 +4,8 @@ Status: The reusable huCIRA reference export utility and the signature-to-dictio
 
 This note describes how to use `huCIRA` as a cytokine-dictionary interpretation layer for:
 
-- `sc_classification/scripts/comprehensive_run/notebooks/plan1c_k40_full_reg_path_analysis_20260319.ipynb`
-- `sc_classification/scripts/comprehensive_run/notebooks/plan1d_k40_per_patient_full_reg_path_analysis_20260319.ipynb`
+- `sc_classification/scripts/dr_feature_screening/notebooks/plan1c/plan1c_k40_full_reg_path_analysis_20260319.ipynb`
+- `sc_classification/scripts/dr_feature_screening/notebooks/plan1d/plan1d_k40_per_patient_full_reg_path_analysis_20260319.ipynb`
 - `sc_classification/scripts/Relapse_MRD_DR_Classification/notebooks/relapse_mrd_multiclass_analysis_20260319.ipynb`
 
 The core idea is to treat huCIRA less as "another GSEA wrapper" and more as a structured reference atlas of:
@@ -18,7 +18,7 @@ That makes it useful for factor annotation, cell-state scoring, longitudinal mod
 
 ## Why huCIRA is relevant here (implemented)
 
-Status: This motivation now matches the current notebook implementation in `sc_classification/scripts/comprehensive_run/notebooks/plan1c_k40_full_reg_path_analysis_20260319.ipynb`, `sc_classification/scripts/comprehensive_run/notebooks/plan1d_k40_per_patient_full_reg_path_analysis_20260319.ipynb`, and `sc_classification/scripts/Relapse_MRD_DR_Classification/notebooks/relapse_mrd_multiclass_analysis_20260319.ipynb`, where huCIRA is used as a post hoc interpretation layer on top of predictive signatures reconstructed in gene space.
+Status: This motivation now matches the current notebook implementation in `sc_classification/scripts/dr_feature_screening/notebooks/plan1c/plan1c_k40_full_reg_path_analysis_20260319.ipynb`, `sc_classification/scripts/dr_feature_screening/notebooks/plan1d/plan1d_k40_per_patient_full_reg_path_analysis_20260319.ipynb`, and `sc_classification/scripts/Relapse_MRD_DR_Classification/notebooks/relapse_mrd_multiclass_analysis_20260319.ipynb`, where huCIRA is used as a post hoc interpretation layer on top of predictive signatures reconstructed in gene space.
 
 The current Plan1c / Plan1d notebook flow already does several strong things:
 
@@ -467,8 +467,8 @@ Expected outputs:
 
 Status: Implemented in the newer March 19 notebooks:
 
-- `sc_classification/scripts/comprehensive_run/notebooks/plan1c_k40_full_reg_path_analysis_20260319.ipynb`
-- `sc_classification/scripts/comprehensive_run/notebooks/plan1d_k40_per_patient_full_reg_path_analysis_20260319.ipynb`
+- `sc_classification/scripts/dr_feature_screening/notebooks/plan1c/plan1c_k40_full_reg_path_analysis_20260319.ipynb`
+- `sc_classification/scripts/dr_feature_screening/notebooks/plan1d/plan1d_k40_per_patient_full_reg_path_analysis_20260319.ipynb`
 - and extended analogously in `sc_classification/scripts/Relapse_MRD_DR_Classification/notebooks/relapse_mrd_multiclass_analysis_20260319.ipynb`
 
 How and where:

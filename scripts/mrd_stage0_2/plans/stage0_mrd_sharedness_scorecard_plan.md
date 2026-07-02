@@ -290,7 +290,7 @@ Many healthy cells called malignant may reflect true transcriptomic overlap, cla
 
 Notebook path:
 
-`sc_classification/scripts/comprehensive_run/notebooks/stage0_mrd_old34_metric_diagnostics_20260525.ipynb`
+`sc_classification/scripts/mrd_stage0_2/notebooks/stage0_2/stage0_mrd_old34_metric_diagnostics_20260525.ipynb`
 
 Local review status:
 
@@ -707,7 +707,7 @@ The other server has cuML/GPU support, so the supervised path runner can be GPU-
 Suggested command shape:
 
 ```bash
-python sc_classification/scripts/comprehensive_run/run_stage2_mrd_multiobjective_scorecard.py \
+python sc_classification/scripts/mrd_stage0_2/stage2_supervised/run_stage2_mrd_multiobjective_scorecard.py \
   --experiment-dir sc_classification/experiments/20260525_060508_stage0_mrd_old34_broad_screen_82db5093 \
   --stage1-fit-scope-note transductive_all_eligible_cells \
   --positive-label cancer \

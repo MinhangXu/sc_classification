@@ -35,7 +35,7 @@ import time
 try:
     import sc_classification  # noqa: F401
 except Exception:
-    _pkg_root = Path(__file__).resolve().parents[2]  # .../sc_classification
+    _pkg_root = Path(__file__).resolve().parents[3]  # .../sc_classification
     _src = _pkg_root / "src"
     if _src.exists():
         sys.path.insert(0, str(_src))

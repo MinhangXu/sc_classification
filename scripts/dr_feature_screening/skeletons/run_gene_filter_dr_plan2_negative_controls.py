@@ -2,7 +2,7 @@
 """
 Plan 2 runner (skeleton): negative controls / leakage checks.
 
-Source plan: `sc_classification/scripts/comprehensive_run/plans/later_plans2_4.md`
+Source plan: `sc_classification/scripts/dr_feature_screening/plans/later_plans2_4.md`
 
 Intent:
 - Run a "mirrored" version of Plan 1, but with CN.label permuted within strata

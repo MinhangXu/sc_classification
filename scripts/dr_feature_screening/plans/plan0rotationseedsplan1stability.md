@@ -15,14 +15,14 @@ This document is implementation-focused. For post-hoc validation/evaluation logi
   - **Plan 1**: add back the missing `--seeds` behavior and write the documented `analysis/plan1_stability/...` caches (currently not implemented).
 - Ensure **PCA** is consistently supported/used (it is already supported, but needs to be run in Plan 0 experiments).
 - For **cNMF**, keep using the native output trees under `models/`, but add a **manifest** that points to the replicate NMF results that feed consensus.
-- Update the **plan docs** under `scripts/comprehensive_run/` to match actual runner behavior.
+- Update the **plan docs** under `scripts/dr_feature_screening/` to match actual runner behavior.
 - Keep interpretation guidance out of this file and centralized in `posthoc_dr_validation_eval_plan.md`.
 
 ## Key facts from current code
 
 - **Plan 0 FA rotation today**: none. `run_gene_filter_dr_grid.py` imports `FAWrapper` from sklearn-based `src/sc_classification/dimension_reduction/factor_analysis.py` which does not expose rotation.
 - An R-based rotated FA implementation exists at `src/sc_classification/dimension_reduction/factor_analysis_R.py` with `rotate="varimax"` default, but it is not used by the comprehensive runner.
-- **Plan 0 consensusness**: implemented in `scripts/comprehensive_run/run_gene_filter_dr_grid.py` as `consensus_cluster_components(...)` and only runs for FA/FactoSig when multiple seeds are present (`len(loadings_runs) >= 2`).
+- **Plan 0 consensusness**: implemented in `scripts/dr_feature_screening/plan0_1_grid/run_gene_filter_dr_grid.py` as `consensus_cluster_components(...)` and only runs for FA/FactoSig when multiple seeds are present (`len(loadings_runs) >= 2`).
 - **Plan 1 seeding/stability**: docs mention `--seeds` and `analysis/plan1_stability/...`, but the code currently:
   - has **no `--seeds` argument**
   - runs standard DR with a fixed `seed=42`
@@ -45,7 +45,7 @@ This document is implementation-focused. For post-hoc validation/evaluation logi
 
 ### 2) Expose FA rotation in Plan 0 CLI/config
 
-- Update `scripts/comprehensive_run/run_gene_filter_dr_grid.py` Plan 0 CLI:
+- Update `scripts/dr_feature_screening/plan0_1_grid/run_gene_filter_dr_grid.py` Plan 0 CLI:
   - add `--fa-rotation none|varimax|promax` (default `none`)
 - Thread this parameter into `_run_dr_method('fa', ...)` → `FAWrapper.fit_transform(... rotation=...)`.
 - Ensure `analysis/plan0/config.json` records the FA rotation choice.
@@ -62,7 +62,7 @@ This document is implementation-focused. For post-hoc validation/evaluation logi
 
 ### 4) Fix Plan 1 to match docs: add seeds + stability caches
 
-- Update `scripts/comprehensive_run/run_gene_filter_dr_grid.py` Plan 1 CLI:
+- Update `scripts/dr_feature_screening/plan0_1_grid/run_gene_filter_dr_grid.py` Plan 1 CLI:
   - add `--seeds 1,2,3,...`
 - For each preprocess tag and method (except cnmf handled separately):
   - run DR for each seed
@@ -89,16 +89,16 @@ This document is implementation-focused. For post-hoc validation/evaluation logi
 
 Status update (implemented operationally):
 - A non-destructive post-run organizer now exists:
-  - `scripts/comprehensive_run/reorganize_plan0_cnmf_curated.py`
+  - `scripts/dr_feature_screening/legacy/reorganize_plan0_cnmf_curated.py`
 - It creates `models/cnmf_plan0/curated/` with a `MANIFEST.csv` and sequence-oriented folders (`global/`, `k_<K>/inputs/`, `k_<K>/consensus/`) by symlink/copy.
 - This does not change native cnmf outputs and is intended for downstream notebook ergonomics.
 
-### 7) Update plan docs under `scripts/comprehensive_run/`
+### 7) Update plan docs under `scripts/dr_feature_screening/`
 
-- Update `scripts/comprehensive_run/README.md`:
+- Update `scripts/dr_feature_screening/README.md`:
   - Plan 0: document `--fa-rotation` and that stability/consensusness requires multiple seeds.
   - Plan 1: correct/add `--seeds` and document `analysis/plan1_stability/...` as actually produced once implemented.
-- Update `scripts/comprehensive_run/plans/active_plan0_plan1.md`:
+- Update `scripts/dr_feature_screening/plans/active_plan0_plan1.md`:
   - state where consensusness is computed (Plan 0 for K selection; Plan 1 for grid-run diagnostics once implemented)
   - add FA rotation as an explicit Plan 0 diagnostic dimension
 

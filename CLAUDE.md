@@ -12,22 +12,27 @@ No formal test suite; validation is done through notebooks.
 
 ## Running Experiments
 
-Main entry point: `scripts/comprehensive_run/run_gene_filter_dr_grid.py`
+The repo has two active study directories under `scripts/`:
+
+- `scripts/mrd_stage0_2/` — current knowledge-prior Stage 0-2 malignancy study (gene-space panels → DR representations → regularized supervised probes). Start at `scripts/mrd_stage0_2/plans/INDEX.md`.
+- `scripts/dr_feature_screening/` — older DR method/K screening (Plan 0/1/1c/1d).
+
+Older DR screening entry point: `scripts/dr_feature_screening/plan0_1_grid/run_gene_filter_dr_grid.py`
 
 ```bash
 # Plan 0: K-sweep + stability screening per DR method
-python scripts/comprehensive_run/run_gene_filter_dr_grid.py plan0 \
+python scripts/dr_feature_screening/plan0_1_grid/run_gene_filter_dr_grid.py plan0 \
   --input-h5ad <path>.h5ad --experiments-dir experiments \
   --ks 20,40,60,80 --seeds 1,2,3,4,5 --methods fa,factosig,pca,nmf,cnmf
 
 # Plan 1: preprocess × DR method grid evaluation
-python scripts/comprehensive_run/run_gene_filter_dr_grid.py plan1 \
+python scripts/dr_feature_screening/plan0_1_grid/run_gene_filter_dr_grid.py plan1 \
   --input-h5ad <path>.h5ad --experiments-dir experiments \
   --preprocess-set hvg,all_filtered,deg_weak_screen,hybrid \
   --dr-methods pca,fa,nmf,factosig,cnmf
 ```
 
-Plans 0–1 are implemented; Plans 2–4 have skeleton runners only. Plan specs live in `scripts/comprehensive_run/plans/` (see `INDEX.md` for the mapping).
+Plans 0–1 are implemented; Plans 2–4 have skeleton runners only (`scripts/dr_feature_screening/skeletons/`). DR-screening plan specs live in `scripts/dr_feature_screening/plans/`; the current Stage 0-2 study plans live in `scripts/mrd_stage0_2/plans/` (see each `INDEX.md`).
 
 ## Architecture
 
@@ -55,7 +60,8 @@ Data flows as AnnData objects. DR embeddings → `adata.obsm`; loadings → `ada
 ## Directory Conventions
 
 - `src/sc_classification/` — Library code only (importable, not runnable directly)
-- `scripts/comprehensive_run/` — Active experiment runners
+- `scripts/mrd_stage0_2/` — Current knowledge-prior Stage 0-2 study runners/notebooks/plans
+- `scripts/dr_feature_screening/` — Older DR method/K screening runners (Plan 0/1/1c/1d)
 - `scripts/orchestrator/` — Stage orchestration scaffolding
 - `scripts/legacy/` — Historical scripts (kept for provenance)
 - `notebooks/` — Analysis notebooks, organized by topic subdirectory

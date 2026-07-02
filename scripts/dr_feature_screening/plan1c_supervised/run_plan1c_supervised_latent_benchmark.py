@@ -32,7 +32,7 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 try:
     from sc_classification.utils.logistic_backend import make_logistic_regression
 except Exception:
-    _pkg_root = Path(__file__).resolve().parents[2]  # .../sc_classification
+    _pkg_root = Path(__file__).resolve().parents[3]  # .../sc_classification
     _src = _pkg_root / "src"
     if _src.exists():
         sys.path.insert(0, str(_src))

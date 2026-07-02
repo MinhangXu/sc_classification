@@ -48,7 +48,7 @@ DEFAULT_SHORTLIST_OUTPUT = "analysis/scorecards/stage2_provisional_shortlist_fro
 
 
 def add_src_path() -> None:
-    sc_root = Path(__file__).resolve().parents[2]
+    sc_root = Path(__file__).resolve().parents[3]
     src = sc_root / "src"
     if str(src) not in sys.path:
         sys.path.insert(0, str(src))

@@ -2,7 +2,7 @@
 """
 Plan 4 runner (skeleton): two-stage gene selection (unsup prefilter → supervised top-up).
 
-Source plan: `sc_classification/scripts/comprehensive_run/plans/later_plans2_4.md`
+Source plan: `sc_classification/scripts/dr_feature_screening/plans/later_plans2_4.md`
 
 Intent:
 - Stage 1: broad unsupervised prefilter (e.g. HVG, variance, detection filter)

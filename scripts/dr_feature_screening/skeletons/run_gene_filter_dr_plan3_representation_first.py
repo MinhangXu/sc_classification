@@ -2,7 +2,7 @@
 """
 Plan 3 runner (skeleton): representation-first evaluation.
 
-Source plan: `sc_classification/scripts/comprehensive_run/plans/later_plans2_4.md`
+Source plan: `sc_classification/scripts/dr_feature_screening/plans/later_plans2_4.md`
 
 Intent:
 - Evaluate preprocess × DR choices primarily by representation quality + stability,

@@ -44,7 +44,7 @@ Use this flow to keep the public repo current while avoiding accidental data blo
 
 ## 5) Release hygiene for research code
 
-- Keep one canonical run entry point for active studies (`scripts/comprehensive_run/`).
+- Keep one canonical run entry point per active study (`scripts/mrd_stage0_2/`, `scripts/dr_feature_screening/`).
 - Maintain one manifest per experiment output directory as `run_manifest.yaml`.
   - Start from `experiments/RUN_MANIFEST_TEMPLATE.yaml`.
   - Include required sections:

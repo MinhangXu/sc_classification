@@ -16,7 +16,7 @@ Agents should execute one loop iteration at a time, not an unbounded multi-day r
 
 ## Goal spec template
 
-For each autonomous run, write a compact spec file (for example in `scripts/comprehensive_run/plans/active_run_specs/`):
+For each autonomous run, write a compact spec file (for example in the owning study's `plans/active_run_specs/`, e.g. `scripts/mrd_stage0_2/plans/active_run_specs/`):
 
 - objective: scientific question being tested
 - data scope: cohort filters and timepoints
@@ -75,9 +75,9 @@ This makes interruption/recovery easy for both humans and agents.
 
 ## Practical integration with current repo
 
-- Keep active runners in `scripts/comprehensive_run/`.
+- Keep active runners in the owning study directory (`scripts/mrd_stage0_2/`, `scripts/dr_feature_screening/`).
 - Keep stage orchestration logic in `scripts/orchestrator/`.
-- Keep human-readable plans in `scripts/comprehensive_run/plans/`.
+- Keep human-readable plans in the owning study's `plans/` (e.g. `scripts/mrd_stage0_2/plans/`).
 - Keep raw planning history in `.cursor/plans/`.
 - Store generated outputs in `experiments/` with per-run manifests.
 

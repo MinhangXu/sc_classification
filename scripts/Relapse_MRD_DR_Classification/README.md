@@ -10,7 +10,7 @@ This study adapts the existing MRD latent-factor benchmarking workflow to a pair
 
 ## Why this folder exists
 
-The current `comprehensive_run` code assumes:
+The current `dr_feature_screening` / `mrd_stage0_2` code assumes:
 
 - one timepoint filter at a time
 - binary `cancer` vs `normal` targets

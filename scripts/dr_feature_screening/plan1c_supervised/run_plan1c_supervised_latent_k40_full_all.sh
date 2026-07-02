@@ -4,7 +4,7 @@ set -euo pipefail
 LOG="/home/minhang/mds_project/sc_classification/experiments/20260211_212806_plan0_k_sweep_60_none_hvg_c06f4886/analysis/plan1c_supervised_latent_k40_full_all/run_$(date +%Y%m%d_%H%M%S).log"
 mkdir -p "$(dirname "$LOG")"
 
-python -u "/home/minhang/mds_project/sc_classification/scripts/comprehensive_run/run_plan1c_supervised_latent_benchmark.py" \
+python -u "/home/minhang/mds_project/sc_classification/scripts/dr_feature_screening/plan1c_supervised/run_plan1c_supervised_latent_benchmark.py" \
   --experiment-dir "/home/minhang/mds_project/sc_classification/experiments/20260211_212806_plan0_k_sweep_60_none_hvg_c06f4886" \
   --k 40 \
   --methods "pca,fa,factosig,factosig_promax,cnmf" \

@@ -412,7 +412,7 @@ if __name__ == "__main__":
         import sc_classification  # noqa: F401
     except Exception:
         here = Path(__file__).resolve()
-        pkg_root = here.parents[2]  # .../sc_classification
+        pkg_root = here.parents[3]  # .../sc_classification
         src = pkg_root / "src"
         if src.exists():
             sys.path.insert(0, str(src))

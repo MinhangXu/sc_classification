@@ -45,7 +45,7 @@ LOGGER = logging.getLogger("stage0_mrd_old34_broad_screen")
 
 DEFAULT_INPUT_H5AD = Path("/home/minhang/mds_project/data/cohort_adata/adata_cellType_cnLabel_pseudoTime_collectionTime.h5ad")
 DEFAULT_OUT_ROOT = Path("/home/minhang/mds_project/sc_classification/experiments")
-DEFAULT_SC_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_SC_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_GMT = DEFAULT_SC_ROOT / "scripts" / "knowledge_driven_embedding" / "older_geneset" / "genesets_v1.gmt"
 DEFAULT_OLD_MANIFEST = DEFAULT_SC_ROOT / "scripts" / "knowledge_driven_embedding" / "older_geneset" / "manifest.tsv"
 
@@ -132,7 +132,7 @@ def configure_logging(logs_dir: Path, verbose: bool) -> Path:
 
 
 def add_import_paths(sc_root: Path) -> None:
-    for candidate in (sc_root / "src", sc_root / "scripts" / "comprehensive_run"):
+    for candidate in (sc_root / "src", sc_root / "scripts" / "dr_feature_screening" / "plan0_1_grid"):
         if str(candidate) not in sys.path:
             sys.path.insert(0, str(candidate))
 

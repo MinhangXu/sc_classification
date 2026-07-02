@@ -112,8 +112,8 @@ mkdir -p "${LOG_DIR}"
 
 PYTHON_CMD=(conda run -n "${CONDA_ENV}" python)
 BUILDER="${BUNDLE_DIR}/build_expanded_stage0_bundle.py"
-STAGE0_RUNNER="${SC_ROOT}/scripts/comprehensive_run/run_stage0_mrd_old34_broad_screen.py"
-STAGE2_RUNNER="${SC_ROOT}/scripts/comprehensive_run/run_stage2_mrd_multiobjective_scorecard.py"
+STAGE0_RUNNER="${SC_ROOT}/scripts/mrd_stage0_2/stage0_panels/run_stage0_mrd_old34_broad_screen.py"
+STAGE2_RUNNER="${SC_ROOT}/scripts/mrd_stage0_2/stage2_supervised/run_stage2_mrd_multiobjective_scorecard.py"
 
 run_cmd() {
   echo "+ $*" | tee -a "${RUN_LOG}"

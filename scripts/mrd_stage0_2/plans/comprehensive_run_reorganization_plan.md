@@ -1,6 +1,11 @@
 # Comprehensive Run Reorganization Plan
 
-Status: planning. Do not move or delete files until the inventory below has been checked against notebooks, shell wrappers, and experiment provenance.
+Status: **EXECUTED 2026-07-02.** The catch-all `scripts/comprehensive_run/` directory was retired and split into two study directories:
+
+- `scripts/mrd_stage0_2/` — current knowledge-prior Stage 0-2 study: `stage0_panels/`, `stage2_supervised/`, `notebooks/stage0_2/`, `plans/` (this doc lives here).
+- `scripts/dr_feature_screening/` — older DR method/K screening: `plan0_1_grid/`, `plan1c_supervised/`, `skeletons/`, `legacy/`, `notebooks/{plan0,plan1c,plan1d}/`, `plans/`.
+
+The superseded old-geneset bottom-up/pruning runners and notebooks were dropped (subsumed by the expanded manuscript-axes panel set in `mrd_stage0_2`). The original planning content below is retained for provenance.
 
 ## Why Reorganize
 
@@ -84,7 +89,7 @@ Needs explicit decision:
 
 1. Build an inventory table with file path, class, latest known use, imported-by references, shell references, notebook references, and recommended action.
 2. Update `plans/INDEX.md` so it names active, legacy, and skeleton work clearly.
-3. Add `README.md` to `scripts/comprehensive_run` with the current workflow and experiment IDs.
+3. Add `README.md` to each study directory (`scripts/mrd_stage0_2/README.md`, `scripts/dr_feature_screening/README.md`) with the current workflow and experiment IDs.
 4. Move obvious legacy scripts into `legacy/` and add `legacy/README.md`.
 5. Move skeleton Plan 2-4 runners into `skeletons/` unless they become active.
 6. Extract shared utilities only after the Stage 0 runner proves which abstractions are real.
@@ -93,7 +98,7 @@ Needs explicit decision:
 
 ## Acceptance Criteria
 
-- A human can answer "what should I run now?" from `scripts/comprehensive_run/README.md`.
+- A human can answer "what should I run now?" from `scripts/mrd_stage0_2/README.md` (current) or `scripts/dr_feature_screening/README.md` (older screening).
 - Every active workflow has one plan doc, one runner or wrapper, and one output location convention.
 - Legacy scripts are still discoverable but no longer mixed with current entry points.
 - The stage-0 bottom-up workflow, HVG baseline workflow, and Plan 1.C supervised benchmark are linked from `plans/INDEX.md`.

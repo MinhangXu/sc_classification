@@ -114,19 +114,19 @@ different Stage 0 gene-space dictionaries.
 
 ## 4. Provenance map — runners → artifacts
 
-All runners live in `scripts/comprehensive_run/`.
+All runners live under `scripts/mrd_stage0_2/` (`stage0_panels/` for Stage 0, `stage2_supervised/` for Stage 2 + plotting).
 
-| Runner / wrapper | Produces | Which set |
-| --- | --- | --- |
-| `run_stage0_mrd_old34_broad_screen.py` | Stage 0 panels + Stage 1 DR + quick Stage 2 + Stage 0 scorecard + `postrun_human_review.md` | Both (Set B via `--branch-name`) |
-| `run_stage0_mrd_old34_broad_screen.sh` | thin wrapper that launched Set A | Set A |
-| `run_expanded_stage0_genesets_stage0_to_stage2.sh` | builds expanded bundle, then calls the Stage 0 runner with `--branch-name expanded_...`, then optionally the multi-objective Stage 2 runner (GPU-sharded) | Set B |
-| `run_stage2_mrd_multiobjective_scorecard.py` | discovery / LOPO / patient-specific reg-path scorecards, coefficient paths, cell-prediction bundles, provisional shortlist, canonical quick scorecard | Both |
-| `stage2_sharedness_plotting.py` | shared helpers (`select_regularization_rows`, `infer_biological_theme`, `shorten_panel_label`, factor-usage plotting) used by notebooks + audit scripts | Both |
-| `stage2_mrd_fig3a_interactive.py`, `..._top_stage1_shortlist.py` | interactive Fig 3A HTML | Set A |
-| `build_lopo_transfer_audit_tables.py` | patient-wise LOPO transfer audit tables/plots (Layer-2-style) | Set A (default path hard-coded) |
+| Runner / wrapper | Location | Produces | Which set |
+| --- | --- | --- | --- |
+| `run_stage0_mrd_old34_broad_screen.py` | `stage0_panels/` | Stage 0 panels + Stage 1 DR + quick Stage 2 + Stage 0 scorecard + `postrun_human_review.md` | Both (Set B via `--branch-name`) |
+| `run_stage0_mrd_old34_broad_screen.sh` | `stage0_panels/` | thin wrapper that launched Set A | Set A |
+| `run_expanded_stage0_genesets_stage0_to_stage2.sh` | `stage0_panels/` | builds expanded bundle, then calls the Stage 0 runner with `--branch-name expanded_...`, then optionally the multi-objective Stage 2 runner (GPU-sharded) | Set B |
+| `run_stage2_mrd_multiobjective_scorecard.py` | `stage2_supervised/` | discovery / LOPO / patient-specific reg-path scorecards, coefficient paths, cell-prediction bundles, provisional shortlist, canonical quick scorecard | Both |
+| `stage2_sharedness_plotting.py` | `stage2_supervised/` | shared helpers (`select_regularization_rows`, `infer_biological_theme`, `shorten_panel_label`, factor-usage plotting) used by notebooks + audit scripts | Both |
+| `stage2_mrd_fig3a_interactive.py`, `..._top_stage1_shortlist.py` | `stage2_supervised/` | interactive Fig 3A HTML | Set A |
+| `build_lopo_transfer_audit_tables.py` | `stage2_supervised/` | patient-wise LOPO transfer audit tables/plots (Layer-2-style) | Set A (default path hard-coded) |
 
-**Upstream gene-space builders** (not in `comprehensive_run/`):
+**Upstream gene-space builders** (under `scripts/knowledge_driven_embedding/`, not in the study dir):
 - Set A dictionary: `knowledge_driven_embedding/older_geneset/build_gmt.py` → `genesets_v1.gmt`, `manifest.tsv`
 - Set B dictionary: `knowledge_driven_embedding/expanded_stage0_genesets/build_expanded_stage0_bundle.py` → `final_bundle.gmt`, `final_manifest.tsv`, `selector_provenance.json`
 
@@ -141,7 +141,7 @@ Full classification in §7. Quick view:
 | `three_stages_knowledge_prior_mal_classification.md` | the Stage 0/1/2 design + 3 PI questions | S0/S1 + S2 runners | **CORE** |
 | `stage0_mrd_sharedness_scorecard_plan.md` | run spec, scorecard schema, artifact Q&A | S2 runner | **CORE** |
 | `stage2_comprehensive_diagnostic_plan.md` | 7-layer post-run diagnostic (target) | notebook/script TBD | **CORE (mostly unbuilt)** |
-| `stage0_geneset_value_added_workflow.md` | bottom-up gene-space value-added design | `run_old_geneset_pruning_metrics.py`, expanded wrapper | **SUPPORTING** |
+| `stage0_geneset_value_added_workflow.md` | bottom-up gene-space value-added design (blueprint for Set B expanded panels) | expanded wrapper (`run_expanded_stage0_genesets_stage0_to_stage2.sh`); old April pruning runner dropped in Phase 2 | **SUPPORTING** |
 | `posthoc_dr_validation_eval_plan.md` | DR validation playbook; Stage 0 addendum | Plan 0 notebooks | **SUPPORTING** |
 | `comprehensive_run_reorganization_plan.md` | repo hygiene / rehydration scaffolding | none | **SUPPORTING** |
 | `active_plan0_plan1.md` | older HVG/all_filtered K-sweep + preprocess×DR grid | `run_gene_filter_dr_grid.py` | **SUPERSEDED** |
@@ -160,8 +160,9 @@ Full classification in §7. Quick view:
 | `notebooks/stage0_2/stage2_mrd_figure3_sharedness_suite_20260528.ipynb` | root multi-objective scorecards | A | **(2) scientific** — Fig 3A–D sharedness | superseded by v2 |
 | `notebooks/stage0_2/stage2_mrd_figure3_sharedness_suite_v2_jun4.ipynb` | root multi-objective scorecards + coefficient paths | A | **(2) scientific** — decision quadrants, patient transfer, program decomposition | **newest / authoritative for old34** |
 | `analysis/notebook_outputs/jaatinen_hsc_up_stage2_probe_20260622/` (notebook: `notebooks/jaatinen_hsc_up_stage2_probe_20260622.ipynb`) | raw Stage 1/2 artifacts for **one** atomic panel | B | (2) scientific — HSC-up case study | polished but single-panel |
-| `notebooks/stage0_bottom_up_postrun_analysis_20260518.ipynb`, `geneset_pruning_triage_refined.ipynb`, `old_geneset_pruning_metrics_20260430.ipynb`, `plan0_old_geneset_diagnosis_april2_2026.ipynb` | **April `20260401` all_filtered** experiment | neither | (1)/(3) old-geneset pruning + Plan 0 diagnosis | different experiment |
-| `notebooks/plan1c_*`, `plan1d_*`, `plan0_diagnosis`, `plan0_k_compare_prelim` | **Feb `20260211` HVG** Plan 0 experiment | neither | older lineage | different experiment |
+| old-geneset bottom-up/pruning notebooks (`stage0_bottom_up_postrun_analysis_20260518`, `geneset_pruning_triage_refined`, `old_geneset_pruning_metrics_20260430`) | April `20260401` all_filtered | neither | superseded by Set B expanded panels | **dropped in Phase 2** |
+| `dr_feature_screening/notebooks/plan0/plan0_old_geneset_diagnosis_april2_2026.ipynb` | April `20260401` all_filtered | neither | Plan 0 diagnosis | moved to `dr_feature_screening` |
+| `dr_feature_screening/notebooks/{plan1c,plan1d,plan0}/*` | **Feb `20260211` HVG** Plan 0 experiment | neither | older DR-screening lineage | moved to `dr_feature_screening` |
 
 **Read order to rehydrate the old34 analysis end-to-end:**
 `stage0_mrd_old34_metric_diagnostics_20260525` → `stage2_mrd_multiobjective_scorecard_analysis_20260526` → `stage2_mrd_figure3_sharedness_suite_v2_jun4`.
@@ -185,8 +186,8 @@ produced by `stage2_mrd_figure3_sharedness_suite_v2_jun4.ipynb`. In the figure-b
 work (below), Fig 3A is the primary "which gene spaces are shared vs cohort-illusory vs
 patient-specific" decision plot, and this script is the tool for interrogating it before a
 static panel is frozen. It is **old34-only** today; an expanded-set analogue is part of the #2
-work. Treat it as reusable analysis tooling (it belongs next to `stage2_sharedness_plotting.py`),
-not a one-off.
+work. It is reusable analysis tooling and now lives next to `stage2_sharedness_plotting.py` in
+`mrd_stage0_2/stage2_supervised/`, not a one-off.
 
 ---
 
@@ -202,9 +203,9 @@ patient-specific biology, breaking apart programs).
 - **`stage2_comprehensive_diagnostic_plan.md`** — the intended post-run analysis (Layers 1–7). **Mostly aspirational**: only Layers 1–2 are partly realized (in the v2 jun4 notebook + `build_lopo_transfer_audit_tables.py`). This is the main "what to build next" doc.
 
 ### SUPPORTING — methodology / inputs that feed the core but are not the core analysis
-- **`stage0_geneset_value_added_workflow.md`** — bottom-up "value added by a gene space" design. Its *philosophy* (malignancy-first, budget-matched HVG controls, delta-vs-control columns) is exactly right and partly drives Set B's panel families (atomic/family-union/leave-one-family-out) and the size-matched-HVG idea. Its *runner* (`run_old_geneset_pruning_metrics.py`) targets the older April `20260401` experiment, not this one. **Verdict:** the analytical goal genuinely helps; the concrete pruning runner is on a different experiment. The unfinished part that matters here is the budget-matched-HVG control comparison (Layer 6).
+- **`stage0_geneset_value_added_workflow.md`** — bottom-up "value added by a gene space" design. This is now recognized as the **design blueprint for Set B's expanded manuscript-axes panels**: its philosophy (malignancy-first, bottom-up atomic → family-union → leave-one-family-out, budget-matched HVG controls, delta-vs-control columns) is exactly what the expanded panel set implements. The older April `20260401` bottom-up/pruning runner + notebooks that *predated* the expanded set were **dropped in the Phase 2 reorg** (subsumed by Set B); this plan doc moved into `mrd_stage0_2/plans/` and also carries the not-yet-done roadmap (huCIRA branch, relapse 4-class). **Verdict:** the analytical goal is core to Set B; the unfinished part that matters here is the budget-matched-HVG control comparison (Layer 6).
 - **`posthoc_dr_validation_eval_plan.md`** — DR-validation playbook (Plan 0 lineage). Its **Stage 0 evaluation addendum** (malignancy-first leaderboard, structure metrics secondary) aligns with the current design and justifies DR/K choices inherited from earlier work. Chunks 1–4 done, 5–6 pending. **Verdict:** supporting; only the Stage 0 addendum is on the critical path.
-- **`comprehensive_run_reorganization_plan.md`** — repo hygiene (active/reusable/legacy split, README, notebook index). Partly done (README + `legacy/` exist). **Verdict:** supports rehydration/auditability, no biology.
+- **`comprehensive_run_reorganization_plan.md`** — repo hygiene (active/reusable/legacy split, README, notebook index). **Executed 2026-07-02:** `comprehensive_run/` was split into `scripts/mrd_stage0_2/` (this study) and `scripts/dr_feature_screening/` (older DR screening). **Verdict:** supports rehydration/auditability, no biology.
 
 ### SUPERSEDED / TANGENTIAL — older lineage or branched ideas, not on the current path
 These all predate the knowledge-prior Stage 0–2 design and run on **other experiments**
@@ -223,7 +224,7 @@ provenance and reusable code patterns, but they do **not** advance analysis of t
 - **Resolved (Phase 1 git update, 2026-07-02):** the current Stage 0–2 codebase was committed in 9 logical commits on branch `sc_classification_gpu` (`ae7c78f` … `c0146fd`, on top of `b381cd5`), covering the runners (`run_stage0_mrd_old34_broad_screen.py`, `run_stage2_mrd_multiobjective_scorecard.py`, expanded wrapper), plotting/interactive tools, all current plans + this dossier, the analysis notebooks, the expanded geneset bundle + tests, and `src/` utils. As of writing these are **local only, not yet pushed** to `origin/sc_classification_gpu`.
 - `.gitignore` now excludes generated notebook `outputs/` and `figures/` (~405 MB), so run artifacts and regenerable outputs stay out of version control; `experiments/` remains ignored.
 - **Remaining nicety (optional):** the true code for this run now lives at commits `ae7c78f…c0146fd`, not at the `b381cd5` stamped in the config. For a hard provenance link, a future re-run should stamp `HEAD` at run time, or a note can be added to the run manifest pointing at these commit hashes.
-- **Deferred to Phase 2:** the physical `lib/ runs/ skeletons/ legacy/` reorg from `comprehensive_run_reorganization_plan.md` (kept separate from this provenance commit to avoid path-reference churn).
+- **Done (Phase 2, 2026-07-02):** the physical reorg from `comprehensive_run_reorganization_plan.md` was executed — `comprehensive_run/` was retired and split into `scripts/mrd_stage0_2/` (this study: `stage0_panels/`, `stage2_supervised/`, `notebooks/stage0_2/`, `plans/`) and `scripts/dr_feature_screening/` (older DR screening: `plan0_1_grid/`, `plan1c_supervised/`, `skeletons/`, `legacy/`, `notebooks/{plan0,plan1c,plan1d}/`, `plans/`), with imports, shell paths, and doc references swept.
 
 ---
 
@@ -281,14 +282,14 @@ Mapping the three PI questions to concrete tests on this experiment:
 Agreed working order (2026-07-02): finish the **old34** analytical side with explicit
 figure-based thinking, then port it to the expanded set (#2).
 
-0. **[DONE, Phase 1]** Commit the current codebase + plans + dossier and add `.gitignore` rules for generated outputs (§8). Physical reorg deferred to Phase 2.
+0. **[DONE, Phase 1 + Phase 2]** Committed the current codebase + plans + dossier with `.gitignore` rules for generated outputs (§8), then executed the physical reorg into `scripts/mrd_stage0_2/` + `scripts/dr_feature_screening/` (§8, "Done (Phase 2)").
 1. **Figure catalog for old34.** Walk `stage2_mrd_figure3_sharedness_suite_v2_jun4.ipynb` plot-by-plot with the four-element framing (§10) to decide which plots are team-tested and figure-worthy; the interactive Fig 3A tool (§6b) is the exploration companion. Output: a figure catalog / manuscript-panel shortlist.
 2. **Extend figure-based thinking to the remaining analytical layers** — Diagnostic Layers 3–5 (three-way taxonomy, interpretability audit, and especially **factor→gene grounding**, currently an empty file), each framed as a candidate figure with a stated null.
 3. **#2 — build the expanded-set analysis** — an analogue of the v2 suite pointed at `analysis/scorecards/expanded_stage0_mrd_manuscript_axes_v1/`, plus a run-associated write-up. Closes the largest analytical gap (§9-analytical-1).
 4. **Run controls through multi-objective Stage 2** (`full_34`, `core_only`, HVG anchors, size-matched HVG) to enable Layer 6 gene-budget calibration and the knowledge-prior-delta claim.
 5. **Reconcile Set B against Set A** — one comparison table/plot: best LOPO lift per expanded family vs the best old34 curated program, on matched Stage 1/2 settings.
 6. **Optional hardening:** resurrect Plan 2 label-permutation negative controls; add an inductive (refit-per-fold) sensitivity check; add a second Stage 1 seed for stability.
-7. **[Phase 2, later]** Physical repo reorg into `lib/ runs/ skeletons/ legacy/` per `comprehensive_run_reorganization_plan.md`, as a standalone change with reference updates.
+7. **[DONE, Phase 2]** Physical repo reorg executed per `comprehensive_run_reorganization_plan.md`: two study directories (`mrd_stage0_2/`, `dr_feature_screening/`), superseded old-geneset pruning artifacts dropped, references swept.
 
 ---
 

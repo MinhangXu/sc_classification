@@ -2,7 +2,7 @@
 set -euo pipefail
 
 EXP="/home/minhang/mds_project/sc_classification/experiments/20260211_212806_plan0_k_sweep_60_none_hvg_c06f4886"
-SCRIPT="/home/minhang/mds_project/sc_classification/scripts/comprehensive_run/run_plan1c_supervised_latent_benchmark.py"
+SCRIPT="/home/minhang/mds_project/sc_classification/scripts/dr_feature_screening/plan1c_supervised/run_plan1c_supervised_latent_benchmark.py"
 OUT_SUBDIR="analysis/plan1c_supervised_latent_k40_pilot_pca_l1_large"
 RUN_DIR="$EXP/$OUT_SUBDIR"
 LOG_FILE="$RUN_DIR/run.log"

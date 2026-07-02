@@ -57,7 +57,7 @@ with `K = [20, 40, 60]`, `cnmf_dt=0.5`.
 - **Original failure mode (Plan 0 runner)**: `AttributeError: 'cNMF' object has no attribute 'run_nmf'`
   - **Cause**: `cnmf==1.7.0` uses `cNMF.factorize()` (not `run_nmf()`).
   - **Fix**: `run_gene_filter_dr_grid.py` updated to call `factorize()` when present.
-- **Resume flow**: use `sc_classification/scripts/comprehensive_run/resume_plan0_cnmf.py` to finish
+- **Resume flow**: use `sc_classification/scripts/dr_feature_screening/legacy/resume_plan0_cnmf.py` to finish
   `combine_nmf(k)` + `consensus(k)` inside the *same* experiment directory.
 - **Important prerequisites for `cnmf==1.7.0 consensus()`**:
   - `cn.paths['tpm']` must exist (expects `.../cnmf_tmp/<name>.tpm.h5ad`)
@@ -81,7 +81,7 @@ with `K = [20, 40, 60]`, `cnmf_dt=0.5`.
   - Prefer `pgrep` on the **absolute script path** to avoid matching the watcher itself.
 - **Post-run organization (non-destructive)**:
   - For easier downstream notebook IO, build a curated cNMF view:
-    `python sc_classification/scripts/comprehensive_run/reorganize_plan0_cnmf_curated.py --experiment-dir <EXP_DIR> --mode symlink`
+    `python sc_classification/scripts/dr_feature_screening/legacy/reorganize_plan0_cnmf_curated.py --experiment-dir <EXP_DIR> --mode symlink`
   - This creates `models/cnmf_plan0/curated/` with:
     - `global/`
     - `k_<K>/inputs/` and `k_<K>/consensus/`
@@ -92,7 +92,7 @@ Example watcher (uses newest log automatically):
 
 ```bash
 EXP="/home/minhang/mds_project/sc_classification/experiments/20260211_212806_plan0_k_sweep_60_none_hvg_c06f4886"
-SCRIPT="/home/minhang/mds_project/sc_classification/scripts/comprehensive_run/resume_plan0_cnmf.py"
+SCRIPT="/home/minhang/mds_project/sc_classification/scripts/dr_feature_screening/legacy/resume_plan0_cnmf.py"
 
 watch -n 60 "
 LOG=\$(ls -1t \$EXP/analysis/plan0/resume_plan0_cnmf_*.log | head -n 1)

@@ -5,7 +5,8 @@ This document is the working contract for keeping `sc_classification` focused on
 ## Canonical layout
 
 - `src/sc_classification/`: reusable library code only.
-- `scripts/comprehensive_run/`: active experiment runners for plan-driven studies.
+- `scripts/mrd_stage0_2/`: current knowledge-prior Stage 0-2 malignancy study (stage-0 gene-space panels, stage-2 supervised probes, sharedness notebooks, design plans).
+- `scripts/dr_feature_screening/`: older DR method/K screening (Plan 0/1/1c/1d), plus skeleton and legacy recovery runners.
 - `scripts/orchestrator/`: stage orchestration and run-state management scaffolds.
 - `scripts/legacy/`: historical scripts kept for provenance and reproducibility.
 - `notebooks/`: diagnosis and analysis notebooks.
@@ -14,21 +15,22 @@ This document is the working contract for keeping `sc_classification` focused on
 
 ## Plan files policy
 
-Use one curated source in:
+Use one curated source per study, in its own `plans/`:
 
-- `scripts/comprehensive_run/plans/INDEX.md`
-- `scripts/comprehensive_run/plans/active_plan0_plan1.md`
-- `scripts/comprehensive_run/plans/later_plans2_4.md`
+- `scripts/mrd_stage0_2/plans/INDEX.md` (current Stage 0-2 study; start here)
+- `scripts/dr_feature_screening/plans/active_plan0_plan1.md`
+- `scripts/dr_feature_screening/plans/later_plans2_4.md`
 
 Keep raw snapshots only in:
 
 - `.cursor/plans/*.plan.md`
 
-Do not duplicate raw `*.plan.md` files into `scripts/comprehensive_run/plans/`.
+Do not duplicate raw `*.plan.md` files into the study `plans/` directories.
 
 ## Active workflows
 
-- Current: `scripts/comprehensive_run/run_gene_filter_dr_grid.py` (`plan0`, `plan1`).
+- Current Stage 0-2: `scripts/mrd_stage0_2/stage0_panels/run_stage0_mrd_old34_broad_screen.py` and `scripts/mrd_stage0_2/stage2_supervised/run_stage2_mrd_multiobjective_scorecard.py`.
+- Older DR screening: `scripts/dr_feature_screening/plan0_1_grid/run_gene_filter_dr_grid.py` (`plan0`, `plan1`).
 - Historical but important context:
   - `scripts/legacy/dr_suite/run_dr_suite.py`
   - `scripts/legacy/replearn_2025/aug19_rep_learn_supervised_filtering.py`
@@ -47,7 +49,7 @@ Do not duplicate raw `*.plan.md` files into `scripts/comprehensive_run/plans/`.
 3. Add a lightweight run manifest per experiment under `experiments/`:
    - run command, git commit, input dataset hash, key params (`timepoint_filter`, `tech_filter`, DR method, K).
 4. Keep one active planning lane:
-   - run-facing specs in `scripts/comprehensive_run/plans/`
+   - run-facing specs in each study's `plans/` (`scripts/mrd_stage0_2/plans/`, `scripts/dr_feature_screening/plans/`)
    - all draft ideation snapshots in `.cursor/plans/`.
 5. Consolidate legacy script lineage:
    - moved old one-off runners to `scripts/legacy/` on 2026-02-13

@@ -1,7 +1,7 @@
 # FactoSig pipeline lineage (legacy)
 
 This folder contains the FactoSig experiment flow used before the current
-`scripts/comprehensive_run/` workflow.
+`scripts/dr_feature_screening/` and `scripts/mrd_stage0_2/` workflows.
 
 ## Files
 
