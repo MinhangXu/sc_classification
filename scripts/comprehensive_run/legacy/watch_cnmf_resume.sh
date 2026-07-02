@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Monitor cNMF resume/debug progress for Plan 0.
-# Default experiment path points to the current run discussed in chat.
+# Default experiment path points to the February 2026 recovery run.
 
 EXP_DIR="/home/minhang/mds_project/sc_classification/experiments/20260211_212806_plan0_k_sweep_60_none_hvg_c06f4886"
 INTERVAL=60
