@@ -1,0 +1,26 @@
+name: sc-classification-rapids
+channels:
+  - rapidsai
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - cuda-version=12.0
+  - rapids=24.10
+  - cuml
+  - cupy
+  - pytorch
+  - pytorch-cuda=12.1
+  - numpy
+  - scipy
+  - pandas
+  - scikit-learn
+  - scanpy
+  - anndata
+  - matplotlib
+  - seaborn
+  - pip
+  - pip:
+      - -e .
+      - -e ../factosig
