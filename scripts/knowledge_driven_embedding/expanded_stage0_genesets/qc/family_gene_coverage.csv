@@ -1,0 +1,13 @@
+family,n_sets,n_unique_raw_genes,n_unique_present_genes,overlap_old_bundle,overlap_hvg
+antigen_presentation_ciita_hla_escape,32,1758,1627,727,1508
+cd54_cd244_adhesion_niche,67,2206,2077,718,1262
+hematopoietic_lineage_controls,57,824,796,348,590
+hspc_lsc_stemness,79,7467,7179,1881,5478
+ifng_decomposed_response,64,10461,9701,2386,8493
+mitochondrial_metabolism_fine,63,1361,1315,383,1063
+quiescence_dormancy_growth_arrest,32,656,591,299,526
+regulon_ifn_nfkb_ap1_gata_myc_e2f_p53_smad,38,5400,5045,1205,3965
+senescence_sasp_control,18,487,404,236,340
+tgfb_niche_quiescence,21,540,524,251,324
+tnf_nfkb_decomposed_survival_adhesion,70,3958,3578,1074,2357
+typeI_ifn_inflammasome_noncanonical_nfkb_contrast,65,980,876,642,690
