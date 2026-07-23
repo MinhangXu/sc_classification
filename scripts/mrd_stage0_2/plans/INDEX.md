@@ -16,6 +16,7 @@ Stage 0-2 malignancy study). Older DR method/K screening plans live under
 - **Three-stage knowledge-prior design (MRD)**: `three_stages_knowledge_prior_mal_classification.md` — the Stage 0/1/2 concept + the three PI questions.
 - **Stage 0/1/2 sharedness scorecard run spec**: `stage0_mrd_sharedness_scorecard_plan.md` — run spec, scorecard schema, artifact Q&A.
 - **Stage 2 comprehensive diagnostic plan (target)**: `stage2_comprehensive_diagnostic_plan.md` — the intended 7-layer post-run diagnostic; mostly the "what to build next" doc.
+- **Stage 2 figure catalog + statistical rigor (v2 Jun 4 suite)**: `stage2_figure_catalog_and_statistical_rigor_v2_jun4.md` — plot-by-plot four-element framing of the old34 sharedness suite (V2A–V2F6), the two cross-patient aggregations (pooled-cell vs patient-summary), the null-model / uncertainty / AUROC design that should gate manuscript plots, and the interactive-tool brainstorm. Output of dossier §11.1.
 - **Stage 0 gene-space value-added workflow**: `stage0_geneset_value_added_workflow.md` — bottom-up value-added blueprint that the expanded manuscript-axes panel set (Set B) implements; also carries the not-yet-done roadmap (huCIRA branch, relapse 4-class).
 - **Directory reorganization plan (executed)**: `comprehensive_run_reorganization_plan.md` — record of the 2026-07-02 split into `mrd_stage0_2/` + `dr_feature_screening/`.
 
