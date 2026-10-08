@@ -608,3 +608,297 @@ def test_real_experiment_reproduces_saved_d1_and_d1f_diagnostics():
     assert atlas.shape == (47, 17) and atlas.audit["cells"] == 783 and atlas.audit["unavailable_cells"] == 16
     failures = [row for row in explorer.run_checks(atlas, before, after) if row[1] == "FAIL"]
     assert not failures, failures
+
+
+# --------------------------------------------------------------------------------------
+# W7.1 (2026-10-08, additive): per-fold strip, selected penalty / C, labelled leverage caveat,
+# deep link to the factor explorer.  Synthetic per-fold tables follow the real by_heldout_patient
+# layout: one row per scorecard row x held-out patient.
+# --------------------------------------------------------------------------------------
+
+FOLD_EXTRA = {"P06": (3, 2000), "P07": (0, 1500)}  # unsupported folds: (n_malignant, n_normal)
+ALL_FOLDS = PATIENTS + list(FOLD_EXTRA)
+PARTIAL_CELL = ("bio_a", P10)  # P03's lift is exactly 0.0, so its fold may fit an all-zero model
+SELECTED = ("elasticnet", 0.001)  # the D1 rule picks this row in every synthetic cell
+ORIGINAL_CHECK_NAMES = [
+    "atlas accounting",
+    "median/p20 recomputed from patient table == representation table",
+    "frozen D1 sort == saved median-matrix order",
+    "patient counts reproduce saved D1f lift > 0 pp",
+    "patient counts reproduce saved D1f lift > 5 pp",
+    "patient counts reproduce saved D1f ratio > 2",
+    "patient counts reproduce saved D1f ratio > 3",
+    "Stage 2 nonzero count joined at selected regularization",
+    "all-zero models have exactly zero lift",
+    "v2 leverage CSV coverage",
+    "v2 leverage CSV is on the same basis as the heatmap",
+    "inputs unmodified by loading",
+]
+
+
+def _fold_counts(panel: str, cfg: str, penalty: str, c_value: float, *, broken: bool = False) -> dict[str, int]:
+    if (penalty, c_value) != SELECTED:
+        return {f: 999 for f in ALL_FOLDS}  # never selected: must never reach the strip
+    if (panel, cfg) == ZERO_MODEL_CELL:
+        return {f: 0 for f in ALL_FOLDS}
+    counts = {f: 2 + i % 3 for i, f in enumerate(ALL_FOLDS)}
+    if (panel, cfg) == PARTIAL_CELL:
+        counts["P03"] = 0  # supported fold, lift 0.0 -> consistent
+        counts["P07"] = 0  # unsupported fold: greyed, no badge
+    if broken and (panel, cfg) == TIE_BREAK_CELL:
+        counts["P01"] = 0  # all-zero fold although P01's lift is 0.20 -> the check must FAIL
+    return counts
+
+
+def add_fold_tables(root: Path, *, broken: bool = False) -> Path:
+    """Write the four per-fold LOPO tables and make the scorecards' nonzero mean / max consistent."""
+    tags = {rel: tag for tag, rel, _ in explorer.SCORECARDS}
+    for rel, tag in tags.items():
+        sc_path = root / "analysis" / "scorecards" / rel
+        scorecard = pd.read_csv(sc_path)
+        rows = []
+        for idx, row in scorecard.iterrows():
+            cfg = D if row["stage1_method"] == "direct_gene" else f"{row['stage1_method']}|K={int(row['effective_k'])}"
+            counts = _fold_counts(row["stage0_panel_id"], cfg, row["penalty"], float(row["C"]), broken=broken)
+            if (row["penalty"], float(row["C"])) == SELECTED:
+                scorecard.loc[idx, "nonzero_coefficient_count_mean_across_folds"] = float(np.mean(list(counts.values())))
+                scorecard.loc[idx, "nonzero_coefficient_count_max_across_folds"] = float(max(counts.values()))
+            for fold in ALL_FOLDS:
+                if fold in PATIENTS:
+                    j = PATIENTS.index(fold)
+                    n_mal, n_norm = N_MALIGNANT[j], N_NORMAL[j]
+                    auprc = PREVALENCE[j] + LIFTS[(row["stage0_panel_id"], cfg)][j]
+                else:
+                    (n_mal, n_norm), auprc = FOLD_EXTRA[fold], np.nan
+                rows.append(dict(
+                    stage0_panel_id=row["stage0_panel_id"], representation_family=row["representation_family"],
+                    stage1_method=row["stage1_method"], effective_k=row["effective_k"], seed=row["seed"],
+                    penalty=row["penalty"], C=row["C"], l1_ratio=row["l1_ratio"], heldout_patient=fold,
+                    n_malignant=n_mal, n_normal=n_norm, nonzero_coefficient_count=counts[fold], stage2_auprc=auprc,
+                ))
+        scorecard.to_csv(sc_path, index=False)
+        out = root / explorer.FOLD_TABLES[tag]
+        out.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(rows).to_csv(out, index=False)
+    return root
+
+
+@pytest.fixture()
+def fold_dir(tmp_path):
+    return add_fold_tables(build_experiment(tmp_path / "fold_exp"))
+
+
+@pytest.fixture()
+def fold_atlas(fold_dir):
+    return explorer.load_atlas(fold_dir)
+
+
+def test_fold_strip_is_joined_at_the_selected_regularization(fold_atlas):
+    atlas = fold_atlas
+    assert atlas.has_folds and atlas.fold_patients == sorted(ALL_FOLDS)
+    assert atlas.fold_supported.tolist() == [p in PATIENTS for p in sorted(ALL_FOLDS)]
+    r, c = cell(atlas, *TIE_BREAK_CELL)  # 77 / 88 / 99 / 999 belong to rows the D1 rule does not select
+    assert set(atlas.fold_nonzero[:, r, c].tolist()) == {2.0, 3.0, 4.0}
+    assert atlas.audit["fold_cells"] == len(LIFTS) and atlas.audit["fold_count"] == len(ALL_FOLDS)
+    zero = explorer.zero_fold_count(atlas)
+    assert zero[cell(atlas, *ZERO_MODEL_CELL)] == len(PATIENTS) and zero[cell(atlas, *PARTIAL_CELL)] == 1
+    assert np.nansum(zero) == len(PATIENTS) + 1 and np.isnan(zero[cell(atlas, "bio_c", P10)])  # unavailable cell
+    assert explorer.zero_fold_patients(atlas, *cell(atlas, *PARTIAL_CELL)) == ["P03"]
+    assert atlas.audit["fold_cells_partially_zero"] == 1 and atlas.audit["fold_cells_all_supported_zero"] == 1
+    assert atlas.fold_n_malignant[atlas.fold_patients.index("P06")] == 3
+
+
+def test_fold_strip_orders_supported_first_and_badges_only_supported_zero_folds(fold_atlas):
+    strip = explorer.fold_strip(fold_atlas, *cell(fold_atlas, *PARTIAL_CELL))
+    assert [s["patient"] for s in strip] == PATIENTS + ["P06", "P07"]
+    assert [s["supported"] for s in strip] == [True] * 5 + [False] * 2
+    by_patient = {s["patient"]: s for s in strip}
+    assert by_patient["P03"]["status"] == "all_zero" and by_patient["P03"]["badge"] == explorer.ZERO_FOLD_TEXT
+    assert "lift = 0 by construction" in by_patient["P03"]["title"] and "+0.00" not in by_patient["P03"]["title"]
+    assert by_patient["P07"]["status"] == "all_zero" and by_patient["P07"]["badge"] == ""  # unsupported: greyed, no badge
+    assert "unsupported: 0 malignant cells" in by_patient["P07"]["title"]
+    assert by_patient["P01"]["status"] == "active" and by_patient["P01"]["nonzero"] == 2
+    summary = explorer.fold_strip_summary(fold_atlas, *cell(fold_atlas, *PARTIAL_CELL))
+    assert summary.startswith("4 of 5 supported folds active; all-zero (lift = 0 by construction): P03")
+    assert "unsupported folds: 1 of 2 active" in summary
+    assert explorer.fold_strip(explorer.load_atlas(fold_atlas.data_dir, with_folds=False), 2, 1) == []
+
+
+def test_fold_check_is_one_new_line_after_the_original_eleven(fold_dir, tmp_path, data_dir):
+    atlas = explorer.load_atlas(fold_dir)
+    fingerprint = explorer.input_fingerprint(fold_dir)
+    rows = explorer.run_checks(atlas, fingerprint, fingerprint)
+    assert [r[0] for r in rows[:-1]] == ORIGINAL_CHECK_NAMES  # existing lines keep their names and order
+    name, status, detail = rows[-1]
+    assert name == "per-fold activity joined at selected regularization" and status == "PASS", detail
+    assert "7 folds (5 supported)" in detail and "AUPRC == patient table" in detail and "4 per-fold tables" in detail
+    broken = explorer.load_atlas(add_fold_tables(build_experiment(tmp_path / "broken"), broken=True))
+    status, detail = explorer.fold_check(broken)[1:]
+    assert status == "FAIL" and "all-zero supported fold has nonzero lift" in detail
+    no_folds = explorer.load_atlas(data_dir)  # the original synthetic experiment has no per-fold tables
+    assert not no_folds.has_folds and explorer.fold_check(no_folds)[1] == "SKIP"
+    assert any("Per-fold strip unavailable" in note for note in no_folds.notes)
+
+
+def test_selected_penalty_and_c_per_cell(atlas):
+    r, c = cell(atlas, *TIE_BREAK_CELL)
+    assert (atlas.sel_penalty[r, c], atlas.sel_C[r, c], atlas.sel_l1_ratio[r, c]) == ("elasticnet", 0.001, 0.5)
+    assert explorer.selected_regularization_text(atlas, r, c) == "penalty elasticnet | C 0.001 | l1_ratio 0.5"
+    assert explorer.selected_regularization_text(atlas, *cell(atlas, "bio_c", P10)) == ""  # unavailable
+    spec = explorer.color_spec(atlas, explorer.View(mode="selected_c"))
+    assert spec.z[r, c] == pytest.approx(-3.0) and spec.cell_text[r, c] == "EN"
+    assert np.isnan(spec.z[cell(atlas, "bio_c", P10)])
+    figure = explorer.build_heatmap(atlas, explorer.View(mode="selected_c"))
+    assert "EN" in {t for t in np.asarray(figure.data[1].text).ravel()}  # penalty shown as cell text
+    hover = explorer.hover_matrix(atlas, explorer.View(), spec)[r, c]
+    assert "elasticnet C=0.001" in hover
+
+
+def test_zero_folds_mode_hover_and_chips(fold_atlas):
+    spec = explorer.color_spec(fold_atlas, explorer.View(mode="zero_folds"))
+    assert spec.z[cell(fold_atlas, *ZERO_MODEL_CELL)] == 5 and (spec.zmin, spec.zmax) == (-0.5, 5.5)
+    assert spec.tickvals == list(range(6))
+    rp, cp = cell(fold_atlas, *PARTIAL_CELL)
+    hover = explorer.hover_matrix(fold_atlas, explorer.View(), spec)[rp, cp]
+    assert "folds: 4/5 supported active; all-zero (lift = 0 by construction): P03" in hover
+    chips = dict(explorer.cell_header(fold_atlas, explorer.View(), rp, cp)[2])
+    assert chips["all-zero supported folds"].startswith("1/5 (P03)")
+    zero_chips = dict(explorer.cell_header(fold_atlas, explorer.View(), *cell(fold_atlas, *ZERO_MODEL_CELL))[2])
+    assert "all-zero supported folds" not in zero_chips and "note" in zero_chips  # the original all-13 note covers it
+    figure = explorer.build_heatmap(fold_atlas, explorer.View(mode="zero_folds"))
+    assert np.isfinite(np.asarray(figure.data[1].z, float)).sum() == fold_atlas.available.sum()
+
+
+def test_export_bundle_carries_fold_columns_and_round_trips(fold_dir, tmp_path):
+    out = tmp_path / "fold_bundle"
+    written = explorer.export_bundle(fold_dir, out)
+    assert {p.name for p in written} == {
+        "old34_d1_atlas_representation_table.csv", "old34_d1_atlas_supported_patient_metrics.csv",
+        "v2_patient_leverage_on_panel_method_median_lift.csv", explorer.NONZERO_TABLE_NAME, "bundle_manifest.json",
+    }  # no new file: the folds ride along as columns
+    table = pd.read_csv(out / explorer.NONZERO_TABLE_NAME)
+    fold_cols = [f"{explorer.FOLD_COLUMN_PREFIX}{p}" for p in sorted(ALL_FOLDS)]
+    assert [c for c in table.columns if c.startswith(explorer.FOLD_COLUMN_PREFIX)] == fold_cols
+    assert all(pd.api.types.is_integer_dtype(table[c]) for c in fold_cols)
+    manifest = json.loads((out / "bundle_manifest.json").read_text())
+    assert manifest[explorer.FOLD_MANIFEST_KEY]["P06"] == {"n_malignant": 3, "n_normal": 2000}
+    original, bundled = explorer.load_atlas(fold_dir), explorer.load_atlas(out)
+    assert bundled.fold_patients == original.fold_patients
+    assert np.array_equal(bundled.fold_nonzero, original.fold_nonzero, equal_nan=True)
+    assert np.array_equal(bundled.fold_n_malignant, original.fold_n_malignant, equal_nan=True)
+    assert np.array_equal(bundled.sel_C, original.sel_C, equal_nan=True)
+    status, detail = explorer.fold_check(bundled)[1:]
+    assert status == "PASS" and "AUPRC" not in detail  # the bundle has no per-fold AUPRC; the rest still checks
+
+
+def test_bundle_from_before_w71_still_loads_without_the_strip(data_dir, tmp_path):
+    out = tmp_path / "old_bundle"
+    explorer.export_bundle(data_dir, out)  # no per-fold tables -> no fold columns
+    atlas = explorer.load_atlas(out)
+    assert not atlas.has_folds and atlas.has_selected_c
+    assert any("predates W7.1" in note for note in atlas.notes)
+    assert explorer.build_heatmap(atlas, explorer.View(mode="zero_folds")).layout.height > 0  # forced mode: no crash
+
+
+def test_leverage_caveat_is_labelled(atlas):
+    label, text = explorer.leverage_caveat(atlas, explorer.View(f3=True, f3_source="csv"))
+    assert label == "Leverage-filter caveat (v2 CSV source)" and "own best regularization" in text
+    assert "differ from the heatmap's median at 1 of those cells" in text
+    label, text = explorer.leverage_caveat(atlas, explorer.View(f3=True, f3_source="d1"))
+    assert label == "Leverage filter (D1 patient table)" and "Consistent with the heatmap" in text
+    label, text = explorer.leverage_caveat(atlas, explorer.View())
+    assert label == "Leverage-filter caveat" and "different regularization basis" in text
+
+
+def test_factor_explorer_deep_link_and_card_coverage(atlas, data_dir):
+    href = explorer.factor_explorer_href("single_geneset__x y", "fa|K=40", "http://host:8051/")
+    assert href == "http://host:8051/?panel=single_geneset__x+y&method=fa&k=40"
+    assert explorer.factor_explorer_href("bio_a", D, "http://host:8051") is None
+    assert explorer.factor_cards_status(atlas, *cell(atlas, "bio_a", P5)) == "unknown"
+    index = data_dir / explorer.FACTOR_CARDS_INDEX
+    index.parent.mkdir(parents=True)
+    pd.DataFrame({"card_id": ["bio_a__pca__k5__f001"], "panel_id": ["bio_a"], "method": ["pca"], "k": [5]}).to_csv(index, index=False)
+    covered = explorer.load_atlas(data_dir)
+    assert covered.factor_card_reps == {("bio_a", "pca", 5)}
+    assert explorer.factor_cards_status(covered, *cell(covered, "bio_a", P5)) == "covered"
+    assert explorer.factor_cards_status(covered, *cell(covered, "bio_a", P10)) == "not_covered"
+    assert explorer.factor_cards_status(covered, *cell(covered, "bio_a", D)) == "unknown"
+    assert any("D18 factor cards: 1 representations" in line for line in explorer.audit_lines(covered))
+
+
+def test_dash_cell_view_shows_strip_badge_and_deep_link(fold_atlas):
+    pytest.importorskip("dash")
+    app = explorer.create_app(fold_atlas)
+    cell_key, heat_key = _key(app, "cell-body.children"), _key(app, "heatmap.figure")
+    rp, cp = cell(fold_atlas, *PARTIAL_CELL)
+    text = json.dumps(_post(app, cell_key, _view(sel={"r": rp, "c": cp})).get_json())
+    assert "Per-fold Stage 2 model at the selected regularization" in text
+    assert "lift = 0 by construction: P03" in text and "penalty elasticnet | C 0.001 | l1_ratio 0.5" in text
+    assert "fold all_zero unsupported" in text and "fold active" in text  # P07 greyed, P01 active
+    assert "http://localhost:8051/?panel=bio_a&method=pca&k=10" in text  # same host as the request, port 8051
+    direct = json.dumps(_post(app, cell_key, _view(sel={"r": rp, "c": 0})).get_json())
+    assert "none for direct-gene cells" in direct and "8051/?panel" not in direct
+    configured = explorer.create_app(fold_atlas, factor_explorer_url="https://example.org/factors/")
+    text = json.dumps(_post(configured, _key(configured, "cell-body.children"), _view(sel={"r": rp, "c": cp})).get_json())
+    assert "https://example.org/factors/?panel=bio_a&method=pca&k=10" in text
+    for mode in explorer.FOLD_MODES:
+        body = _post(app, heat_key, _view(color_mode=mode, f3=["on"]))
+        assert body.status_code == 200, mode
+    response = _post(app, heat_key, _view(f3=["on"], f3_source="csv")).get_json()["response"]
+    caveat = json.dumps(response["f3-caveat"]["children"])
+    assert "Leverage-filter caveat (v2 CSV source)" in caveat and "own best regularization" in caveat
+    assert "Leverage-filter caveat (v2 CSV source)" in json.dumps(response["status"]["children"])
+
+
+def test_dash_disables_fold_modes_without_per_fold_data(atlas):
+    pytest.importorskip("dash")
+    app = explorer.create_app(atlas)  # the original synthetic experiment: no per-fold tables
+    options = {o["value"]: o["disabled"] for o in app.layout["color-mode"].options}
+    assert options["zero_folds"] is True and options["selected_c"] is False and options["center"] is False
+
+
+_REAL: dict = {}
+
+
+def _real_atlas():
+    experiment = explorer.find_experiment_dir()
+    if experiment is None or not all(p.is_file() for p in explorer.fold_table_paths(experiment).values()):
+        pytest.skip("old34 experiment per-fold tables are not available here")
+    if "atlas" not in _REAL:
+        _REAL["atlas"] = explorer.load_atlas(experiment)
+    return _REAL["atlas"]
+
+
+def test_real_experiment_fold_strip_reproduces_documented_facts():
+    atlas = _real_atlas()
+    assert explorer.fold_check(atlas)[1] == "PASS"
+    assert len(atlas.fold_patients) == 13 and int(atlas.fold_supported.sum()) == 7
+    panel = "single_geneset__hallmark_interferon_alpha_response"
+    r = atlas.panel_ids.index(panel)
+    fa40, pca40 = explorer.CONFIGS.index("fa|K=40"), explorer.CONFIGS.index("pca|K=40")
+    active = lambda c: [p for f, p in enumerate(atlas.fold_patients) if atlas.fold_nonzero[f, r, c] > 0]  # noqa: E731
+    assert active(fa40) == ["P03", "P04", "P10"]  # 3 of 13 folds (W1 reader fact)
+    assert len(active(pca40)) == 11 and explorer.zero_fold_patients(atlas, r, pca40) == ["P01", "P09"]
+    assert explorer.selected_regularization_text(atlas, r, fa40) == "penalty l1 | C 0.0001"
+    zero = explorer.zero_fold_count(atlas)
+    bio_dr = np.zeros(atlas.shape, bool)
+    bio_dr[atlas.n_controls:, 1:] = True
+    bio_dr &= atlas.available
+    assert int(bio_dr.sum()) == 640
+    assert int(((zero > 0) & (zero < 7) & bio_dr).sum()) == 36 and int(((zero == 7) & bio_dr).sum()) == 80
+
+
+def test_real_experiment_bundle_grows_by_less_than_0p1_mb(tmp_path):
+    atlas = _real_atlas()
+    out = tmp_path / "real_bundle"
+    explorer.export_bundle(atlas.data_dir, out)
+    table = pd.read_csv(out / explorer.NONZERO_TABLE_NAME)
+    fold_cols = [c for c in table.columns if c.startswith(explorer.FOLD_COLUMN_PREFIX)]
+    assert len(fold_cols) == 13
+    without = len(table.drop(columns=fold_cols).to_csv(index=False).encode())
+    manifest = json.loads((out / "bundle_manifest.json").read_text())
+    growth = (out / explorer.NONZERO_TABLE_NAME).stat().st_size - without + len(json.dumps(manifest[explorer.FOLD_MANIFEST_KEY], indent=2))
+    assert 0 < growth < 100_000, growth
+    bundled = explorer.load_atlas(out)
+    assert np.array_equal(bundled.fold_nonzero, atlas.fold_nonzero, equal_nan=True)
+    assert explorer.fold_check(bundled)[1] == "PASS"

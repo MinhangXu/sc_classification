@@ -8,11 +8,12 @@ Conventions copied from scripts/mrd_stage0_2/stage2_supervised/run_stage2_mrd_mu
 - C grid: 1 / logspace(-4, 4, 17), i.e. C from 1e4 down to 1e-4 in half-decade steps.
 - class_weight='balanced'; SimpleImputer(fill_value=0) then StandardScaler fitted on the
   training cells of each fold (population SD; a constant column keeps scale 1, so it is 0).
-- Same solver family. The stored Set A grids ran on the cuML backend (QN / OWL-QN, with
+- Same objective. The stored Set A grids ran on the cuML backend (QN / OWL-QN, with
   l1_strength = l1_ratio / C, l2_strength = (1 - l1_ratio) / C, penalties normalised by the
   sample size). That is the scikit-learn objective, so C means the same thing on CPU and GPU.
-  The CPU path here uses saga for L1 / elastic net (the runner's CPU backend) and lbfgs for
-  L2 (same objective, faster).
+  Here L1 / elastic net default to ProxNewtonLogistic ('newton_cd', an exact proximal-Newton
+  solver of that objective; saga, the runner's CPU backend, is available but can need
+  thousands of epochs on heavy-tailed standardized scores) and L2 to lbfgs.
 
 Objective (scikit-learn parametrisation, rho = l1_ratio, rho = 1 for L1)
 
@@ -40,6 +41,7 @@ import warnings
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
@@ -65,6 +67,9 @@ __all__ = [
     "optimal_intercept",
     "kkt_margins",
     "supported_patients",
+    "ProxNewtonLogistic",
+    "SOLVERS",
+    "NEWTON_CD_MAX_FEATURES",
     "fit_probe",
     "probe_coef",
     "probe_scores",
@@ -362,8 +367,201 @@ def supported_patients(
 # --------------------------------------------------------------------------------------
 
 
-def _default_solver(penalty: str) -> str:
-    return "lbfgs" if penalty == "l2" else "saga"
+class ProxNewtonLogistic(ClassifierMixin, BaseEstimator):
+    """Binary logistic regression, scikit-learn objective, solved by proximal Newton.
+
+        min_{w,b}  C * sum_i s_i * logloss_i  +  rho * ||w||_1  +  (1 - rho) / 2 * ||w||^2
+
+    rho = 1 (l1), l1_ratio (elasticnet) or 0 (l2); s_i = balanced class weights; the intercept
+    is not penalised. This is the objective of sklearn's saga/lbfgs and of cuML's QN with
+    penalty normalisation, so the optimum is the same; only the algorithm differs. Each outer
+    step solves the penalised quadratic model (exact Hessian of the weighted loss, features plus
+    intercept) by cyclic coordinate descent, then backtracks on the true objective (glmnet /
+    newGLMNET style). With few features (K <= ~100) it is fast and converges to a tight KKT
+    point, unlike saga, whose step size collapses on heavy-tailed standardized scores.
+
+    fit(X, y, coef_init=None, intercept_init=None) accepts a warm start. Converged when the
+    C-scaled KKT violation is <= tol, or the step stalls. n_iter_ counts Newton steps.
+    """
+
+    def __init__(
+        self,
+        penalty: str = "l1",
+        C: float = 1.0,
+        l1_ratio: Optional[float] = None,
+        class_weight: Optional[str] = "balanced",
+        max_iter: int = 200,
+        tol: float = 1e-7,
+        cd_max_sweeps: int = 2000,
+    ) -> None:
+        self.penalty = penalty
+        self.C = C
+        self.l1_ratio = l1_ratio
+        self.class_weight = class_weight
+        self.max_iter = max_iter
+        self.tol = tol
+        self.cd_max_sweeps = cd_max_sweeps
+
+    # objective pieces -------------------------------------------------------------------
+    @staticmethod
+    def _loss(eta: np.ndarray, y: np.ndarray, s: np.ndarray) -> float:
+        return float(np.sum(s * (np.logaddexp(0.0, eta) - y * eta)))
+
+    def _penalty_value(self, w: np.ndarray, lam1: float, lam2: float) -> float:
+        return lam1 * float(np.sum(np.abs(w))) + 0.5 * lam2 * float(w @ w)
+
+    @staticmethod
+    def _cd_subproblem(H: np.ndarray, g: np.ndarray, beta: np.ndarray, lam1: float, lam2: float,
+                       max_sweeps: int, tol: float) -> np.ndarray:
+        """argmin_u g.u + u'Hu/2 + lam1*|w+u_w|_1 + lam2/2*|w+u_w|^2 (last coordinate = intercept)."""
+        k = beta.size - 1
+        u = np.zeros_like(beta)
+        Hu = np.zeros_like(beta)
+        diag = np.diag(H)
+        Hcols = [H[:, j].copy() for j in range(k + 1)]
+        for _ in range(int(max_sweeps)):
+            max_change = 0.0
+            for j in range(k):
+                A = diag[j] + lam2
+                z0 = beta[j] + u[j]
+                if A <= 1e-300:
+                    znew = 0.0
+                else:
+                    c = A * z0 - (g[j] + Hu[j] + lam2 * z0)
+                    znew = math.copysign(max(abs(c) - lam1, 0.0), c) / A
+                delta = znew - z0
+                if delta != 0.0:
+                    u[j] += delta
+                    Hu += Hcols[j] * delta
+                    max_change = max(max_change, abs(delta) * math.sqrt(max(A, 0.0)))
+            A = diag[k]
+            if A > 1e-300:
+                delta = -(g[k] + Hu[k]) / A
+                u[k] += delta
+                Hu += Hcols[k] * delta
+                max_change = max(max_change, abs(delta) * math.sqrt(A))
+            if max_change <= tol:
+                break
+        return u
+
+    def _kkt_violation(self, beta: np.ndarray, g: np.ndarray, rho: float) -> float:
+        """C-scaled KKT residual: max over features (subgradient) and the intercept."""
+        C = float(self.C)
+        w, gw = beta[:-1], C * g[:-1]
+        res = np.where(
+            w != 0.0,
+            np.abs(gw + rho * np.sign(w) + (1.0 - rho) * w),
+            np.maximum(np.abs(gw) - rho, 0.0),
+        )
+        return float(max(np.max(res) if res.size else 0.0, abs(C * g[-1])))
+
+    # sklearn API ------------------------------------------------------------------------
+    def fit(self, X: Any, y: Any, coef_init: Any = None, intercept_init: Optional[float] = None) -> "ProxNewtonLogistic":
+        X = _as_2d(X)
+        y_arr = _as_binary(y)
+        if y_arr.min() == y_arr.max():
+            raise ValueError("y needs both classes")
+        pen = _norm_penalty(self.penalty)
+        rho = _rho(pen, self.l1_ratio)
+        C = float(self.C)
+        if C <= 0:
+            raise ValueError("C must be positive")
+        lam1, lam2 = rho / C, (1.0 - rho) / C
+        s = balanced_sample_weights(y_arr) if self.class_weight == "balanced" else np.ones(y_arr.size)
+        n, k = X.shape
+        Xa = np.empty((n, k + 1), dtype=np.float64)
+        Xa[:, :k] = X
+        Xa[:, k] = 1.0
+        beta = np.zeros(k + 1)
+        if coef_init is not None:
+            beta[:k] = np.asarray(coef_init, dtype=np.float64).ravel()
+        if intercept_init is not None:
+            beta[k] = float(np.asarray(intercept_init).ravel()[0])
+        elif coef_init is None:
+            pw = float(np.sum(s * y_arr) / np.sum(s))
+            beta[k] = math.log(pw / (1.0 - pw))
+        eta = Xa @ beta
+        F = self._loss(eta, y_arr, s) + self._penalty_value(beta[:k], lam1, lam2)
+        n_iter = 0
+        for n_iter in range(1, int(self.max_iter) + 1):
+            p = 0.5 * (1.0 + np.tanh(0.5 * eta))
+            g = Xa.T @ (s * (p - y_arr))
+            if self._kkt_violation(beta, g, rho) <= float(self.tol):
+                n_iter -= 1
+                break
+            h = s * p * (1.0 - p)
+            H = (Xa * h[:, None]).T @ Xa
+            u = self._cd_subproblem(H, g, beta, lam1, lam2, self.cd_max_sweeps, 1e-3 * float(self.tol))
+            w_old, w_new = beta[:k], beta[:k] + u[:k]
+            D = float(g @ u) + self._penalty_value(w_new, lam1, lam2) - self._penalty_value(w_old, lam1, lam2)
+            if not np.isfinite(D) or D >= 0.0:
+                break  # no descent direction left: converged to working precision
+            t = 1.0
+            accepted = False
+            while t >= 1e-12:
+                cand = beta + t * u
+                eta_c = Xa @ cand
+                F_c = self._loss(eta_c, y_arr, s) + self._penalty_value(cand[:k], lam1, lam2)
+                if F_c <= F + 1e-4 * t * D:
+                    accepted = True
+                    break
+                t *= 0.5
+            if not accepted:
+                break
+            step = float(np.max(np.abs(t * u)))
+            beta, eta, F = cand, eta_c, F_c
+            if step <= 1e-12:
+                break
+        self.coef_ = beta[:k][None, :].copy()
+        self.intercept_ = np.array([beta[k]])
+        self.n_iter_ = np.array([n_iter])
+        self.classes_ = np.array([0, 1])
+        self.n_features_in_ = k
+        return self
+
+    def decision_function(self, X: Any) -> np.ndarray:
+        return _as_2d(X) @ self.coef_.ravel() + float(self.intercept_[0])
+
+    def predict_proba(self, X: Any) -> np.ndarray:
+        eta = self.decision_function(X)
+        p1 = 0.5 * (1.0 + np.tanh(0.5 * eta))
+        return np.column_stack([1.0 - p1, p1])
+
+    def predict(self, X: Any) -> np.ndarray:
+        return (self.decision_function(X) > 0).astype(int)
+
+
+SOLVERS = ("newton_cd", "saga", "lbfgs", "liblinear")
+
+
+#: Above this many features the default l1 / elasticnet solver switches from newton_cd (which
+#: forms a (K+1) x (K+1) Hessian per step) to saga, e.g. for direct-gene panels.
+NEWTON_CD_MAX_FEATURES = 200
+
+
+def _default_solver(penalty: str, n_features: int = 0) -> str:
+    """lbfgs for l2; newton_cd for l1 / elasticnet up to NEWTON_CD_MAX_FEATURES features, else saga."""
+    if penalty == "l2":
+        return "lbfgs"
+    return "newton_cd" if int(n_features) <= NEWTON_CD_MAX_FEATURES else "saga"
+
+
+def _make_logreg(pen: str, C: float, ratio: Optional[float], solver: str, random_state: int, max_iter: int,
+                 tol: Optional[float], class_weight: Optional[str]) -> Any:
+    if solver not in SOLVERS:
+        raise ValueError(f"solver must be one of {SOLVERS}")
+    if solver == "newton_cd":
+        return ProxNewtonLogistic(
+            penalty=pen, C=float(C), l1_ratio=ratio, class_weight=class_weight,
+            max_iter=min(int(max_iter), 200), tol=1e-7 if tol is None else float(tol),
+        )
+    kwargs: Dict[str, Any] = {
+        "penalty": pen, "C": float(C), "solver": solver, "class_weight": class_weight,
+        "random_state": int(random_state), "max_iter": int(max_iter), "tol": 1e-4 if tol is None else float(tol),
+    }
+    if pen == "elasticnet":
+        kwargs["l1_ratio"] = ratio
+    return LogisticRegression(**kwargs)
 
 
 def fit_probe(
@@ -376,39 +574,37 @@ def fit_probe(
     random_state: int = 42,
     max_iter: int = DEFAULT_MAX_ITER,
     solver: Optional[str] = None,
-    tol: float = 1e-4,
+    tol: Optional[float] = None,
     class_weight: Optional[str] = "balanced",
     standardize: bool = True,
 ) -> Pipeline:
     """Fit one Stage 2 probe on training cells; returns a fitted sklearn Pipeline.
 
     Steps: 'impute' (fill 0) and 'scale' (StandardScaler) on the training cells when
-    standardize=True, then 'logreg' (LogisticRegression, class_weight='balanced'). predict_proba
-    on raw held-out scores therefore applies the training-fold standardization. Solver: saga for
-    l1 / elasticnet (the runner's CPU backend), lbfgs for l2, unless given. Convergence warnings
-    are silenced; read est.named_steps['logreg'].n_iter_ if needed.
+    standardize=True, then 'logreg' (class_weight='balanced'). predict_proba on raw held-out
+    scores therefore applies the training-fold standardization.
+
+    Solver (all minimise the same objective as the runner's sklearn and cuML backends):
+    'newton_cd' (default for l1 / elasticnet with <= NEWTON_CD_MAX_FEATURES features;
+    ProxNewtonLogistic, tol = C-scaled KKT residual, default 1e-7), 'lbfgs' (default for l2),
+    'saga' (the runner's CPU backend and the default for wider l1 / elasticnet inputs such as
+    direct genes; tol default 1e-4; slow on heavy-tailed scores) or 'liblinear' (l1 / l2 only;
+    penalises the intercept).
+    Convergence warnings are silenced; read est.named_steps['logreg'].n_iter_ if needed.
     """
     pen = _norm_penalty(penalty)
-    kwargs: Dict[str, Any] = {
-        "penalty": pen,
-        "C": float(C),
-        "solver": solver or _default_solver(pen),
-        "class_weight": class_weight,
-        "random_state": int(random_state),
-        "max_iter": int(max_iter),
-        "tol": float(tol),
-    }
-    if pen == "elasticnet":
-        kwargs["l1_ratio"] = _rho(pen, l1_ratio)
+    ratio = _rho(pen, l1_ratio) if pen == "elasticnet" else None
+    X = _as_2d(Z)
+    model = _make_logreg(pen, C, ratio, solver or _default_solver(pen, X.shape[1]), random_state, max_iter, tol, class_weight)
     steps: List[Tuple[str, Any]] = []
     if standardize:
         steps += [("impute", SimpleImputer(strategy="constant", fill_value=0.0)), ("scale", StandardScaler())]
-    steps.append(("logreg", LogisticRegression(**kwargs)))
+    steps.append(("logreg", model))
     pipe = Pipeline(steps)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=ConvergenceWarning)
         warnings.simplefilter("ignore", category=FutureWarning)
-        pipe.fit(_as_2d(Z), _as_binary(y))
+        pipe.fit(X, _as_binary(y))
     return pipe
 
 
@@ -495,36 +691,54 @@ def _inner_splits(
     return fallback, True, reason
 
 
-def _evaluate_setting(
+def _evaluate_fold_path(
     Z: np.ndarray,
     y: np.ndarray,
     split: Tuple[str, np.ndarray, np.ndarray],
+    c_grid: Sequence[float],
     *,
     penalty: str,
-    C: float,
     l1_ratio: Optional[float],
     random_state: int,
     max_iter: int,
     solver: Optional[str],
     scoring: str,
-) -> Dict[str, Any]:
+) -> List[Dict[str, Any]]:
+    """One inner fold over the whole C grid: standardize once on the inner-training cells,
+    then fit C in ascending order (strong to weak regularization). newton_cd fits are
+    warm-started from the previous C; other solvers refit from scratch."""
     label, tr, te = split
-    est = fit_probe(
-        Z[tr], y[tr], penalty=penalty, C=C, l1_ratio=l1_ratio, random_state=random_state, max_iter=max_iter, solver=solver
-    )
-    coef = probe_coef(est)
-    metric, prevalence, lift = _fold_score(probe_scores(est, Z[te]), y[te], scoring)
-    return {
-        "C": float(C),
-        "inner_fold": label,
-        "n_inner_train": int(tr.size),
-        "n_inner_eval": int(te.size),
-        "n_inner_eval_malignant": int(y[te].sum()),
-        "metric": metric,
-        "prevalence": prevalence,
-        "lift": lift,
-        "n_nonzero": int(np.sum(np.abs(coef) > COEF_NONZERO_TOL)),
-    }
+    Ztr, Zte = standardize_train(Z[tr], Z[te])
+    ytr, yte = y[tr], y[te]
+    chosen = solver or _default_solver(penalty, Z.shape[1])
+    rows: List[Dict[str, Any]] = []
+    coef_prev = intercept_prev = None
+    for C in sorted(float(c) for c in c_grid):
+        model = _make_logreg(penalty, C, l1_ratio, chosen, random_state, max_iter, None, "balanced")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=ConvergenceWarning)
+            warnings.simplefilter("ignore", category=FutureWarning)
+            if isinstance(model, ProxNewtonLogistic):
+                model.fit(Ztr, ytr, coef_init=coef_prev, intercept_init=intercept_prev)
+                coef_prev, intercept_prev = model.coef_.ravel().copy(), float(model.intercept_[0])
+            else:
+                model.fit(Ztr, ytr)
+        coef = np.asarray(model.coef_, dtype=np.float64).ravel()
+        metric, prevalence, lift = _fold_score(model.predict_proba(Zte)[:, 1], yte, scoring)
+        rows.append(
+            {
+                "C": float(C),
+                "inner_fold": label,
+                "n_inner_train": int(tr.size),
+                "n_inner_eval": int(te.size),
+                "n_inner_eval_malignant": int(yte.sum()),
+                "metric": metric,
+                "prevalence": prevalence,
+                "lift": lift,
+                "n_nonzero": int(np.sum(np.abs(coef) > COEF_NONZERO_TOL)),
+            }
+        )
+    return rows
 
 
 def tune_c_inner_lopo(
@@ -559,7 +773,9 @@ def tune_c_inner_lopo(
     Returns dict: best_C, best_score, scores_by_C {C: median lift}, nonzero_by_C {C: mean
     nonzero}, per_fold (list of rows), n_inner_folds, inner_folds, fallback, fallback_reason,
     penalty, l1_ratio, criterion, tie_break, c_grid, n_train, n_train_malignant.
-    Deterministic for a fixed random_state (saga is seeded; n_jobs only changes speed).
+    Each inner fold standardizes once and walks the grid in ascending C (newton_cd warm-starts
+    along the path). Deterministic: newton_cd and lbfgs are deterministic, saga is seeded by
+    random_state; n_jobs (parallel over inner folds) only changes speed.
     """
     Z_arr = _as_2d(Z)
     y_arr = _as_binary(y)
@@ -574,14 +790,14 @@ def tune_c_inner_lopo(
     splits, fallback, reason = _inner_splits(
         y_arr, pat, min_malignant=min_malignant, random_state=random_state, n_fallback_splits=n_fallback_splits
     )
-    tasks = [(C, split) for C in grid for split in splits]
     kwargs = dict(penalty=pen, l1_ratio=ratio, random_state=random_state, max_iter=max_iter, solver=solver, scoring=scoring)
     if int(n_jobs) == 1:
-        rows = [_evaluate_setting(Z_arr, y_arr, split, C=C, **kwargs) for C, split in tasks]
+        per_split = [_evaluate_fold_path(Z_arr, y_arr, split, grid, **kwargs) for split in splits]
     else:
         from joblib import Parallel, delayed  # scikit-learn dependency
 
-        rows = Parallel(n_jobs=int(n_jobs))(delayed(_evaluate_setting)(Z_arr, y_arr, split, C=C, **kwargs) for C, split in tasks)
+        per_split = Parallel(n_jobs=int(n_jobs))(delayed(_evaluate_fold_path)(Z_arr, y_arr, split, grid, **kwargs) for split in splits)
+    rows = [row for split_rows in per_split for row in split_rows]
 
     scores_by_C: Dict[float, float] = {}
     nonzero_by_C: Dict[float, float] = {}
@@ -648,7 +864,8 @@ def c_policy_record(**kw: Any) -> Dict[str, Any]:
         "fallback": "stratified 5-fold CV on training cells (patient x label strata) when < 2 supported training patients",
         "class_weight": "balanced",
         "standardization": "SimpleImputer(0) + StandardScaler fitted on training cells of each (inner) fold",
-        "solver": "saga for l1/elasticnet, lbfgs for l2 (sklearn objective; equals cuML QN C semantics)",
+        "solver": "newton_cd (proximal Newton) for l1/elasticnet with <= 200 features, saga above; lbfgs for l2 "
+        "(all minimise the sklearn objective, which equals the cuML QN C semantics)",
         "max_iter": DEFAULT_MAX_ITER,
         "coef_nonzero_tol": COEF_NONZERO_TOL,
         "l1_entry_rule": "feature enters at w=0 iff |standardized class-mean gap| > 4*l1_ratio/(C*n_train) (l1_ratio=1 for L1)",

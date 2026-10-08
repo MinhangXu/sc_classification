@@ -17,7 +17,7 @@ spine came from.
 
 | File | Source | Copied | Notes |
 |---|---|---|---|
-| `stage0-2-hypothesis-tracker_2026-10-02b.canvas.tsx` | Cursor canvas `stage0-2-hypothesis-tracker.canvas.tsx` in the user's Cursor project canvases directory (`$HOME/.cursor/projects/<workspace>/canvases/`) | 2026-10-08 | Byte-identical copy of the canvas at `SNAPSHOT = "2026-10-02b"`, made **before** the 2026-10-08 FROZEN banner edit. It holds the 19 migrated hypothesis rows (H-S0-01..H-A-02), the 5 stage rows, the CRC Aim 2 rows and the working-hypothesis text. |
+| `stage0-2-hypothesis-tracker_2026-10-02b.canvas.tsx` | Cursor canvas `stage0-2-hypothesis-tracker.canvas.tsx` in the user's Cursor project canvases directory (under `$HOME/.cursor`, outside any repo) | 2026-10-08 | Byte-identical copy of the canvas at `SNAPSHOT = "2026-10-02b"`, made **before** the 2026-10-08 FROZEN banner edit. It holds the 19 migrated hypothesis rows (H-S0-01..H-A-02), the 5 stage rows, the CRC Aim 2 rows and the working-hypothesis text. |
 
 The original canvas outside the repo now carries a comment-only FROZEN banner that points
 to `scripts/mrd_stage0_2/research/hypotheses.md`. Its data arrays and `SNAPSHOT` were not

@@ -100,6 +100,10 @@ Optional:
   dirty_run:    true | false (tree dirty when run; new-entry pre-fills it)
   date_source:  authored | header | git | mtime | log | reconstructed   (REQUIRED when backfilled: true)
   supersedes:   [devlog ids]
+  seq:          non-negative integer, default 0. Same-date tie-breaker: entries sort by (date, seq, id),
+                and the latest entry in that order sets a hypothesis's current verdict. Without seq,
+                same-date entries resolve alphabetically by id, so give an entry that must override a
+                verdict declared earlier the same day a higher seq, then check `research_index.py show <H-ID>`.
 
 BODY
 H2 headings, exactly these, in this order. Write 'n/a' rather than deleting a section.
@@ -157,7 +161,14 @@ Ask state is derived, never typed:
 - **partial**: any non-meeting entry cites it, or any routed task is not open;
 - **open**: otherwise.
 
+An ask routed only to THEME, H-IDs or analysis IDs (no W#.n) becomes answered as soon as one done entry of an answering type cites it, which means "recorded in THEME", not "resolved". Route an open research question to the W#.n tasks that answer it as well, so it stays partial until they are done.
+
 Entries of type meeting only record asks; they never answer them.
+
+## 4b. THEME review queue and the publication gate
+
+- THEME.md front matter carries `last_reviewed: YYYY-MM-DD` and, optionally, `reviewed_through: <devlog id>`. STATUS.md §9 (and warning W09) lists the entries with verdicts, alternative states or evidence that THEME has not reviewed: every such entry after reviewed_through in INDEX order or, without it, every such entry dated after last_reviewed plus the ones dated on last_reviewed that THEME.md does not cite by id. A milestone edit of THEME bumps both keys.
+- Publication gate (CLAIMS.md Part C; lint E13): a `supported_publication` verdict needs every alternative listed for the hypothesis addressed, every blocking task done, at least one supports bullet from an entry with a hex commit and `dirty_run` not true, figures listed in hypotheses.md, and a declaring entry with `claim_level: publication`. Claim language follows AGENTS.md R6.
 
 ## 5. Vocabularies
 
@@ -180,7 +191,7 @@ Entries of type meeting only record asks; they never answer them.
 
 ## 6. Backfill conventions
 
-The 36 entries dated 2026-05-15 to 2026-10-02 (and the 2026-10-08 team-report entry, which is written live) were reconstructed on 2026-10-08 from the repository, git history, experiment logs, file times and the 2026-10-08 fact-check of the team report.
+The 35 entries dated 2026-05-15 to 2026-10-02 were reconstructed (backfilled) on 2026-10-08 from the repository, git history, experiment logs, file times and the 2026-10-08 fact-check of the team report. The three 2026-10-08 entries (team report, research spine, literature reviews) are live entries with `backfilled: false`.
 
 - `backfilled: true` and a `date_source` with a comment naming the evidence (lint E09).
 - `date` is the date of the work, not of the backfill. When outputs were regenerated later, the entry keeps the original date and says so in Implementation.

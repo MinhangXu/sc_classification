@@ -17,7 +17,7 @@
 3. Read `research/THEME.md` §6 (the canonical claim list, i.e. the claim boundary) and the § for your question (§2 Q1, §3 Q2, §4 Q3, §5 QI). Reads 1-3 give you the rules, the current state and the claim boundary.
 4. Read your workstream README (`workstreams/<W#_slug>/README.md`). If none fits, ask the user. Never create a W# silently.
 5. As needed: `python tools/research_index.py show <ID>` for every ID in the request; `research/campaigns.csv`, always before any compute; `research/CLAIMS.md` for the numbers; `notebooks/stage0_2/old34_inquiry_narrative_guide.md`, only for method mechanics.
-6. New questions from the user, PI, a teammate or a meeting: first append them verbatim to a new `research/asks/<date>_<source>.md`, with A-IDs and routes.
+6. New questions from the user, PI, a teammate or a meeting: first look for them (`python tools/research_index.py show <A-ID>` or grep `research/asks/`). If one is already recorded, cite its A-ID. Otherwise append it verbatim to `research/asks/<YYYY-MM-DD>_<source>.md` (create the file if absent) with an A-ID and routes, in the format of `research/devlog/README.md` §4.
 7. Before computing: long or GPU job → R1 (screen command, stop); new artifacts → a NEW `_v<N>` slug (R3) under a reserved planned row or `research_index.py reserve-id`; training n changes → plan C retuning (R5); never move files (R10) or add absolute paths (R9).
 
 Docs with a HISTORICAL banner are not current.
@@ -35,11 +35,12 @@ Instead, give the user:
 - the expected outputs;
 - how to verify completion.
 The user runs `screen -S <name>`, then the command, then detaches with Ctrl-a d. Record this in a devlog entry with compute: screen-cpu|screen-gpu and the literal `screen -S` line. CPU-minute work, such as the 92-gene IFN-alpha refits, is fine in the session.
+- The lab server is shared (48 cores). In an agent shell, keep total parallelism (worker processes × BLAS threads) at 12 or below, e.g. `--n-jobs 12` with OMP_NUM_THREADS=1, or 3 workers with OMP_NUM_THREADS=4. Never pass or inherit `--n-jobs -1` (the Stage 2 runner's default); set it explicitly.
 
 R2 Resume is runner-specific; never assume a --resume flag.
 - run_stage2_old34_donor_downsampling_sensitivity.py: --resume and --merge-only.
 - run_stage0_mrd_old34_broad_screen.py: skips existing outputs unless --rerun.
-- run_stage2_mrd_multiobjective_scorecard.py: no resume. Shards use --shard-count/--shard-index and are merged with --merge-stage2-run. Relaunching means a new --stage2-output-branch, or a per-shard relaunch under the same run id, and only after reading the code.
+- run_stage2_mrd_multiobjective_scorecard.py: no resume. Shards use --shard-count/--shard-index and are merged with --merge-stage2-run. Relaunching means a new --stage2-output-branch, or, with the user's OK, a per-shard relaunch with the same --stage2-run-id plus --shard-count/--shard-index, then --merge-stage2-run. First confirm in the code that finished shard files are not overwritten (R3).
 - run_pooled_stage0_unions_stage0_to_stage2.sh: has no --resume (it exits with 'Unknown argument'). Never pass --rerun-stage0.
 - research/campaigns.csv resume_command is authoritative. A value of 'none' means no safe resume exists: ask the user.
 - New runners you write must implement --resume:
@@ -59,7 +60,7 @@ R3 Protected outputs.
 
 R4 Campaigns.
 - Read research/campaigns.csv before any compute and obey relaunch_policy (never | resume_only | ask_user).
-- Add a planned row (through the integrator, or your own edit outside wave 2) before handing the user a new GPU campaign.
+- Add a planned row to research/campaigns.csv (status planned, relaunch_policy, runner, resume_command, screen_session) before handing the user a new GPU campaign.
 - No new 8-GPU job until the pooled Set C decision (W0.6) is made, unless the user overrides.
 
 R5 Regularization.
@@ -72,7 +73,7 @@ R6 Claim-gate language.
 - Everything is 'descriptive' unless THEME §6 and a supported_publication verdict say otherwise.
 - No causal claims without experimental intervention.
 - Say 'constant-score no-skill AP = π'.
-- Quote pooled AP, median lift and P20 lift together; never 38/41 alone.
+- Quote pooled AP, median lift and P20 lift together; never quote the D9 pooled-AP win count (DR vs direct genes) alone.
 - For any loading, state the sign orientation and the penalty (L1/L2/EN), and name factors from both poles.
 - State non-identifiability for single-patient peaks.
 - Label Stage 1 as transductive. LOPO is label transfer, not inductive deployment.
@@ -87,11 +88,11 @@ R7 Metric and support.
 - Supported patient = at least 10 malignant cells and both classes (study_config.json: P01, P02, P03, P04, P06, P07, P09).
 - D14's 20-cell malignant stratum is an analysis parameter, not the support rule.
 
-R8 Data. Never load the 14.2 GB raw AnnData. Use the cohort cache (study_config cohort_cache_relpath) or the cell metadata CSV.
+R8 Data. Never load the 14.2 GB raw AnnData (SC_COHORT_H5AD). Use the cohort cache (study_config cohort_cache_relpath; `cohort_cache()`) or the cell metadata CSV. ADT raw counts are in the cohort cache `obsm['ADT']`; neither file holds dsb-normalized ADT.
 
 R9 Paths.
 - No absolute paths in new files.
-- New code resolves locations through sc_classification.utils.paths (SC_REPO_ROOT, SC_EXPERIMENT_ROOT, SC_EXPERIMENT_ID, SC_DATA_ROOT, SC_COHORT_H5AD).
+- New code resolves locations through sc_classification.utils.paths (SC_REPO_ROOT, SC_EXPERIMENT_ROOT, SC_EXPERIMENT_ID, SC_DATA_ROOT, SC_COHORT_H5AD; the last is the raw AnnData that R8 forbids loading).
 - Paths in docs, devlog and registry are relative to the experiment dir.
 
 R10 Overlay, never move.
@@ -118,7 +119,7 @@ R12 Evidence.
 
 ## 5. IDs and vocabulary
 - Question tags: Q1 shared vs patient-specific; Q2 strength of evidence; Q3 what DR adds vs direct genes; QI interpretability lens (= PI-Q3); meta.
-- Analysis IDs (`research/analyses.csv`): D1-D15 (+ D1c-f, D3b), D1DD1-13 and F1-F9 are frozen; F8 was never assigned; the D1DD and F series are closed. New analyses use their reserved planned row (D15b, D16-D25) or `python tools/research_index.py reserve-id --workstream W# --title '...'`.
+- Analysis IDs (`research/analyses.csv`): D1-D15 (+ D1c-f, D3b), D1DD1-13 and F1-F9 are frozen; F8 was never assigned; the D1DD and F series are closed. New analyses use a planned row in research/analyses.csv (STATUS §4 lists them) or `python tools/research_index.py reserve-id --workstream W# --title '...' [--slug <slug>_v1 --asks 'A-...' --code 'path' --findings-md <file>]`.
 - Other IDs: H-* hypotheses (`research/hypotheses.md`); ALT-* reviewer alternatives (`research/alternatives.csv`); W# workstreams and W#.n tasks; A-YYYYMMDD-NN asks; devlog ids = filename stems. Crosswalk from older labels: THEME §8.
 
 ## 6. Where new work goes
@@ -134,17 +135,19 @@ from sc_classification.utils.paths import experiment_dir, cohort_cache, add_stud
 add_study_module_paths(workstreams=("W3_dr_value_regularization",))  # only if needed
 EXP = experiment_dir()
 ```
+- A script one directory deeper, such as `workstreams/<W#_slug>/anchors/*.py`, uses `parents[5]`.
 - A module used by 2 or more workstreams is promoted to `stage2_supervised/` only through a devlog entry with type: refactor. Artifacts follow R3.
 
 ## 7. End of every task: at most 3 small edits, then 1 command
 1. Create the devlog entry: `python tools/research_index.py new-entry <slug> --workstream W# [--type analysis] [--analyses D16]`. Fill all 8 sections: the verbatim question with its ask ID; estimand and null, incl. c_policy; code paths and the exact rerun or screen command; EXP-relative artifacts; headline numbers with [H-ID role] tags on evidence bullets; both claim-gate lines; next steps citing W#.n. Set closes and advances; set verdicts and alts only when they change. Leave commit: pending.
 2. Edit only what changed:
-   - `research/analyses.csv`: your row's status or notes;
+   - `research/analyses.csv`: your row's status or notes, plus the code, asks and findings_md columns of a row you reserved;
    - your workstream README: new backlog lines;
    - `research/campaigns.csv`: a campaign was planned, launched, finished, stalled or abandoned;
    - `research/hypotheses.md`: only when a statement, alternatives list, blocking list or figures change. Never put verdicts there.
-3. Run `python tools/research_index.py write && python tools/research_index.py check` and get exit 0. If code changed, also run `python -m pytest tests -q`.
-- THEME.md changes only at milestones (a verdict changes, a claim crosses §6, the user asks for paper text); bump last_reviewed when it does. STATUS.md lists the entries waiting for review.
+3. Run `python tools/research_index.py write && python tools/research_index.py check` and get exit 0. If code changed, also run `python -m pytest tests -q` (see §8 for pytest).
+- THEME.md changes only at milestones (a verdict changes, a claim crosses §6, the user asks for paper text); bump last_reviewed and set reviewed_through to the last devlog id you reviewed (INDEX order). STATUS.md §9 lists the entries waiting for review: entries with verdicts, alternative states or evidence after reviewed_through (or, without it, after last_reviewed, plus same-day entries THEME does not cite).
+- Same-date entries resolve verdicts in id order (alphabetical). To override a verdict declared earlier the same day, give your entry `seq: <n>` (higher wins; default 0) and confirm with `research_index.py show <H-ID>` after write.
 - Never hand-edit STATUS.md, CLAIMS.md or devlog/INDEX.md; on a merge conflict in any of them, rerun write. Never edit the Results of an old entry: write a new one with supersedes:.
 - Long run handed to the user: a type: run entry with status: partial and compute: screen-*; on completion, a status: done entry that supersedes it. Correcting a claim: a new entry with supersedes: [old id].
 - Final message to the user: headline numbers and claim level; the devlog path; the files changed; exact screen commands and how to verify them; a proposed commit message, ending with your tool's attribution trailer if your environment requires one; open questions and suspected stale docs. Do not commit.
@@ -152,21 +155,21 @@ EXP = experiment_dir()
 ## 8. Environment and commands
 - Lab server: conda env `sc-classification-rapids-py311`. RAPIDS imports need `CONDA_PREFIX=$HOME/miniconda3/envs/sc-classification-rapids-py311 $HOME/miniconda3/envs/sc-classification-rapids-py311/bin/python`.
 - Collaborators: `conda env create -f env-rapids-factosig.yml` (it pins python 3.10; the lab env is 3.11; any 3.10+ env also works), then `pip install -e '.[app,dev]'`.
-- Env vars (SC_REPO_ROOT, SC_EXPERIMENT_ROOT, SC_EXPERIMENT_ID, SC_DATA_ROOT, SC_COHORT_H5AD) are listed in `.env.example`. Path check: `python -m sc_classification.utils.paths`.
-- Tests: `python -m pytest tests -q`. App: `python scripts/mrd_stage0_2/apps/old34_d1_atlas_explorer.py [--check | --export-bundle DIR | --data-dir DIR]`.
+- Env vars (SC_REPO_ROOT, SC_EXPERIMENT_ROOT, SC_EXPERIMENT_ID, SC_DATA_ROOT, SC_COHORT_H5AD, and SC_PYTHON for the workstream run_*.sh wrappers, whose default is the active or lab conda env's python, then python) are listed in `.env.example`. Path check: `python -m sc_classification.utils.paths`.
+- Tests: `python -m pytest tests -q`. Until W0.4 lands, pytest is not installed in sc-classification-rapids-py311: run the tests from an env that has pytest (with `src` on PYTHONPATH) and say so in your devlog entry. Never pip install into the lab env without the user. Apps: `python scripts/mrd_stage0_2/apps/old34_d1_atlas_explorer.py [--check | --export-bundle DIR | --data-dir DIR]`, and `old34_factor_explorer.py` in the same directory with the same flags.
 - Screen template: `screen -S <W#>_<topic>`, then `bash <runner.sh> ...`, then detach with Ctrl-a d (reattach with `screen -r <W#>_<topic>`).
 - Naming: scripts `run_<study_or_module>.py`; notebooks `<topic>_<purpose>_<YYYYMMDD>.ipynb`; experiment dirs `YYYYMMDD_HHMMSS_<slug>_<hash>`.
 
 ## 9. If you do not have the experiment dir (EXP), or you are on another machine
 - Where EXP lives: on the lab GPU server under `sc_classification/experiments/`. Ask the repo owner (Minhang Xu) for access, then point SC_EXPERIMENT_ROOT at the directory that holds it.
-- What works without EXP: devlog Results and `research/CLAIMS.md`, which carry every headline number; notebooks committed with outputs; the D1 atlas app from a bundle made with `--export-bundle` and served with `--data-dir`; `python tools/research_index.py check` without `--strict-artifacts`.
+- What works without EXP: devlog Results and `research/CLAIMS.md`, which carry every headline number; notebooks committed with outputs (except the D14 notebook `stage2_old34_patient_factor_overlap.ipynb`, which has none: use devlog 2026-10-02_d14-patient-factor-overlap); both apps from bundles made with `--export-bundle` and served with `--data-dir`; `python tools/research_index.py check` without `--strict-artifacts` (with it, an unresolvable experiment dir is an error, E21).
 - Never recompute a campaign or invent a number to fill a missing artifact. Report from devlog entries instead, and say so in your entry.
 - factosig dependency: a separate repo, `git@github.com:MinhangXu/factosig.git`, which may be private (ask the owner). Clone it as the sibling `../factosig` (the umbrella repo carries it as a submodule there); `env-rapids-factosig.yml` installs `-e ../factosig`. Without it, FactoSig and factosig_promax imports and fits fail; PCA/FA, Stage 2 on stored scores, and analyses that read stored CSVs still work.
 - Legacy path debt: older notebooks set REPO to the lab-server repo path in their first cell, and some modules fall back to it (e.g. `patient_factor_overlap.find_repo_root`). Workarounds: pass the runners' `--experiment-dir`; edit a notebook's REPO cell locally and do not commit it; use SC_REPO_ROOT once W0.9 lands; or make a symlink. `python tools/research_index.py portability` lists every affected file.
 
 ## 10. Shims and legacy notes
 - Pointers only (edit this file, not them): CLAUDE.md, GEMINI.md, `.github/copilot-instructions.md`, `.cursor/rules/agents.mdc`.
-- The Cursor canvas is a frozen, non-canonical view; its verbatim copy is in `scripts/mrd_stage0_2/research/legacy/`. The repository audit lives in the umbrella repo at `reports/mrd_stage0_2_repository_audit/`, not in this repo.
+- The Cursor canvas is a frozen, non-canonical view; its verbatim copy is in `scripts/mrd_stage0_2/research/legacy/`. The repository audit lives in the umbrella repo at `reports/mrd_stage0_2_repository_audit/`, not in this repo. The umbrella repo is local to the lab server (no remote): without it, use devlog 2026-08-25_repository-audit, which records the audit's findings, and ask the owner for the audit files.
 - `scripts/mrd_stage0_2/plans/` is design history; `plans/INDEX.md` keeps the plan → runner table.
 - StandardizedPipeline and ExperimentManager belong to the legacy pipeline, which the mrd_stage0_2 runners do not import. DESIGN.md, README_STANDARDIZED_WORKFLOW.md and DOWNSTREAM_ANALYSIS_GUIDE.md describe only that legacy pipeline.
 - Tracked notebooks are plain JSON, but `.gitattributes` still routes `*.ipynb` through LFS; dropping that line is open user decision W0.2. Do not edit `.gitattributes` without the user.

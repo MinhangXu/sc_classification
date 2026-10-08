@@ -61,7 +61,7 @@ PILOT_PANELS = (
     "single_geneset__hallmark_apoptosis",
     "single_geneset__hallmark_tnfa_signaling_via_nfkb",
 )
-FOCUS_FACTORS = {"pca": (8,), "fa": (7, 8)}  # PC8 ~ FA7 shared IFN-alpha axis; FA8 for context
+FOCUS_FACTORS = {"pca": (8,), "fa": (7, 8)}  # PC8 and FA7: related IFN-alpha axes (not identical); FA8 for context
 N_CELLS = 60_118
 MIN_MALIGNANT_SUPPORT = 10
 
@@ -109,6 +109,8 @@ ROUND_TOL = 0.005 + 1e-9  # anchor values are rounded to 2 decimals
 F6_TOL = 1e-9
 D14_TOL = 1e-6  # D14 summed float32 scores
 
+FACTOR_KEYS_R = fpm.FACTOR_KEYS
+REP_KEYS_R = fpm.REP_KEYS
 _COHORT: fpm.Cohort | None = None
 
 
@@ -353,7 +355,8 @@ def regression_checks(exp: Path, long: pd.DataFrame) -> pd.DataFrame:
             m = m.loc[~m["degenerate"]]
             _check(rows, f"d14_eta2_{stratum}", D14_FOCUS_RELPATH, f"eta2 by patient within {stratum} cells",
                    (m[col] - m["eta2"]).abs(), D14_TOL, "non-degenerate factors; D14 summed float32 scores")
-    return pd.DataFrame(rows)
+    columns = ["check_id", "source", "metric", "n_compared", "max_abs_diff", "tolerance", "status", "note"]
+    return pd.DataFrame(rows, columns=columns)
 
 
 # --------------------------------------------------------------------------------------
@@ -386,7 +389,7 @@ def save(fig, figdir: Path, stem: str, written: list) -> None:
         written.append(path)
 
 
-def _annotate(ax, values, fmt, *, fontsize=4.5, threshold=None):
+def _annotate(ax, values, fmt, *, fontsize=4.5):
     for (i, j), v in np.ndenumerate(values):
         if not np.isfinite(v):
             continue
@@ -403,7 +406,7 @@ def fig_d16a(long: pd.DataFrame, figdir: Path, patients: list, supported: tuple,
         tab = focus.loc[focus["stage1_method"].eq(method)]
         mat = tab.pivot(index="factor_index", columns="patient", values="enrichment").reindex(columns=patients)
         vals = np.log2(mat.to_numpy(dtype=float))
-        im = ax.imshow(np.clip(vals, -2, 2), cmap=div, vmin=-2, vmax=2, aspect="auto")
+        im = ax.imshow(np.clip(vals, -1.5, 1.5), cmap=div, vmin=-1.5, vmax=1.5, aspect="auto")
         _annotate(ax, mat.to_numpy(dtype=float), lambda v: f"{v:.2f}")
         ax.set_xticks(range(len(patients)))
         ax.set_xticklabels([p + ("*" if p in supported else "") for p in patients], rotation=0)
@@ -419,9 +422,9 @@ def fig_d16a(long: pd.DataFrame, figdir: Path, patients: list, supported: tuple,
         ax.set_title(f"IFN-alpha {method.upper()} K=40: SS share / cell share per factor x patient"
                      + (f"\n(grey rows: {n_deg} degenerate factors, SD < 1e-8)" if n_deg else "\n "))
         ax.set_xlabel("patient (* supported; bold = highest-prevalence P02/P03/P04)")
-    cb = fig.colorbar(im, ax=axes, shrink=0.5, ticks=[-2, -1, 0, 1, 2])
-    cb.ax.set_yticklabels(["0.25x", "0.5x", "1x", "2x", "4x"])
-    cb.set_label("enrichment (log2 colour scale; cell text = enrichment)")
+    cb = fig.colorbar(im, ax=axes, shrink=0.5, ticks=[-1, 0, 1])
+    cb.ax.set_yticklabels(["0.5x", "1x", "2x"])
+    cb.set_label("enrichment (log2 colour scale, clipped at 0.35x-2.8x; cell text = enrichment)")
     fig.suptitle("D16A. Score-space allocation, not loading leverage: transductive Stage 1 scores, cohort-centered SS "
                  "(boxed: PC8, FA7, FA8)", fontsize=10)
     save(fig, figdir, "D16A_ifna_pca40_fa40_enrichment_heatmap", written)
@@ -504,8 +507,8 @@ def fig_d16d(rsum: pd.DataFrame, figdir: Path, written: list) -> None:
     cs_all = float(r["hp_cell_share"].median())
     cs_norm = float(r["hp_cell_share_normal"].median())
     for ax, col, title in (
-        (axes[0], "hp_enrichment_weighted", f"all cells (P02+P03+P04 = {100 * cs_all:.1f}% of cells)"),
-        (axes[1], "hp_enrichment_normal_weighted", f"normal cells only ({100 * cs_norm:.1f}% of normal cells)"),
+        (axes[0], "hp_enrichment_weighted", f"all cells\n(P02+P03+P04 = {100 * cs_all:.1f}% of cells)"),
+        (axes[1], "hp_enrichment_normal_weighted", f"normal cells only\n(P02+P03+P04 = {100 * cs_norm:.1f}% of normal cells)"),
     ):
         mat = r.pivot(index="short_panel_label", columns="col", values=col).reindex(index=rows, columns=cols)
         vals = mat.to_numpy(dtype=float)
@@ -515,7 +518,7 @@ def fig_d16d(rsum: pd.DataFrame, figdir: Path, written: list) -> None:
         ax.set_xticklabels(cols, rotation=45, ha="right")
         ax.set_yticks(range(len(rows)))
         ax.set_yticklabels(rows if ax is axes[0] else [])
-        ax.set_title(f"combined SS share / cell share, {title}")
+        ax.set_title(f"P02+P03+P04 SS share / cell share, {title}")
     cb = fig.colorbar(im, ax=axes, shrink=0.4, ticks=[-1, 0, 1])
     cb.ax.set_yticklabels(["0.5x", "1x", "2x"])
     cb.set_label("SS-weighted over non-degenerate factors (log2 colour; text = ratio)")
@@ -534,7 +537,54 @@ def _fmt_counts(counts: dict) -> str:
     return ", ".join(f"{p} {c}" for p, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
 
 
-def write_findings(path: Path, long: pd.DataFrame, fsum: pd.DataFrame, rsum: pd.DataFrame,
+def where_enrichment_sits(long: pd.DataFrame, fsum: pd.DataFrame, rps: pd.DataFrame) -> list:
+    """Findings lines: per-patient SS-weighted enrichment, spread vs location, factor position."""
+    out = []
+    w = rps.groupby("patient").agg(cell=("cell_share", "first"), med=("weighted_enrichment", "median"),
+                                   gt1=("weighted_enrichment", lambda v: int((v > 1).sum())), n=("weighted_enrichment", "size"))
+    out.append("- Per-patient SS-weighted share / cell share across representations (median; reps > 1): "
+               + ", ".join(f"{p} {w.loc[p, 'med']:.2f} ({int(w.loc[p, 'gt1'])}/{int(w.loc[p, 'n'])})"
+                           for p in ("P01", "P02", "P03", "P04", "P07", "P09") if p in w.index) + ".")
+    nd = fsum.loc[~fsum["degenerate"]]
+    for p in ("P02", "P01"):
+        top = nd.loc[nd["top_patient"].eq(p), FACTOR_KEYS_R]
+        if top.empty:
+            continue
+        m = top.merge(long.loc[long["patient"].eq(p)], on=FACTOR_KEYS_R)
+        # per factor, enrichment = spread + location exactly; medians of the parts do not add up
+        share = (m["enrichment_spread"] / m["enrichment"]).where(m["enrichment"] != 0)
+        out.append(f"- On the {len(m)} factors {p} tops, its enrichment is spread, not location (per factor, enrichment = "
+                   f"spread part + location part exactly): median enrichment {m['enrichment'].median():.2f}; median spread "
+                   f"part {m['enrichment_spread'].median():.2f}; median location part {m['enrichment_location'].median():.3f}; "
+                   f"median spread share of the enrichment {share.median():.2f}; spread > location on "
+                   f"{100 * (m['enrichment_spread'] > m['enrichment_location']).mean():.0f}% of them.")
+    pos = np.where(nd["factor_index"].eq(1), "factor 1",
+                   np.where((nd["factor_index"] - 1) / nd["k"] < 0.5, "first half (excl. 1)", "second half"))
+    g = nd.assign(_pos=pos).groupby("_pos")["hp_enrichment"].median()
+    out.append("- P02+P03+P04 per-factor enrichment by factor position within its fit (median): "
+               + ", ".join(f"{k} {g[k]:.2f}" for k in ("factor 1", "first half (excl. 1)", "second half") if k in g.index)
+               + ".")
+    rhos = []
+    for _, grp in nd.groupby(REP_KEYS_R):
+        if len(grp) >= 10 and grp["hp_enrichment"].nunique() > 1:
+            rhos.append(grp["factor_ss_share_in_rep"].rank().corr(grp["hp_enrichment"].rank()))
+    if rhos:
+        rhos = np.asarray(rhos)
+        out.append(f"- Within representations with >= 10 factors (n = {rhos.size}), Spearman rho between a factor's "
+                   f"share of the representation's SS and its P02+P03+P04 enrichment: median {np.median(rhos):.2f}; "
+                   f"negative in {int((rhos < 0).sum())}/{rhos.size}. The highest-prevalence patients' extra "
+                   "dispersion sits on low-variance trailing factors.")
+    sup = long.loc[long["supported"] & ~long["degenerate"]]
+    if "heldout_lift_oriented" in sup.columns and len(sup):
+        fr = sup.groupby("patient")["heldout_lift_oriented"].agg(lambda v: (v > 0.05).mean())
+        out.append(f"- Univariate held-out lift over {len(sup)} supported factor x patient rows: > 5 pp for "
+                   f"{100 * (sup['heldout_lift_oriented'] > 0.05).mean():.1f}% with training-fold orientation vs "
+                   f"{100 * (sup['heldout_lift_sign_agnostic'] > 0.05).mean():.1f}% sign-agnostic (F6 convention). "
+                   "By patient (oriented): " + ", ".join(f"{p} {100 * v:.1f}%" for p, v in fr.items()) + ".")
+    return out
+
+
+def write_findings(path: Path, long: pd.DataFrame, fsum: pd.DataFrame, rsum: pd.DataFrame, rps: pd.DataFrame,
                    freq: pd.DataFrame, checks: pd.DataFrame, missing: list, ctx: dict) -> None:
     L: list = []
     add = L.append
@@ -548,14 +598,18 @@ def write_findings(path: Path, long: pd.DataFrame, fsum: pd.DataFrame, rsum: pd.
     add(f"- Coverage: {n_rep} representations = {n_panels} biological panels x "
         f"{{{', '.join(sorted(rsum['stage1_method'].unique()))}}} x K in "
         f"{{{', '.join(str(k) for k in sorted(rsum['k'].unique()))}}}, seed 42, stored transductive Stage 1 scores. "
-        f"{len(missing)} requested unit(s) have no stored scores (panel smaller than K).")
+        f"{len(missing)} unit(s) of that grid have no stored scores (panel has fewer genes than K).")
     add("- Claim level: descriptive. Stage 1 is transductive; the held-out lifts are LOPO label transfer "
         "on that basis, not inductive deployment.")
     add("")
     add("## Questions")
-    add("- 'Need to inspect the factor-by-patient matrix for FA' (A-20261008-05).")
-    add("- 'Patients with more malignant cells (P02, P03, P04) disproportionately shape the factors' "
-        "(A-20261008-02). P02/P03/P04 are the highest-PREVALENCE patients, not the ones with the most malignant cells.")
+    add("Verbatim, from research/asks/2026-10-08_team-report.md:")
+    add("> \"DISCUSSED (a): 'Need to inspect the factor-by-patient matrix for FA to test this'\" (A-20261008-05)")
+    add("")
+    add("> \"DISCUSSED: patients with more malignant cells (P02, P03, P04) disproportionately shape the factors\" "
+        "(A-20261008-02)")
+    add("")
+    add("P02/P03/P04 are the highest-prevalence patients, not the ones with the most malignant cells.")
     add("")
     add("## What was computed")
     add("Per panel x method x K x factor x patient (13 patients; 7 supported):")
@@ -598,7 +652,7 @@ def write_findings(path: Path, long: pd.DataFrame, fsum: pd.DataFrame, rsum: pd.
                 if t.empty or bool(t["degenerate"].iloc[0]):
                     continue
                 name = f"{'PC' if method == 'pca' else 'FA'}{f}"
-                enr = ", ".join(f"{p} {t.loc[p, 'enrichment']:.2f}" for p in ("P02", "P03", "P04", "P07"))
+                enr = ", ".join(f"{p} {t.loc[p, 'enrichment']:.2f}" for p in ("P02", "P03", "P04", "P07") if p in t.index)
                 lifts = ", ".join(
                     f"{p} {100 * t.loc[p, 'heldout_lift_oriented']:+.1f}" for p in ctx["supported"]
                 )
@@ -612,7 +666,8 @@ def write_findings(path: Path, long: pd.DataFrame, fsum: pd.DataFrame, rsum: pd.
             if fr.empty:
                 continue
             fr = fr.set_index("patient")
-            topline = ", ".join(f"{p} {100 * fr.loc[p, 'frac_factors_top']:.0f}%" for p in ("P02", "P03", "P04", "P07"))
+            topline = ", ".join(f"{p} {100 * fr.loc[p, 'frac_factors_top']:.0f}%"
+                                for p in ("P02", "P03", "P04", "P07") if p in fr.index)
             modal = fr["n_representations_modal_top"]
             modal_txt = _fmt_counts({p: int(v) for p, v in modal.items() if v > 0})
             add(f"- {method.upper()} K={k} ({int(fr['n_representations'].iloc[0])} panels, "
@@ -627,6 +682,10 @@ def write_findings(path: Path, long: pd.DataFrame, fsum: pd.DataFrame, rsum: pd.
     add("- Median of that ratio by method: " + ", ".join(f"{m.upper()} {v:.2f}" for m, v in by_m.items()) + ".")
     add(f"- Malignant cells' SS-weighted share of score energy: median {100 * rsum['malignant_ss_share_weighted'].median():.1f}% "
         f"vs {100 * rsum['malignant_cell_share'].median():.1f}% of cells.")
+    add("")
+    add("### Where the enrichment sits")
+    for line in where_enrichment_sits(long, fsum, rps):
+        add(line)
     add("")
     add("## Regression checks")
     if checks.empty:
@@ -680,8 +739,8 @@ def write_ledger(exp: Path, path: Path, artifacts: list, created: str) -> None:
 # --------------------------------------------------------------------------------------
 
 
-def merge(exp: Path, dirs: dict, cohort: fpm.Cohort, provenance: dict, missing: list, args, t_start: float,
-          n_computed: int, figures: bool = True) -> dict:
+def merge(exp: Path, dirs: dict, cohort: fpm.Cohort, provenance: dict, t_start: float, n_computed: int,
+          figures: bool = True) -> dict:
     n_pat = len(cohort.patients)
     parts = sorted(dirs["parts"].glob("*.csv.gz"))
     frames, bad = [], []
@@ -694,6 +753,9 @@ def merge(exp: Path, dirs: dict, cohort: fpm.Cohort, provenance: dict, missing: 
         raise RuntimeError("no part files to merge")
     long = pd.concat(frames, ignore_index=True)
     long = long.sort_values(["stage0_panel_id", "stage1_method", "k", "factor_index", "patient"], kind="stable")
+    # units of the merged panel x method x K grid that have no stored scores (panel smaller than K)
+    _, missing = plan_units(exp, sorted(long["stage0_panel_id"].unique()), sorted(long["stage1_method"].unique()),
+                            sorted(int(k) for k in long["k"].unique()))
     t_merge = time.time()
     fsum = fpm.factor_summary(long)
     rps = fpm.representation_patient_summary(long)
@@ -734,7 +796,7 @@ def merge(exp: Path, dirs: dict, cohort: fpm.Cohort, provenance: dict, missing: 
     names = [rel(exp, a) for a in artifacts] + [rel(exp, p) for p in (findings, manifest_path, ledger)]
     ctx = {"created_utc": created, "git_head": head, "git_dirty": dirty, "supported": cohort.supported,
            "artifacts": names}
-    write_findings(findings, long, fsum, rsum, freq, checks, missing, ctx)
+    write_findings(findings, long, fsum, rsum, rps, freq, checks, missing, ctx)
     artifacts.append(findings)
 
     unit_seconds = long.groupby(["stage0_panel_id", "stage1_method", "k"])["unit_seconds"].first()
@@ -785,6 +847,15 @@ def merge(exp: Path, dirs: dict, cohort: fpm.Cohort, provenance: dict, missing: 
                        "n_fail": int((checks["status"] == "fail").sum()) if len(checks) else 0},
         "versions": {"python": platform.python_version(), "numpy": np.__version__, "pandas": pd.__version__},
     }
+    history = []
+    if manifest_path.is_file():
+        try:
+            history = list(json.loads(manifest_path.read_text()).get("invocations", []))
+        except (ValueError, OSError):
+            history = []
+    history.append({"utc": created, "command": manifest["command"], "git_head": head, "git_dirty": dirty,
+                    "n_units_computed": int(n_computed), "wall_seconds": manifest["runtime_seconds"]["this_invocation_wall"]})
+    manifest["invocations"] = history
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     artifacts.append(manifest_path)
     write_ledger(exp, ledger, artifacts, created)
@@ -847,7 +918,7 @@ def main(argv=None) -> int:
         run_units(exp, todo, dirs["parts"], cohort, max(1, min(int(args.workers), 12)))
         n_computed = len(todo)
     try:
-        res = merge(exp, dirs, cohort, provenance, missing, args, t_start, n_computed, figures=not args.no_figures)
+        res = merge(exp, dirs, cohort, provenance, t_start, n_computed, figures=not args.no_figures)
     except Exception:
         (dirs["cache"] / "merge_failed.json").write_text(json.dumps(
             {"failed_utc": datetime.now(timezone.utc).isoformat(), "traceback": traceback.format_exc()}, indent=2))

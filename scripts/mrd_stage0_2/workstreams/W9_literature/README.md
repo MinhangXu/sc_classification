@@ -9,7 +9,7 @@ questions: [Q3, QI, Q2]
 
 ## Charter
 
-User asks, verbatim (`research/asks/2026-10-08_team-report.md`):
+User asks, as recorded (`research/asks/2026-10-08_team-report.md`, capture: paraphrase):
 - [A-20261008-28] "Review single-cell ML literature for existing frameworks"
 - [A-20261008-22] "Review interpretability frameworks from other fields (e.g. factor rotation in psychology; iterate with domain knowledge)"
 

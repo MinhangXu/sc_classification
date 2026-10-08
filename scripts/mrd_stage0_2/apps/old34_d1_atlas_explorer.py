@@ -15,6 +15,7 @@ Run (needs dash, plotly, pandas, numpy -- all already listed in environment-*.ym
     python old34_d1_atlas_explorer.py --check               # load + validate, no server
     python old34_d1_atlas_explorer.py --export-bundle DIR   # ~2 MB copy to share with teammates
     python old34_d1_atlas_explorer.py --data-dir DIR        # an experiment dir or an exported bundle
+    python old34_d1_atlas_explorer.py --factor-explorer-url URL   # deep-link target (default: this host, port 8051)
 
 Inputs, all under ``<experiment>/analysis/scorecards`` (or flat inside a bundle):
 
@@ -23,6 +24,13 @@ Inputs, all under ``<experiment>/analysis/scorecards`` (or flat inside a bundle)
 * ``stage2_figure3_sharedness_v2_jun4/v2_patient_leverage_on_panel_method_median_lift.csv`` (optional)
 * four ``stage2_sharedness_lopo_scorecard.csv`` files, only to join the Stage 2 nonzero-coefficient
   count at each cell's *selected* regularization (optional; a bundle carries the joined 783-row table).
+* W7.1 (2026-10-08, additive): the four matching ``<experiment>/stage2_supervised/multiobjective/
+  .../sharedness_lopo/by_heldout_patient.csv`` tables, only to read the nonzero-coefficient count of
+  every LOPO fold at the selected regularization (the per-fold strip; optional).  A bundle carries
+  them as ``fold_nonzero_<patient>`` columns of the joined nonzero table.
+* ``analysis/scorecards/stage2_diagnostic/factor_cards_v1/factor_cards_index.csv`` (optional): only
+  to say whether the D18 factor cards cover a representation before deep-linking to the factor
+  explorer (``apps/old34_factor_explorer.py``, port 8051).
 
 Reading guide
 -------------
@@ -49,6 +57,7 @@ from datetime import datetime, timezone
 from html import escape as esc
 from pathlib import Path
 from typing import Callable
+from urllib.parse import urlencode
 
 import numpy as np
 import pandas as pd
@@ -130,7 +139,11 @@ MODE_LABELS = {
     "patient_lift": "Selected patient: lift (pp)",
     "patient_auprc": "Selected patient: raw held-out AUPRC",
     "nonzero": "Stage 2 nonzero coefficients (selected regularization)",
+    # W7.1 additions (2026-10-08)
+    "zero_folds": "# supported LOPO folds with an all-zero model (lift = 0 by construction)",
+    "selected_c": "Selected Stage 2 C (log10; cell text = penalty)",
 }
+FOLD_MODES = ("zero_folds", "selected_c")  # need the per-fold table / the selected regularization
 
 # (source tag, path under <experiment>/analysis/scorecards, representation_family filter)
 SCORECARDS = (
@@ -182,6 +195,31 @@ CHECK_FILES = {
     "d1f_ratio_2": "old34_d1f_ratio_gt_2_patient_count_matrix.csv",
     "d1f_ratio_3": "old34_d1f_ratio_gt_3_patient_count_matrix.csv",
 }
+
+# ---- W7.1 (2026-10-08): per-fold activity at the selected regularization (additive) -----------
+# scorecard tag (as in SCORECARDS) -> per-fold LOPO table below the experiment dir.  Each scorecard
+# row has one row per held-out patient (13 folds) there, with that fold's nonzero-coefficient count.
+FOLD_TABLES = {
+    "june5_biological_dr": "stage2_supervised/multiobjective/sharedness_lopo/by_heldout_patient.csv",
+    "direct_gene_all_v1": "stage2_supervised/multiobjective/old34_direct_gene_all_v1/sharedness_lopo/by_heldout_patient.csv",
+    "controls_fullgrid_v1": "stage2_supervised/multiobjective/old34_controls_fullgrid_v1/sharedness_lopo/by_heldout_patient.csv",
+    "controls_direct_gene_v1": "stage2_supervised/multiobjective/old34_controls_direct_gene_v1/sharedness_lopo/by_heldout_patient.csv",
+}
+FOLD_TABLE_COLUMNS = (
+    "stage0_panel_id", "representation_family", "stage1_method", "effective_k", "penalty", "C", "l1_ratio",
+    "heldout_patient", "n_malignant", "n_normal", "nonzero_coefficient_count", "stage2_auprc",
+)
+FOLD_COLUMN_PREFIX = "fold_nonzero_"  # bundle: one integer column per LOPO fold in the nonzero table
+FOLD_MANIFEST_KEY = "lopo_folds"  # bundle_manifest.json: {patient: {n_malignant, n_normal}}
+C_POLICY_TEXT = (
+    "c_policy global_selected: one penalty and C per cell (D1 rule: max pooled LOPO AUPRC), the same in every "
+    "fold; nothing is refit"
+)
+ZERO_FOLD_TEXT = "lift = 0 by construction"
+PURPLES8 = ["#fcfbfd", "#efedf5", "#dadaeb", "#bcbddc", "#9e9ac8", "#807dba", "#6a51a3", "#4a1486"]
+PENALTY_SHORT = {"l1": "L1", "l2": "L2", "elasticnet": "EN"}
+FACTOR_EXPLORER_PORT = 8051
+FACTOR_CARDS_INDEX = "analysis/scorecards/stage2_diagnostic/factor_cards_v1/factor_cards_index.csv"
 
 
 # ======================================================================================
@@ -308,10 +346,33 @@ class Atlas:
     d1_vmax_pp: float
     audit: dict = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
+    # ---- W7.1 additions (2026-10-08); load_atlas fills them, they stay empty when inputs are absent
+    sel_penalty: np.ndarray | None = None  # (R, C) object: selected penalty, '' if unknown
+    sel_C: np.ndarray | None = None  # (R, C) selected C (NaN if unknown)
+    sel_l1_ratio: np.ndarray | None = None
+    fold_patients: list[str] = field(default_factory=list)  # every LOPO fold (held-out patient), sorted
+    fold_supported: np.ndarray | None = None  # (F,) fold patient is one of the supported patients
+    fold_nonzero: np.ndarray | None = None  # (F, R, C) nonzero coefficients per fold (NaN if unknown)
+    fold_n_malignant: np.ndarray | None = None  # (F,) NaN if unknown (older bundles)
+    fold_n_normal: np.ndarray | None = None
+    factor_card_reps: set | None = None  # {(panel, method, K)} with D18 factor cards; None = unknown
 
     @property
     def shape(self) -> tuple[int, int]:
         return self.available.shape
+
+    @property
+    def has_folds(self) -> bool:
+        return self.fold_nonzero is not None and bool(np.isfinite(self.fold_nonzero).any())
+
+    @property
+    def has_selected_c(self) -> bool:
+        return self.sel_C is not None and bool(np.isfinite(self.sel_C).any())
+
+    @property
+    def supported_fold_index(self) -> np.ndarray:
+        """Positions in ``fold_patients`` of the supported patients, in ``patients`` order."""
+        return np.array([self.fold_patients.index(p) for p in self.patients if p in self.fold_patients], dtype=int)
 
     @property
     def has_nonzero(self) -> bool:
@@ -456,7 +517,7 @@ def _d1_leverage(
     return lev, drivers, np.where(available, signed, np.nan)
 
 
-def load_atlas(data_dir: Path, *, with_nonzero: bool = True) -> Atlas:
+def load_atlas(data_dir: Path, *, with_nonzero: bool = True, with_folds: bool = True) -> Atlas:
     """Load, validate and arrange all inputs (read-only)."""
     data_dir = Path(data_dir)
     files = find_inputs(data_dir)
@@ -606,13 +667,21 @@ def load_atlas(data_dir: Path, *, with_nonzero: bool = True) -> Atlas:
     )
     atlas.audit["cells"] = int(available.sum())
     atlas.audit["unavailable_cells"] = int((~available).sum())
+    atlas.sel_penalty = np.full((n_panels, n_configs), "", dtype=object)
+    atlas.sel_C = np.full((n_panels, n_configs), np.nan)
+    atlas.sel_l1_ratio = np.full((n_panels, n_configs), np.nan)
+    table = None
     if with_nonzero:
-        _attach_nonzero(atlas, files, row_of, col_of)
+        table = _attach_nonzero(atlas, files, row_of, col_of)
     _attach_leverage(atlas, files, row_of, col_of)
+    if with_folds:
+        _attach_folds(atlas, table, files, row_of, col_of)
+    _attach_factor_card_index(atlas)
     return atlas
 
 
-def _attach_nonzero(atlas: Atlas, files: dict, row_of: dict, col_of: dict) -> None:
+def _attach_nonzero(atlas: Atlas, files: dict, row_of: dict, col_of: dict) -> pd.DataFrame | None:
+    """Join the nonzero counts (and, W7.1, the selected penalty / C); returns the joined table."""
     table: pd.DataFrame | None = None
     if files.get("nonzero_table") is not None:
         table = pd.read_csv(files["nonzero_table"], low_memory=False)
@@ -626,7 +695,8 @@ def _attach_nonzero(atlas: Atlas, files: dict, row_of: dict, col_of: dict) -> No
             f"'{NONZERO_TABLE_NAME}' were found."
         )
         atlas.audit["nonzero_cells"] = 0
-        return
+        return None
+    full_table = table
     ri = table["stage0_panel_id"].map(row_of)
     ci = table["configuration"].map(col_of)
     keep = ri.notna() & ci.notna()
@@ -636,10 +706,14 @@ def _attach_nonzero(atlas: Atlas, files: dict, row_of: dict, col_of: dict) -> No
     atlas.reg_label[ri, ci] = [
         _regularization_text(p, c, l1) for p, c, l1 in zip(table["penalty"], table["C"].astype(float), table["l1_ratio"].astype(float))
     ]
+    atlas.sel_penalty[ri, ci] = table["penalty"].astype(str).str.lower().to_numpy(object)
+    atlas.sel_C[ri, ci] = pd.to_numeric(table["C"], errors="coerce").to_numpy(float)
+    atlas.sel_l1_ratio[ri, ci] = pd.to_numeric(table["l1_ratio"], errors="coerce").to_numpy(float)
     atlas.audit["nonzero_cells"] = int(np.isfinite(atlas.nonzero_mean).sum())
     uncovered = int((atlas.available & ~np.isfinite(atlas.nonzero_mean)).sum())
     if uncovered:
         atlas.notes.append(f"{uncovered} atlas cells have no nonzero-coefficient count (no scorecard row).")
+    return full_table
 
 
 def _attach_leverage(atlas: Atlas, files: dict, row_of: dict, col_of: dict) -> None:
@@ -677,6 +751,317 @@ def _attach_leverage(atlas: Atlas, files: dict, row_of: dict, col_of: dict) -> N
     )
 
 
+# ---- W7.1 (2026-10-08): per-fold activity, selected regularization, factor-card index --------
+
+
+def fold_table_paths(data_dir: Path) -> dict[str, Path]:
+    return {tag: Path(data_dir) / rel for tag, rel in FOLD_TABLES.items()}
+
+
+def fold_input_fingerprint(data_dir: Path) -> dict[str, tuple[int, int]]:
+    """(size, mtime_ns) of the per-fold LOPO tables that exist (kept apart from input_fingerprint)."""
+    paths = fold_table_paths(data_dir).values()
+    return {str(p): (p.stat().st_size, p.stat().st_mtime_ns) for p in paths if p.is_file()}
+
+
+def _float_key(values) -> np.ndarray:
+    """Join key for C / l1_ratio written by two CSV writers: 9 significant digits, 'nan' for blanks."""
+    numbers = pd.to_numeric(pd.Series(values), errors="coerce").to_numpy(float)
+    return np.array(["nan" if not np.isfinite(v) else f"{v:.9g}" for v in numbers], dtype=object)
+
+
+def _configuration(method: pd.Series, effective_k: pd.Series) -> np.ndarray:
+    k = pd.to_numeric(effective_k, errors="coerce").round().astype("Int64").astype(str)
+    return np.where(method.eq("direct_gene"), "direct_gene", method.astype(str) + "|K=" + k)
+
+
+def build_fold_table(data_dir: Path, selected: pd.DataFrame) -> pd.DataFrame | None:
+    """Nonzero count of every LOPO fold at each cell's selected regularization (read-only).
+
+    ``selected`` is the joined nonzero table (one row per panel x configuration, with the
+    ``source_scorecard`` tag).  Returns one row per cell x held-out patient, or None when a per-fold
+    table is missing.  Rows are matched on panel, configuration, penalty, C and l1_ratio.
+    """
+    paths = fold_table_paths(data_dir)
+    if not all(p.is_file() for p in paths.values()) or "source_scorecard" not in selected.columns:
+        return None
+    families = {tag: family for tag, _, family in SCORECARDS}
+    keys = ["stage0_panel_id", "configuration", "_penalty", "_C", "_l1"]
+    parts = []
+    for tag, path in paths.items():
+        chosen = selected.loc[selected["source_scorecard"].eq(tag), ["stage0_panel_id", "configuration", "penalty", "C", "l1_ratio"]]
+        if chosen.empty:
+            continue
+        frame = pd.read_csv(path, usecols=lambda c: c in FOLD_TABLE_COLUMNS, low_memory=False)
+        missing = [c for c in FOLD_TABLE_COLUMNS if c not in frame.columns]
+        if missing:
+            raise DataError(f"per-fold table {path} is missing columns: {missing}")
+        if families.get(tag) is not None:
+            frame = frame.loc[frame["representation_family"].eq(families[tag])]
+        frame = frame.assign(
+            configuration=_configuration(frame["stage1_method"], frame["effective_k"]),
+            _penalty=frame["penalty"].astype(str).str.lower().to_numpy(object),
+            _C=_float_key(frame["C"]),
+            _l1=_float_key(frame["l1_ratio"]),
+        )
+        chosen = chosen.assign(
+            _penalty=chosen["penalty"].astype(str).str.lower().to_numpy(object),
+            _C=_float_key(chosen["C"]),
+            _l1=_float_key(chosen["l1_ratio"]),
+        )
+        parts.append(chosen[keys].merge(frame, on=keys, how="inner"))
+    if not parts:
+        return None
+    long = pd.concat(parts, ignore_index=True).rename(columns={"nonzero_coefficient_count": "nonzero", "stage2_auprc": "auprc"})
+    long["heldout_patient"] = long["heldout_patient"].astype(str)
+    return long[["stage0_panel_id", "configuration", "heldout_patient", "nonzero", "auprc", "n_malignant", "n_normal"]]
+
+
+def fold_wide_columns(long: pd.DataFrame) -> pd.DataFrame:
+    """Long per-fold table -> one row per cell with integer ``fold_nonzero_<patient>`` columns (bundle form)."""
+    wide = long.pivot(index=["stage0_panel_id", "configuration"], columns="heldout_patient", values="nonzero")
+    wide = wide.reindex(columns=sorted(wide.columns)).round().astype("Int64")
+    wide.columns = [f"{FOLD_COLUMN_PREFIX}{p}" for p in wide.columns]
+    return wide.reset_index()
+
+
+def fold_patient_meta(long: pd.DataFrame) -> dict[str, dict[str, int]]:
+    """{patient: {n_malignant, n_normal}} of every LOPO fold (the held-out patient's cell counts)."""
+    first = long.groupby("heldout_patient")[["n_malignant", "n_normal"]].first()
+    return {
+        str(p): {k: int(v) for k, v in row.items() if pd.notna(v)} for p, row in first.iterrows()
+    }
+
+
+def _bundle_fold_meta(data_dir: Path) -> dict:
+    path = Path(data_dir) / "bundle_manifest.json"
+    try:
+        return dict(json.loads(path.read_text(encoding="utf-8")).get(FOLD_MANIFEST_KEY) or {})
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def _attach_folds(atlas: Atlas, table: pd.DataFrame | None, files: dict, row_of: dict, col_of: dict) -> None:
+    """Fill ``fold_*``: the nonzero count of every LOPO fold's model at the selected regularization."""
+    atlas.audit["fold_cells"] = 0
+    if table is None:
+        atlas.notes.append("Per-fold strip unavailable: it needs the Stage 2 selection (nonzero table).")
+        return
+    fold_cols = [c for c in table.columns if str(c).startswith(FOLD_COLUMN_PREFIX)]
+    if fold_cols:  # exported bundle: wide integer columns of the nonzero table
+        long = table.melt(
+            id_vars=["stage0_panel_id", "configuration"], value_vars=fold_cols, var_name="heldout_patient", value_name="nonzero"
+        )
+        long["heldout_patient"] = long["heldout_patient"].str[len(FOLD_COLUMN_PREFIX):]
+        long["auprc"] = np.nan
+        meta = _bundle_fold_meta(atlas.data_dir)
+        long["n_malignant"] = long["heldout_patient"].map(lambda p: meta.get(p, {}).get("n_malignant", np.nan))
+        long["n_normal"] = long["heldout_patient"].map(lambda p: meta.get(p, {}).get("n_normal", np.nan))
+        atlas.audit["fold_source"] = f"bundle columns {FOLD_COLUMN_PREFIX}<patient> of {NONZERO_TABLE_NAME}"
+    elif files.get("nonzero_table") is None:  # experiment dir: read the per-fold LOPO tables
+        before = fold_input_fingerprint(atlas.data_dir)
+        try:
+            long = build_fold_table(atlas.data_dir, table)
+        except (DataError, ValueError, OSError) as error:
+            atlas.notes.append(f"Per-fold strip unavailable: {error}")
+            return
+        after = fold_input_fingerprint(atlas.data_dir)
+        if long is None:
+            atlas.notes.append("Per-fold strip unavailable: the sharedness_lopo/by_heldout_patient.csv tables were not found.")
+            return
+        atlas.audit["fold_inputs_files"] = len(before)
+        atlas.audit["fold_inputs_unmodified"] = before == after
+        atlas.audit["fold_source"] = "joined from the four sharedness_lopo/by_heldout_patient.csv files"
+    else:
+        atlas.notes.append("Per-fold strip unavailable: this bundle predates W7.1 (no fold_nonzero_* columns).")
+        return
+    if long.duplicated(["stage0_panel_id", "configuration", "heldout_patient"]).any():
+        atlas.notes.append("Per-fold strip unavailable: more than one per-fold row for a selected fit and fold.")
+        return
+    ri, ci = long["stage0_panel_id"].map(row_of), long["configuration"].map(col_of)
+    keep = ri.notna() & ci.notna()
+    long, ri, ci = long.loc[keep], ri[keep].to_numpy(int), ci[keep].to_numpy(int)
+    patients = sorted(long["heldout_patient"].astype(str).unique())
+    if not patients:
+        atlas.notes.append("Per-fold strip unavailable: no per-fold row matches an atlas cell.")
+        return
+    fi = long["heldout_patient"].map({p: i for i, p in enumerate(patients)}).to_numpy(int)
+    n_rows, n_cols = atlas.shape
+    nonzero = np.full((len(patients), n_rows, n_cols), np.nan)
+    nonzero[fi, ri, ci] = pd.to_numeric(long["nonzero"], errors="coerce").to_numpy(float)
+    first = long.groupby("heldout_patient")[["n_malignant", "n_normal"]].first().reindex(patients)
+    atlas.fold_patients = patients
+    atlas.fold_supported = np.array([p in atlas.patients for p in patients])
+    atlas.fold_nonzero = nonzero
+    atlas.fold_n_malignant = pd.to_numeric(first["n_malignant"], errors="coerce").to_numpy(float)
+    atlas.fold_n_normal = pd.to_numeric(first["n_normal"], errors="coerce").to_numpy(float)
+
+    a = atlas.audit
+    complete = np.isfinite(nonzero).all(axis=0) & atlas.available
+    a["fold_cells"] = int(complete.sum())
+    a["fold_count"] = len(patients)
+    a["fold_missing_supported"] = [p for p in atlas.patients if p not in patients]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        fold_mean, fold_max = np.nanmean(nonzero, axis=0), np.nanmax(nonzero, axis=0)
+    both = complete & np.isfinite(atlas.nonzero_mean)
+    a["fold_mean_vs_scorecard_max_abs_diff"] = float(np.abs(fold_mean - atlas.nonzero_mean)[both].max()) if both.any() else None
+    a["fold_max_vs_scorecard_max_abs_diff"] = float(np.abs(fold_max - atlas.nonzero_max)[both].max()) if both.any() else None
+    auprc = pd.to_numeric(long["auprc"], errors="coerce").to_numpy(float)
+    a["fold_auprc_vs_patient_table_max_abs_diff"] = None
+    if np.isfinite(auprc).any():
+        k_of = {p: k for k, p in enumerate(atlas.patients)}
+        ki = long["heldout_patient"].map(k_of)
+        sup = ki.notna().to_numpy()
+        diff = np.abs(auprc[sup] - atlas.auprc[ki[sup].to_numpy(int), ri[sup], ci[sup]])
+        a["fold_auprc_vs_patient_table_max_abs_diff"] = float(np.nanmax(diff)) if diff.size else None
+    zero = zero_fold_count(atlas)
+    n_sup = len(atlas.supported_fold_index)
+    a["fold_zero_supported_pairs"] = int(np.nansum(zero))
+    a["fold_cells_all_supported_zero"] = int((zero == n_sup).sum())
+    a["fold_cells_partially_zero"] = int(((zero > 0) & (zero < n_sup)).sum())
+
+
+def zero_fold_pairs(atlas: Atlas) -> list[tuple[int, int]]:
+    """(index into ``patients``, index into ``fold_patients``) for every supported fold present."""
+    return [(k, atlas.fold_patients.index(p)) for k, p in enumerate(atlas.patients) if p in atlas.fold_patients]
+
+
+def zero_fold_count(atlas: Atlas) -> np.ndarray:
+    """(R, C) number of supported folds whose model is all-zero; NaN where unknown or unavailable."""
+    out = np.full(atlas.shape, np.nan)
+    if not atlas.has_folds:
+        return out
+    idx = [f for _, f in zero_fold_pairs(atlas)]
+    values = atlas.fold_nonzero[idx]
+    known = np.isfinite(values).all(axis=0) & atlas.available
+    with np.errstate(invalid="ignore"):
+        counts = (values == 0).sum(axis=0)
+    out[known] = counts[known]
+    return out
+
+
+def zero_fold_patients(atlas: Atlas, r: int, c: int) -> list[str]:
+    """Supported patients whose LOPO fold fit an all-zero model at this cell (lift = 0 by construction)."""
+    if not atlas.has_folds:
+        return []
+    return [atlas.patients[k] for k, f in zero_fold_pairs(atlas) if atlas.fold_nonzero[f, r, c] == 0]
+
+
+def selected_regularization_text(atlas: Atlas, r: int, c: int) -> str:
+    """'penalty l1 | C 0.0001' for the cell's selected (global) regularization, '' when unknown."""
+    if atlas.sel_C is None or not np.isfinite(atlas.sel_C[r, c]):
+        return ""
+    penalty = str(atlas.sel_penalty[r, c])
+    text = f"penalty {penalty} | C {atlas.sel_C[r, c]:.3g}"
+    if penalty == "elasticnet" and np.isfinite(atlas.sel_l1_ratio[r, c]):
+        text += f" | l1_ratio {atlas.sel_l1_ratio[r, c]:g}"
+    return text
+
+
+def fold_strip(atlas: Atlas, r: int, c: int) -> list[dict]:
+    """One entry per LOPO fold: the supported folds (in ``patients`` order), then the unsupported ones.
+
+    status is 'active' (at least one nonzero coefficient), 'all_zero' (constant score: held-out AP equals
+    prevalence, so a supported fold's lift is 0 by construction) or 'unknown'.
+    """
+    if not atlas.has_folds:
+        return []
+    order = [f for _, f in zero_fold_pairs(atlas)] + [f for f, s in enumerate(atlas.fold_supported) if not s]
+    out = []
+    for f in order:
+        patient = atlas.fold_patients[f]
+        value = float(atlas.fold_nonzero[f, r, c])
+        supported = bool(atlas.fold_supported[f])
+        status = "unknown" if not np.isfinite(value) else ("active" if value > 0 else "all_zero")
+        n_mal = atlas.fold_n_malignant[f] if atlas.fold_n_malignant is not None else np.nan
+        model = {
+            "active": f"{int(value)} nonzero coefficients",
+            "all_zero": "all-zero model (constant score; held-out AP = prevalence)",
+            "unknown": "no per-fold row",
+        }[status]
+        if supported:
+            lift = 100 * atlas.lift[atlas.patients.index(patient), r, c]
+            title = f"{patient} held out (supported): {model}; held-out lift {fmt_pp(lift)} pp"
+            if status == "all_zero":
+                title += f" - {ZERO_FOLD_TEXT}, not evidence of absent signal"
+        else:
+            why = f"{int(n_mal)} malignant cells" if np.isfinite(n_mal) else "below the support rule"
+            title = f"{patient} held out (unsupported: {why}; not in the lift summaries): {model}"
+        out.append(dict(
+            patient=patient, supported=supported, nonzero=value, status=status,
+            badge=ZERO_FOLD_TEXT if supported and status == "all_zero" else "", title=title,
+        ))
+    return out
+
+
+def fold_strip_summary(atlas: Atlas, r: int, c: int) -> str:
+    strip = fold_strip(atlas, r, c)
+    if not strip:
+        return "per-fold activity unavailable"
+    sup = [s for s in strip if s["supported"]]
+    uns = [s for s in strip if not s["supported"]]
+    zero = [s["patient"] for s in sup if s["status"] == "all_zero"]
+    text = f"{sum(s['status'] == 'active' for s in sup)} of {len(sup)} supported folds active"
+    if zero:
+        text += f"; all-zero ({ZERO_FOLD_TEXT}): {', '.join(zero)}"
+    if uns:
+        text += f" | unsupported folds: {sum(s['status'] == 'active' for s in uns)} of {len(uns)} active (not in the lift summaries)"
+    return text
+
+
+def factor_explorer_href(panel_id: str, config: str, base_url: str) -> str | None:
+    """Deep link into apps/old34_factor_explorer.py (``?panel=&method=&k=``); None for direct genes."""
+    if config == "direct_gene" or "|K=" not in config:
+        return None
+    method, k = config.split("|K=")
+    return f"{base_url.rstrip('/')}/?{urlencode({'panel': panel_id, 'method': method, 'k': k})}"
+
+
+def factor_cards_status(atlas: Atlas, r: int, c: int) -> str:
+    """'covered' / 'not_covered' by the D18 factor cards, or 'unknown' when their index is absent."""
+    config = CONFIGS[c]
+    if atlas.factor_card_reps is None or "|K=" not in config:
+        return "unknown"
+    method, k = config.split("|K=")
+    return "covered" if (atlas.panel_ids[r], method, int(k)) in atlas.factor_card_reps else "not_covered"
+
+
+def _attach_factor_card_index(atlas: Atlas) -> None:
+    for path in (atlas.data_dir / FACTOR_CARDS_INDEX, atlas.data_dir / Path(FACTOR_CARDS_INDEX).name):
+        if not path.is_file():
+            continue
+        try:
+            frame = pd.read_csv(path, usecols=["panel_id", "method", "k"])
+        except (ValueError, OSError) as error:
+            atlas.notes.append(f"D18 factor-card index unreadable ({error}); deep links are shown without coverage.")
+            return
+        atlas.factor_card_reps = {(str(p), str(m), int(k)) for p, m, k in frame.drop_duplicates().itertuples(index=False)}
+        atlas.audit["factor_card_representations"] = len(atlas.factor_card_reps)
+        return
+
+
+def leverage_caveat(atlas: Atlas, view: "View") -> tuple[str, str]:
+    """(label, text) of the leverage-filter caveat shown under the filter (labelled in W7.1)."""
+    a = atlas.audit
+    if view.f3 and view.f3_source == "csv":
+        return "Leverage-filter caveat (v2 CSV source)", (
+            f"v2 CSV covers {a.get('leverage_csv_cells', 0)} of {a['cells']} cells (best-LOPO K per panel x method; no controls, "
+            f"no direct gene). Its medians use each patient's own best regularization and differ from the heatmap's "
+            f"median at {a.get('leverage_csv_basis_mismatch_cells', 0)} of those cells. Use 'D1 patient table' for a "
+            f"leverage consistent with the colours."
+        )
+    if view.f3:
+        return "Leverage filter (D1 patient table)", (
+            "Computed from this atlas's seven lifts per cell: drop one patient, recompute the median. Consistent with the "
+            "heatmap; covers every cell."
+        )
+    return "Leverage-filter caveat", (
+        f"v2 CSV: {a.get('leverage_csv_cells', 0)}/{a['cells']} cells; built on a different regularization basis than the "
+        f"heatmap (see Data audit)."
+    )
+
+
 def audit_lines(atlas: Atlas) -> list[str]:
     a = atlas.audit
     rows, cols = atlas.shape
@@ -697,6 +1082,15 @@ def audit_lines(atlas: Atlas) -> list[str]:
             f"{a['leverage_csv_basis_mean_signed_diff_pp']:+.1f} pp). It was built with each patient's own best "
             f"regularization, the atlas with one global regularizer per representation."
         )
+    if atlas.has_folds:  # W7.1
+        n_sup = len(atlas.supported_fold_index)
+        lines.append(
+            f"per-fold strip: {a.get('fold_cells', 0)}/{a['cells']} cells x {a.get('fold_count', 0)} LOPO folds "
+            f"({n_sup} supported) ({a.get('fold_source', 'n/a')}); all-zero in all {n_sup} supported folds: "
+            f"{a.get('fold_cells_all_supported_zero', 0)} cells, in 1-{n_sup - 1}: {a.get('fold_cells_partially_zero', 0)} cells"
+        )
+    if atlas.factor_card_reps is not None:
+        lines.append(f"D18 factor cards: {len(atlas.factor_card_reps)} representations (deep links to the factor explorer)")
     lines += atlas.notes
     return lines
 
@@ -799,6 +1193,7 @@ class ColorSpec:
     annotation: Callable[[float], str]  # value -> in-cell text when "annotate" is on
     tickvals: list | None = None
     ticktext: list | None = None
+    cell_text: np.ndarray | None = None  # W7.1: per-cell text (canonical order) instead of annotation(value)
 
 
 def color_spec(atlas: Atlas, view: View) -> ColorSpec:
@@ -845,6 +1240,34 @@ def color_spec(atlas: Atlas, view: View) -> ColorSpec:
             f"{view.patient}: raw held-out AUPRC (random baseline = prevalence {100 * atlas.prevalence[k]:.2f}%)",
             lambda v, p=view.patient: f"{p} AUPRC {100 * v:.1f}%",
             lambda v: f"{v:.2f}",
+        )
+    if mode == "zero_folds":  # W7.1
+        n = len(atlas.supported_fold_index) if atlas.has_folds else len(atlas.patients)
+        colours = [PURPLES8[min(round(i * (len(PURPLES8) - 1) / max(n, 1)), len(PURPLES8) - 1)] for i in range(n + 1)]
+        return ColorSpec(
+            zero_fold_count(atlas), _discrete(colours), -0.5, n + 0.5,  # one colour per integer 0..n
+            f"all-zero supported folds (of {n})",
+            f"Supported LOPO folds whose selected model is all-zero ({ZERO_FOLD_TEXT} in those folds)",
+            lambda v, n=n: f"{int(v)} of {n} supported folds all-zero ({ZERO_FOLD_TEXT} there)",
+            lambda v: f"{int(v)}",
+            tickvals=list(range(n + 1)), ticktext=[str(i) for i in range(n + 1)],
+        )
+    if mode == "selected_c":  # W7.1
+        sel_c = atlas.sel_C if atlas.sel_C is not None else np.full(atlas.shape, np.nan)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            z = np.where(atlas.available & (sel_c > 0), np.log10(sel_c), np.nan)
+        finite = z[np.isfinite(z)]
+        lo, hi = (float(np.floor(finite.min())), float(np.ceil(finite.max()))) if finite.size else (-4.0, 4.0)
+        hi = hi if hi > lo else lo + 1.0
+        penalties = atlas.sel_penalty if atlas.sel_penalty is not None else np.full(atlas.shape, "", dtype=object)
+        text = np.vectorize(lambda p: PENALTY_SHORT.get(str(p), str(p)), otypes=[object])(penalties)
+        ticks = list(range(int(lo), int(hi) + 1))
+        return ColorSpec(
+            z, VIRIDIS_SCALE, lo, hi, "selected C (log10)",
+            f"Selected Stage 2 C per cell (cell text = penalty; {C_POLICY_TEXT})",
+            lambda v: f"selected C {10 ** v:.3g}",
+            lambda v: f"{10 ** v:.0e}",
+            tickvals=[float(t) for t in ticks], ticktext=[f"1e{t}" for t in ticks], cell_text=text,
         )
     # nonzero
     counts = atlas.nonzero_mean
@@ -934,6 +1357,8 @@ def hover_matrix(atlas: Atlas, view: View, spec: ColorSpec) -> np.ndarray:
     k = atlas.patients.index(view.patient)
     n_pat = len(atlas.patients)
     c_lift, c_ratio = count_lift(atlas, view.tau_pp), count_ratio(atlas, view.rho)
+    zero_folds = zero_fold_count(atlas)  # W7.1
+    n_sup = len(atlas.supported_fold_index) if atlas.has_folds else 0
     out = np.empty((n_rows, n_cols), dtype=object)
     for i in range(n_rows):
         head = f"<b>{esc(atlas.panel_labels[i])}</b>"
@@ -969,6 +1394,11 @@ def hover_matrix(atlas: Atlas, view: View, spec: ColorSpec) -> np.ndarray:
             if np.isfinite(atlas.lev_csv[i, j]):
                 lev += f" | v2 CSV {100 * atlas.lev_csv[i, j]:.1f} pp (drop {drivers_text(atlas.lev_csv_driver[i, j])})"
             lines.append(lev)
+            if np.isfinite(zero_folds[i, j]):  # W7.1
+                folds = f"folds: {n_sup - int(zero_folds[i, j])}/{n_sup} supported active"
+                if zero_folds[i, j] > 0:
+                    folds += f"; all-zero ({ZERO_FOLD_TEXT}): {', '.join(zero_fold_patients(atlas, i, j))}"
+                lines.append(folds)
             out[i, j] = "<br>".join(lines)
     return out
 
@@ -994,12 +1424,14 @@ def build_heatmap(atlas: Atlas, view: View) -> go.Figure:
     xs, ys = list(range(n_cols)), list(range(n_rows))
 
     annotation_text = np.where(finite, np.vectorize(lambda v: spec.annotation(v) if np.isfinite(v) else "")(z), "")
+    if spec.cell_text is not None:  # W7.1: e.g. the selected penalty in the selected-C mode
+        annotation_text = np.where(finite, spec.cell_text[order], "")
     common = dict(
         x=xs, y=ys, xgap=1, ygap=1, hoverongaps=False, hoverinfo="text", hovertext=hover,
         zmin=spec.zmin, zmax=spec.zmax,
     )
     text_kwargs = dict(text=annotation_text, texttemplate="%{text}", textfont=dict(size=9)) if (
-        view.annotate or view.mode in ("count_lift", "count_ratio")
+        view.annotate or view.mode in ("count_lift", "count_ratio") + FOLD_MODES
     ) else {}
 
     fig = go.Figure()
@@ -1255,6 +1687,11 @@ def cell_header(atlas: Atlas, view: View, r: int, c: int) -> tuple[str, str, lis
         chips.append(("selected regularization", str(atlas.reg_label[r, c])))
         if atlas.nonzero_max[r, c] == 0:
             chips.append(("note", "all-zero model: lift is 0 by construction"))
+    if atlas.has_folds:  # W7.1: partial all-zero folds look like patient-specific capture
+        zero = zero_fold_patients(atlas, r, c)
+        n_sup = len(atlas.supported_fold_index)
+        if zero and len(zero) < n_sup:
+            chips.append(("all-zero supported folds", f"{len(zero)}/{n_sup} ({', '.join(zero)}): {ZERO_FOLD_TEXT} there"))
     lev = f"{100 * atlas.lev_d1[r, c]:.1f} pp"
     if atlas.lev_d1[r, c] > EPS:
         before = 100 * atlas.median[r, c]
@@ -1296,6 +1733,13 @@ def export_bundle(data_dir: Path, out_dir: Path) -> list[Path]:
     table = build_nonzero_table(data_dir) if files["nonzero_table"] is None else pd.read_csv(files["nonzero_table"])
     if table is None:
         raise DataError("cannot export: the four stage2_sharedness_lopo_scorecard.csv files were not found")
+    # W7.1: carry the per-fold nonzero counts as integer fold_nonzero_<patient> columns (about 30 KB)
+    fold_meta: dict = _bundle_fold_meta(data_dir) if files["nonzero_table"] is not None else {}
+    if files["nonzero_table"] is None and not any(str(c).startswith(FOLD_COLUMN_PREFIX) for c in table.columns):
+        long = build_fold_table(data_dir, table)
+        if long is not None:
+            table = table.merge(fold_wide_columns(long), on=["stage0_panel_id", "configuration"], how="left")
+            fold_meta = fold_patient_meta(long)
     targets = {key: out_dir / files[key].name for key in ("atlas", "patients", "leverage") if files[key] is not None}
     targets["nonzero_table"] = out_dir / NONZERO_TABLE_NAME
     clash = [str(p) for p in [*targets.values(), out_dir / "bundle_manifest.json"] if p.exists()]
@@ -1308,10 +1752,15 @@ def export_bundle(data_dir: Path, out_dir: Path) -> list[Path]:
         "run": "python old34_d1_atlas_explorer.py --data-dir <this directory>",
         "files": {},
     }
+    if fold_meta:
+        manifest[FOLD_MANIFEST_KEY] = fold_meta
     for key, target in targets.items():
         if key == "nonzero_table":
             table.to_csv(target, index=False)
-            manifest["files"][target.name] = {"derived": "selected-regularization nonzero counts joined from 4 LOPO scorecards"}
+            derived = "selected-regularization nonzero counts joined from 4 LOPO scorecards"
+            if any(str(c).startswith(FOLD_COLUMN_PREFIX) for c in table.columns):
+                derived += f"; {FOLD_COLUMN_PREFIX}<patient> = per-fold counts from the 4 sharedness_lopo/by_heldout_patient.csv"
+            manifest["files"][target.name] = {"derived": derived}
         else:
             shutil.copyfile(files[key], target)
             if _sha256(files[key]) != _sha256(target):
@@ -1380,7 +1829,57 @@ def run_checks(atlas: Atlas, fingerprint_before: dict, fingerprint_after: dict) 
                      f"{atlas.audit['leverage_csv_basis_mismatch_cells']}/{lv} cells differ from the D1 median "
                      f"(max {atlas.audit['leverage_csv_basis_max_abs_diff_pp']:.1f} pp): the CSV uses per-patient best regularization"))
     rows.append(("inputs unmodified by loading", "PASS" if fingerprint_before == fingerprint_after else "FAIL", f"{len(fingerprint_before)} files fingerprinted (size + mtime)"))
+    rows.append(fold_check(atlas))  # W7.1: one new line, after the original eleven
     return rows
+
+
+def fold_check(atlas: Atlas) -> tuple[str, str, str]:
+    """W7.1 check: the per-fold strip is joined at the selected regularization and is self-consistent.
+
+    PASS needs: every available cell has every fold; the fold mean / max equal the scorecard's nonzero
+    mean / max; every all-zero supported fold has exactly zero lift; and, in an experiment dir, every
+    supported fold's held-out AUPRC equals the D1 patient table and the per-fold tables were not modified.
+    """
+    name = "per-fold activity joined at selected regularization"
+    a = atlas.audit
+    if not atlas.has_folds:
+        return name, "SKIP", "per-fold LOPO tables (or bundle fold_nonzero_* columns) not present"
+    problems = []
+    cells, n_folds, n_sup = a["cells"], a.get("fold_count", 0), len(atlas.supported_fold_index)
+    if a.get("fold_cells", 0) != cells:
+        problems.append(f"only {a.get('fold_cells', 0)}/{cells} cells have every fold")
+    if a.get("fold_missing_supported"):
+        problems.append(f"supported patients without a fold: {a['fold_missing_supported']}")
+    tol = 1e-6
+    mean_diff, max_diff = a.get("fold_mean_vs_scorecard_max_abs_diff"), a.get("fold_max_vs_scorecard_max_abs_diff")
+    if mean_diff is None or mean_diff > tol or max_diff is None or max_diff > tol:
+        problems.append(f"fold mean/max differ from the scorecard (max |diff| {mean_diff} / {max_diff})")
+    pairs = zero_fold_pairs(atlas)
+    zero_lifts = [
+        atlas.lift[k][(atlas.fold_nonzero[f] == 0) & atlas.available] for k, f in pairs
+    ]
+    zero_lifts = np.concatenate(zero_lifts) if zero_lifts else np.array([])
+    max_zero_lift = float(np.abs(zero_lifts).max()) if zero_lifts.size else 0.0
+    if max_zero_lift >= EPS:
+        problems.append(f"an all-zero supported fold has nonzero lift ({max_zero_lift:.1e})")
+    auprc_diff = a.get("fold_auprc_vs_patient_table_max_abs_diff")
+    if auprc_diff is not None and auprc_diff > 1e-12:
+        problems.append(f"supported-fold AUPRC differs from the patient table (max |diff| {auprc_diff:.1e})")
+    if a.get("fold_inputs_unmodified") is False:
+        problems.append("a per-fold table changed while loading")
+    detail = (
+        f"{a.get('fold_cells', 0)}/{cells} cells x {n_folds} folds ({n_sup} supported); fold mean/max == scorecard "
+        f"(max |diff| {mean_diff if mean_diff is not None else float('nan'):.1e}); {zero_lifts.size} all-zero supported folds, "
+        f"max |lift| {max_zero_lift:.1e}; {a.get('fold_cells_partially_zero', 0)} cells all-zero in 1-{n_sup - 1} supported folds, "
+        f"{a.get('fold_cells_all_supported_zero', 0)} in all {n_sup}"
+    )
+    if auprc_diff is not None:
+        detail += f"; supported-fold AUPRC == patient table (max |diff| {auprc_diff:.1e})"
+    if "fold_inputs_files" in a:
+        detail += f"; {a['fold_inputs_files']} per-fold tables fingerprinted"
+    if problems:
+        return name, "FAIL", detail + " | " + "; ".join(problems)
+    return name, "PASS", detail
 
 
 # ======================================================================================
@@ -1420,9 +1919,48 @@ details pre { white-space: pre-wrap; font-size: 11px; color: #445; }
 .placeholder { color: #667; padding: 40px 18px; text-align: center; line-height: 1.6; }
 """
 
+# W7.1 (2026-10-08): per-fold strip, badge and deep-link styles (appended to CSS).
+CSS_W71 = """
+.strip-block { border: 1px solid #e1e4e8; border-radius: 6px; padding: 6px 10px; margin: 6px 0 8px; background: #fbfcfd; }
+.strip-head { font-size: 12.5px; font-weight: 600; margin-bottom: 2px; }
+.strip { display: flex; flex-wrap: wrap; gap: 3px; align-items: stretch; margin: 4px 0; }
+.strip-sep { width: 10px; }
+.fold { width: 42px; border-radius: 3px; text-align: center; font-size: 10.5px; line-height: 1.25; padding: 2px 0; border: 1px solid transparent; cursor: default; }
+.fold b { display: block; font-size: 11px; }
+.fold.active { background: #d8eef0; border-color: #00838f; color: #004d55; }
+.fold.all_zero { background: #fde4e1; border-color: #c62828; color: #8e1b1b; }
+.fold.unknown { background: #f1f1f1; border-color: #bbb; color: #777; }
+.fold.unsupported { opacity: .45; border-style: dashed; filter: grayscale(100%); }
+.badge { display: inline-block; background: #c62828; color: #fff; border-radius: 9px; padding: 1px 8px; font-size: 11px; font-weight: 600; margin: 2px 6px 2px 0; }
+.strip-legend { color: #667; font-size: 11px; line-height: 1.35; }
+.deeplink { display: inline-block; margin: 4px 0 6px; font-size: 12.5px; }
+.caveat b { color: #6b3a00; }
+"""
 
-def create_app(atlas: Atlas):
-    """Build the Dash app.  Dash is imported here so --check and the tests do not need it."""
+
+def _factor_explorer_base(configured: str | None) -> str:
+    """The configured factor-explorer URL, else this request's host on port 8051 (works through a tunnel)."""
+    if configured:
+        return configured
+    try:
+        from flask import request
+
+        host, scheme = request.host, request.scheme
+    except (ImportError, RuntimeError):
+        host, scheme = "127.0.0.1", "http"
+    if host.startswith("["):  # IPv6 literal
+        hostname = host[: host.index("]") + 1]
+    else:
+        hostname = host.rsplit(":", 1)[0] if ":" in host else host
+    return f"{scheme}://{hostname}:{FACTOR_EXPLORER_PORT}/"
+
+
+def create_app(atlas: Atlas, factor_explorer_url: str | None = None):
+    """Build the Dash app.  Dash is imported here so --check and the tests do not need it.
+
+    ``factor_explorer_url`` (W7.1): base URL of apps/old34_factor_explorer.py for the cell-view deep
+    link; None means "this page's host, port 8051".
+    """
     from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
 
     graph_config = {
@@ -1433,12 +1971,15 @@ def create_app(atlas: Atlas):
     app = Dash(__name__, title="Old34 D1 atlas explorer")
     app.index_string = (
         "<!DOCTYPE html><html><head>{%metas%}<title>{%title%}</title>{%favicon%}{%css%}"
-        f"<style>{CSS}</style></head><body>{{%app_entry%}}<footer>{{%config%}}{{%scripts%}}{{%renderer%}}</footer></body></html>"
+        f"<style>{CSS}{CSS_W71}</style></head><body>{{%app_entry%}}<footer>{{%config%}}{{%scripts%}}{{%renderer%}}</footer></body></html>"
     )
 
     default_patient = DEFAULT_PATIENT if DEFAULT_PATIENT in atlas.patients else atlas.patients[0]
+    unavailable_modes = {
+        "nonzero": not atlas.has_nonzero, "zero_folds": not atlas.has_folds, "selected_c": not atlas.has_selected_c,
+    }
     mode_options = [
-        {"label": MODE_LABELS[m], "value": m, "disabled": (m == "nonzero" and not atlas.has_nonzero)} for m in MODE_LABELS
+        {"label": MODE_LABELS[m], "value": m, "disabled": unavailable_modes.get(m, False)} for m in MODE_LABELS
     ]
 
     def number(id_, value, step, lo=None, hi=None):
@@ -1569,18 +2110,14 @@ def create_app(atlas: Atlas):
             lines.append(html.Div("filter: " + text))
         if view.mode == "nonzero" and not atlas.has_nonzero:
             lines.append(html.Div("Stage 2 nonzero counts are not available in this data directory."))
-        a = atlas.audit
+        if view.mode == "zero_folds" and not atlas.has_folds:  # W7.1
+            lines.append(html.Div("Per-fold LOPO activity is not available in this data directory."))
+        if view.mode in FOLD_MODES:
+            lines.append(html.Div(C_POLICY_TEXT + ". An all-zero fold scores a constant: held-out AP = prevalence, so its lift is 0 by construction, not evidence of absent signal."))
+        label, text = leverage_caveat(atlas, view)  # W7.1: same texts as before, now labelled
         if view.f3 and view.f3_source == "csv":
-            caveat = (
-                f"v2 CSV covers {a.get('leverage_csv_cells', 0)} of {a['cells']} cells (best-LOPO K per panel x method; no controls, "
-                f"no direct gene). Its medians use each patient's own best regularization and differ from the heatmap's "
-                f"median at {a.get('leverage_csv_basis_mismatch_cells', 0)} of those cells. Use 'D1 patient table' for a "
-                f"leverage consistent with the colours."
-            )
-        elif view.f3:
-            caveat = "Computed from this atlas's seven lifts per cell: drop one patient, recompute the median. Consistent with the heatmap; covers every cell."
-        else:
-            caveat = f"v2 CSV: {a.get('leverage_csv_cells', 0)}/{a['cells']} cells; built on a different regularization basis than the heatmap (see Data audit)."
+            lines.append(html.Div([html.B(f"{label}: "), text]))
+        caveat = [html.B(f"{label}: "), text]
         selected_or_patient_mode = view.selected is not None or view.mode in PATIENT_MODES
         return figure, lines, not selected_or_patient_mode, caveat
 
@@ -1645,6 +2182,54 @@ def create_app(atlas: Atlas):
         ]
         return html.Table([html.Thead(head), html.Tbody(body)], className="pt")
 
+    # ---- W7.1: per-fold strip and the deep link to the factor explorer ----------------------
+    def fold_strip_block(r: int, c: int):
+        reg = selected_regularization_text(atlas, r, c)
+        head = [html.Div("Per-fold Stage 2 model at the selected regularization", className="strip-head")]
+        head.append(html.Div(
+            [html.B("selected: "), reg or "unknown", f"  ({C_POLICY_TEXT})"], className="strip-legend",
+        ))
+        strip = fold_strip(atlas, r, c)
+        if not strip:
+            return html.Div(head + [html.Div("Per-fold activity is not available in this data directory.", className="strip-legend")], className="strip-block")
+        boxes = []
+        for k, item in enumerate(strip):
+            if k and item["supported"] != strip[k - 1]["supported"]:
+                boxes.append(html.Div(className="strip-sep"))
+            value = "-" if item["status"] == "unknown" else ("0" if item["status"] == "all_zero" else f"{int(item['nonzero'])}")
+            classes = f"fold {item['status']}" + ("" if item["supported"] else " unsupported")
+            boxes.append(html.Div([html.B(item["patient"]), value], className=classes, title=item["title"]))
+        zero = [s["patient"] for s in strip if s["badge"]]
+        badges = [html.Span(f"{ZERO_FOLD_TEXT}: {', '.join(zero)}", className="badge")] if zero else []
+        n_sup = sum(s["supported"] for s in strip)
+        legend = (
+            f"Left: the {n_sup} supported folds (they enter the lift summaries); right, greyed: the {len(strip) - n_sup} "
+            "unsupported folds (fewer than 10 malignant cells or one class; never summarised). Number = nonzero "
+            "coefficients of that fold's model. Red 0 = all-zero model: constant score, held-out AP = prevalence, so "
+            "that patient's lift is 0 by construction (an L1 threshold at this C, not evidence of absent signal)."
+        )
+        return html.Div(
+            head + [html.Div(boxes, className="strip"), html.Div(badges + [fold_strip_summary(atlas, r, c)], className="strip-legend"),
+                    html.Div(legend, className="strip-legend")],
+            className="strip-block",
+        )
+
+    def factor_link_block(r: int, c: int) -> list:
+        href = factor_explorer_href(atlas.panel_ids[r], CONFIGS[c], _factor_explorer_base(factor_explorer_url))
+        if href is None:
+            return [html.Div("Factor cards: none for direct-gene cells (no Stage 1 factors).", className="strip-legend")]
+        status = factor_cards_status(atlas, r, c)
+        note = {
+            "covered": "D18 factor cards exist for this representation.",
+            "not_covered": "Not in the D18 shortlist: the explorer lists the carded representations of this panel.",
+            "unknown": "D18 card coverage unknown here (index not in this data directory).",
+        }[status]
+        return [html.Div([
+            html.A(f"Open factor cards: {config_label(CONFIGS[c])} (factor explorer, port {FACTOR_EXPLORER_PORT})",
+                   href=href, target="_blank", rel="noopener"),
+            html.Span(f"  {note}", className="strip-legend"),
+        ], className="deeplink")]
+
     @app.callback(Output("cell-body", "children"), *view_inputs)
     def render_cell(*args):
         view = raw_view(*args)
@@ -1663,6 +2248,8 @@ def create_app(atlas: Atlas):
             html.Div(title, style={"fontWeight": 700, "fontSize": "15px"}),
             html.Div(subtitle, className="sub", style={"marginBottom": "4px"}),
             html.Div([html.Span([html.B(f"{k}: "), v], className="chip") for k, v in chips]),
+            *factor_link_block(r, c),
+            fold_strip_block(r, c),
             dcc.Graph(figure=patient_row_figure(atlas, r, c, highlight), config=graph_config, style={"height": "330px"}),
             dcc.Graph(figure=lift_rank_figure(atlas, view, r, c), config=graph_config, style={"height": "330px"}),
             make_table(patient_table(atlas, view, r, c), highlight),
@@ -1685,6 +2272,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--debug", action="store_true", help="Dash hot reload for quick design iteration")
     parser.add_argument("--check", action="store_true", help="load and validate the inputs, print a report, do not serve")
     parser.add_argument("--export-bundle", type=Path, metavar="DIR", help="write a small shareable bundle to a NEW directory and exit")
+    parser.add_argument(
+        "--factor-explorer-url", default=None, metavar="URL",
+        help=f"base URL of apps/old34_factor_explorer.py for the cell-view deep link (default: this host, port {FACTOR_EXPLORER_PORT})",
+    )
     return parser.parse_args(argv)
 
 
@@ -1717,11 +2308,13 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  [{status:4s}] {name}: {detail}")
         print("\n".join(["", *audit_lines(atlas)]))
         return 1 if failed else 0
-    app = create_app(atlas)
+    app = create_app(atlas, factor_explorer_url=args.factor_explorer_url)
     loopback = args.host in ("127.0.0.1", "localhost", "::1")
     print(f"[d1-atlas] serving http://{args.host if not loopback else '127.0.0.1'}:{args.port}  (read-only; Ctrl-C to stop)")
     if loopback:
         print(f"[d1-atlas] teammates: ssh -L {args.port}:127.0.0.1:{args.port} <user>@<this-host>, then open http://127.0.0.1:{args.port}")
+        if not args.factor_explorer_url:
+            print(f"[d1-atlas] cell-view factor links open port {FACTOR_EXPLORER_PORT} on the same host; tunnel it too (-L {FACTOR_EXPLORER_PORT}:127.0.0.1:{FACTOR_EXPLORER_PORT})")
     else:
         print("[d1-atlas] WARNING: bound beyond localhost; the Dash dev server has no authentication.", file=sys.stderr)
     app.run(host=args.host, port=args.port, debug=args.debug)

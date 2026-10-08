@@ -65,7 +65,7 @@ routed_tasks: [W3.2, W3.1, W4.6, W6.2, W5.4, W5.1, W4.5, W5.2, W5.5, W2.3, W1.3,
 |---|---|
 | FA40 effective rank | FA factors 37–40 have **all-zero loadings and zero-variance scores**. sklearn zeroes a component when its Ψ-whitened eigenvalue is ≤ 1, so the panel supports at most **36** common factors under the FA noise model. |
 | FA scores vs loadings | Largest correlation between FA score columns: 0.003. Largest cosine between FA loading columns: 0.115. |
-| FA factor-score determinacy ρ_k = √(d_k/(1+d_k)), with d_k = Σ_g λ²_gk/ψ_g | FA5 0.788, FA6 0.709, **FA7 0.648**, **FA8 0.618**, FA9 0.545, FA10 0.477. The empirical score variances equal ρ² to three decimals (posterior-mean shrinkage). |
+| FA factor-score determinacy ρ_k = √(d_k/(1+d_k)), with d_k = Σ_g λ²_gk/ψ_g | FA5 0.788, FA6 0.709, **FA7 0.649**, **FA8 0.618**, FA9 0.545, FA10 0.477. The empirical score variances equal ρ² to three decimals (posterior-mean shrinkage). |
 | How much of PC8 lies in FA space | R²(PC8 ~ FA7 + FA8) = **0.806**. R²(PC8 ~ all 36 nonzero FA factors) = **0.920**. Tucker φ of the loadings: PC8 vs FA7 = −0.691, PC8 vs FA8 = +0.577. |
 | PCA eigengaps around PC8 | Score variances of PC7, PC8 and PC9 are 1.357, 1.286 and 1.158. The relative gaps on either side of PC8 are **5.5%** and **10%**. |
 | PCA40 vs FA40 score subspaces | Smallest canonical correlation 0.047. **21 of 36** canonical correlations are below 0.9, so the two K=40 bases do **not** span the same subspace. |
@@ -150,7 +150,7 @@ routed_tasks: [W3.2, W3.1, W4.6, W6.2, W5.4, W5.1, W4.5, W5.2, W5.5, W2.3, W1.3,
 - Grice (2001, *Psychological Methods* 6:430–450; https://doi.org/10.1037/1082-989X.6.4.430) recommends always reporting determinacy and validity coefficients.
 
 **Implication for this repo**
-- FA7 has ρ = 0.648 (2ρ²−1 = −0.16) and FA8 has ρ = 0.618 (−0.24). Both are **poorly determined** latent variables. Using their posterior-mean scores for prediction is fine. Claims about "the FA7 program" (Q3) should carry this caveat.
+- FA7 has ρ = 0.649 (2ρ²−1 = −0.16) and FA8 has ρ = 0.618 (−0.24). Both are **poorly determined** latent variables. Using their posterior-mean scores for prediction is fine. Claims about "the FA7 program" (Q3) should carry this caveat.
 - PCA scores are exactly determined linear combinations of the data. That alone can make PCA look more stable in Stage 2, and it does not show that PCA captures better biology (Velicer & Jackson, §1.5).
 - Add ρ_k to `diagnostics.json` for fa, factosig and factosig_promax. For sklearn FA on z-scored genes, ψ_g = 1 − h²_g, so ρ_k can be computed from `loadings.npy` alone. Flag ρ < 0.707.
 - d_k grows with the number of genes loading on a factor. Larger panels and smaller K (relative to p) give more determinate factors, which matters when interpretation is the goal (Q3).
