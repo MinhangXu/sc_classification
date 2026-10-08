@@ -5,6 +5,7 @@ channels:
   - nvidia
   - conda-forge
 dependencies:
+  # This yml pins Python 3.10; the lab env (sc-classification-rapids-py311) runs Python 3.11.
   - python=3.10
   - cuda-version=12.0
   - rapids=24.10
@@ -20,6 +21,9 @@ dependencies:
   - anndata
   - matplotlib
   - seaborn
+  - pytest>=7        # tests/ (also: pip install -e '.[dev]')
+  - dash>=2.14       # scripts/mrd_stage0_2/apps (also: pip install -e '.[app]')
+  - plotly>=5.18
   - pip
   - pip:
       - -e .

@@ -1,5 +1,7 @@
 # Experiment 20260525 Stage 0–2 Rehydration Dossier
 
+> **HISTORICAL (2026-07-02 map).** Current state: `../research/STATUS.md`; rules: the repo-root `AGENTS.md`.
+
 Date compiled: 2026-07-02
 Experiment: `experiments/20260525_060508_stage0_mrd_old34_broad_screen_82db5093`
 

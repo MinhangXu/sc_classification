@@ -16,5 +16,9 @@ requires-python = ">=3.8"
 #     "scikit-learn",
 # ]
 
+[project.optional-dependencies]
+app = ["dash>=2.14", "plotly>=5.18"]
+dev = ["pytest>=7"]
+
 [tool.setuptools.packages.find]
 where = ["src"]

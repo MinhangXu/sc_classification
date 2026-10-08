@@ -6,9 +6,9 @@ Stage 0-2 malignancy study). Older DR method/K screening plans live under
 
 ## How to read this
 
-- **START HERE for the living hypothesis / progress table (canvas)**: `/home/minhang/.cursor/projects/home-minhang-mds-project/canvases/stage0-2-hypothesis-tracker.canvas.tsx` — Stage 0/1/2 + Aim 2 rows, figures, missing pieces, and the ChatGPT inbox. Agent contract: `stage0_2_hypothesis_tracker.md`.
-- **START HERE for live experiment / screen / campaign status (2026-09-04)**: `current_experiment_status_rehydration_20260904.md` — what is running, which scorecard namespaces exist, Set A/B/pooled/control-grid dates, and what another agent should not relaunch.
-- **START HERE for the current old34 analysis**: `../notebooks/stage0_2/old34_inquiry_narrative_guide.md` — corrected D1–D11 reading order, metric equations, direct-gene/IFN/donor interpretation, and claim boundary.
+**Start at the repo-root `AGENTS.md`; status in `../research/STATUS.md`.**
+The documents below are design history and method background, not the current state.
+
 - **D1a patient/cell deep dive (2026-09-10)**: `../notebooks/stage0_2/stage2_old34_d1a_descriptive_deep_dives_20260910.ipynb` — grouped panel taxonomy, patient-level K/configuration views for allograft/apoptosis/TNFα, PCA/FA label-free variance, a mean-z one-score baseline, and post-hoc cell-type/ADT rank-error audits.
 - **Presentation review**: `../notebooks/stage0_2/stage2_old34_team_review_narrative.ipynb` — curated tables and figures over completed artifacts; no model reruns.
 - **Historical run map**: the rehydration dossier — master provenance snapshot compiled before the newer D1–D11 diagnostics.
@@ -17,12 +17,12 @@ Stage 0-2 malignancy study). Older DR method/K screening plans live under
 
 ## Files
 
-- **Hypothesis tracker (canvas + agent contract)**: `stage0_2_hypothesis_tracker.md` points at `stage0-2-hypothesis-tracker.canvas.tsx`. Use it to place ChatGPT-derived claims and to update rows after an implementation.
-- **Live experiment status / agent rehydration (2026-09-04)**: `current_experiment_status_rehydration_20260904.md` — screen sessions, GPU shards, namespaced campaigns (Set A biological, Set A control full-grid, Set B, pooled unions, donor diagnostic), notebook inventory, and next-step constraints.
-- **Current old34 inquiry narrative (START HERE for science)**: `../notebooks/stage0_2/old34_inquiry_narrative_guide.md` — current notebook order, AP proof, Spearman interpretation, direct-gene baseline, IFN-α factor attribution, corrected donor-factor stability, exact patient composition, and publication claim gate.
+- **Hypothesis tracker**: `../research/hypotheses.md` (H-* claim blocks; current verdicts in `../research/STATUS.md`, declared in devlog entries). `stage0_2_hypothesis_tracker.md` is now a pointer; the Cursor canvas is frozen in `../research/legacy/`.
+- **HISTORICAL: experiment status snapshot (2026-09-04)**: `current_experiment_status_rehydration_20260904.md` — current campaign state is `../research/campaigns.csv`. Snapshot of screen sessions, GPU shards, namespaced campaigns (Set A biological, Set A control full-grid, Set B, pooled unions, donor diagnostic), notebook inventory, and next-step constraints.
+- **Old34 inquiry narrative (method mechanics)**: `../notebooks/stage0_2/old34_inquiry_narrative_guide.md` — current notebook order, AP proof, Spearman interpretation, direct-gene baseline, IFN-α factor attribution, corrected donor-factor stability, exact patient composition, and claim gate (the canonical claim list is `../research/THEME.md` §6).
 - **D1a descriptive deep dives (2026-09-10)**: `../notebooks/stage0_2/stage2_old34_d1a_descriptive_deep_dives_20260910.ipynb` — reverses D1a/b aggregation for three focus panels and links selected-DR rankings to predicted cell type, collection timing, QC fields, and 170 CITE-seq ADTs. Rank-defined error groups are descriptive, not operational calls; detailed treatment regimens are unavailable.
 - **Curated old34 team-review notebook**: `../notebooks/stage0_2/stage2_old34_team_review_narrative.ipynb` — presentation-ready review of D6–D11 outputs; reads completed CSV/PNG artifacts only.
-- **Experiment 20260525 Stage 0-2 rehydration dossier (historical master map)**: `experiment_20260525_stage0_2_rehydration_dossier.md` — the two-panel-set run (old34 + expanded manuscript axes): pipeline artifacts, provenance of runners/plans/notebooks, gaps, and per-plot scientific framing as of 2026-07-02.
+- **HISTORICAL: Experiment 20260525 Stage 0-2 rehydration dossier (2026-07-02 master map)**: `experiment_20260525_stage0_2_rehydration_dossier.md` — the two-panel-set run (old34 + expanded manuscript axes): pipeline artifacts, provenance of runners/plans/notebooks, gaps, and per-plot scientific framing as of 2026-07-02.
 - **Three-stage knowledge-prior design (MRD)**: `three_stages_knowledge_prior_mal_classification.md` — the Stage 0/1/2 concept + the three PI questions.
 - **Stage 0/1/2 sharedness scorecard run spec**: `stage0_mrd_sharedness_scorecard_plan.md` — run spec, scorecard schema, artifact Q&A.
 - **Stage 2 comprehensive diagnostic plan (target)**: `stage2_comprehensive_diagnostic_plan.md` — the intended 7-layer post-run diagnostic; mostly the "what to build next" doc.
@@ -31,6 +31,8 @@ Stage 0-2 malignancy study). Older DR method/K screening plans live under
 - **Directory reorganization plan (executed)**: `comprehensive_run_reorganization_plan.md` — record of the 2026-07-02 split into `mrd_stage0_2/` + `dr_feature_screening/`.
 
 ## Mapping: plan → implementation
+
+Analysis IDs (D/F/D1DD, planned D15b and D16-D25) and their code paths: `../research/analyses.csv`.
 
 | Plan | Goal (one-liner) | Plan doc | Runner |
 |---|---|---|---|

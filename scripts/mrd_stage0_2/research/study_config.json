@@ -1,0 +1,51 @@
+{
+  "study": "mrd_stage0_2",
+  "canonical_experiment_id": "20260525_060508_stage0_mrd_old34_broad_screen_82db5093",
+  "cohort": {
+    "n_cells": 60118,
+    "n_genes": 15560,
+    "n_patients": 13,
+    "n_malignant": 1569,
+    "donor_healthy": 58499,
+    "recipient_healthy": 50
+  },
+  "patients": {
+    "P01": {"malignant": 45, "total": 11860},
+    "P02": {"malignant": 211, "total": 1462},
+    "P03": {"malignant": 758, "total": 2327},
+    "P04": {"malignant": 102, "total": 1128},
+    "P05": {"malignant": 8, "total": 4359},
+    "P06": {"malignant": 44, "total": 3259},
+    "P07": {"malignant": 22, "total": 2185},
+    "P08": {"malignant": 0, "total": 1411},
+    "P09": {"malignant": 375, "total": 17126},
+    "P10": {"malignant": 0, "total": 2715},
+    "P11": {"malignant": 0, "total": 4024},
+    "P12": {"malignant": 0, "total": 2488},
+    "P13": {"malignant": 4, "total": 5774}
+  },
+  "supported_patients": ["P01", "P02", "P03", "P04", "P06", "P07", "P09"],
+  "support_rule": {
+    "min_malignant_cells": 10,
+    "require_both_classes": true,
+    "source": "plans/stage2_figure_catalog_and_statistical_rigor_v2_jun4.md MIN_MALIGNANT_SUPPORT",
+    "note": "D14 >=20 malignant is a stratum parameter, not the support rule"
+  },
+  "stage1_fit_scope": "transductive_all_eligible_cells",
+  "raw_h5ad_relpath": "cohort_adata/adata_cellType_cnLabel_pseudoTime_collectionTime.h5ad",
+  "cohort_cache_relpath": "analysis/cache/stage2_diagnostic/deg_hvg_lowsupport_v1/mrd_cite_binary_log1p_15560.h5ad",
+  "cell_metadata_relpath": "stage2_supervised/multiobjective/discovery_full_cohort/cell_metadata.csv.gz",
+  "protected_paths": [
+    "analysis/scorecards/stage2_discovery_full_cohort_scorecard.csv",
+    "analysis/scorecards/stage2_sharedness_lopo_scorecard.csv",
+    "analysis/scorecards/stage2_patient_specific_scorecard.csv"
+  ],
+  "protected_since": "2026-06-05",
+  "versioned_slug_roots": [
+    "analysis/scorecards/stage2_diagnostic",
+    "analysis/figures/stage2_diagnostic",
+    "analysis/cache/stage2_diagnostic",
+    "stage1_dr_variants"
+  ],
+  "versioned_slug_rule_since": "2026-10-08"
+}

@@ -1,0 +1,6 @@
+---
+description: Canonical agent instructions for sc_classification live in AGENTS.md at the repo root
+alwaysApply: true
+---
+
+Read and follow AGENTS.md (start-of-task §2, rules §3, end-of-task §7). The tracker is scripts/mrd_stage0_2/research/hypotheses.md; the Cursor canvas is frozen.

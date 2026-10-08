@@ -1,5 +1,7 @@
 # Live experiment status and rehydration (2026-09-04)
 
+> **HISTORICAL (snapshot 2026-09-04).** Pooled Stage 2 is stalled, not in flight. Current state: `../research/campaigns.csv` and `../research/STATUS.md`. Rules: the repo-root `AGENTS.md`.
+
 **Snapshot time:** 2026-09-04 ~17:55 UTC (machine local logs use the same wall clock as `screen -ls`).  
 **Workspace:** `/home/minhang/mds_project`  
 **Canonical experiment:** `sc_classification/experiments/20260525_060508_stage0_mrd_old34_broad_screen_82db5093`  
