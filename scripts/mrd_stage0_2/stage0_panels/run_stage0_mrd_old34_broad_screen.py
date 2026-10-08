@@ -586,16 +586,22 @@ def build_expanded_stage0_panels(
 
     panels: list[dict[str, Any]] = []
     biological_sets = manifest.loc[~manifest["interpretation_layer"].astype(str).eq("core_anchor"), "set_id"].tolist()
+    full_control_panel_id = str(getattr(args, "full_control_panel_id", "") or "expanded_full")
+    full_control_description = (
+        "Unique union of old34-covered and expanded-covered Stage 0 genes."
+        if full_control_panel_id == "pooled_old34_expanded_union"
+        else "Full union of expanded public-prior Stage 0 gene sets."
+    )
     panels.append(
         make_expanded_panel(
-            panel_id="expanded_full",
+            panel_id=full_control_panel_id,
             panel_type="full_control",
             panel_family="knowledge_expanded_stage0",
             panel_subfamily="all",
             interpretation_layer="expanded_union",
             gene_budget_type="knowledge_union",
             genesets=biological_sets or all_sets,
-            description="Full union of expanded public-prior Stage 0 gene sets.",
+            description=full_control_description,
         )
     )
 
@@ -808,20 +814,26 @@ def build_stage0_panels(
 
     panels: list[dict[str, Any]] = []
     full_covered, full_raw, full_missing = collect_sets(all_sets)
+    full_control_panel_id = str(getattr(args, "full_control_panel_id", "") or "full_34")
+    full_control_description = (
+        "Unique union of old34-covered and expanded-covered Stage 0 genes."
+        if full_control_panel_id == "pooled_old34_expanded_union"
+        else "Full union of the old 34-program dictionary."
+    )
     panels.append(
         make_panel(
             experiment_id=experiment_id,
-            panel_id="full_34",
+            panel_id=full_control_panel_id,
             panel_type="full_control",
             panel_family="knowledge_old_geneset",
             source_dictionary="old_34_programs",
-            panel_scope="full_old34_union",
+            panel_scope="full_old34_union" if full_control_panel_id == "full_34" else "pooled_stage0_union",
             genes=full_covered,
             raw_genes=full_raw,
             missing_genes=full_missing,
             gene_budget_type="knowledge_union",
             genesets=all_sets,
-            description="Full union of the old 34-program dictionary.",
+            description=full_control_description,
         )
     )
 
@@ -1457,7 +1469,11 @@ def run_screen(args: argparse.Namespace, paths: ArtifactPaths, experiment_id: st
                     rows.append(scorecard_row(experiment_id, panel, rep_meta, None, "failed", repr(exc)))
                 pd.DataFrame(rows).to_csv(partial_scorecard, index=False)
 
-        if args.small_panel_policy in {"direct_gene", "direct_gene_and_summary"} and invalid_k_exists:
+        should_materialize_direct_gene = (
+            args.small_panel_policy in {"direct_gene", "direct_gene_and_summary"}
+            and (invalid_k_exists or args.direct_gene_all_panels)
+        )
+        if should_materialize_direct_gene:
             try:
                 features, rep_meta = write_direct_gene_representation(panel_adata, panel, paths, args, std_info, "direct_gene")
                 stage2_meta = quick_shared_stage2(features, panel_adata.obs, rep_meta, paths, args) if args.quick_stage2 else None
@@ -1510,11 +1526,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-cells-fraction", type=float, default=0.01)
     parser.add_argument("--panel-types", default="single_geneset_only,single_group_only,full_control,core_only,hvg_anchor_control")
     parser.add_argument("--panel-ids", default="")
+    parser.add_argument(
+        "--full-control-panel-id",
+        default="",
+        help="Override the auto-union full_control panel_id (default: full_34 or expanded_full).",
+    )
     parser.add_argument("--hvg-anchor-sizes", default="500,1000,3000,10000")
     parser.add_argument("--methods", default="pca,fa,factosig,factosig_promax")
     parser.add_argument("--ks", default="5,10,20,40")
     parser.add_argument("--stage1-scope", choices=["across_patient"], default="across_patient")
     parser.add_argument("--small-panel-policy", choices=["skip", "direct_gene", "direct_gene_and_summary"], default="direct_gene")
+    parser.add_argument(
+        "--direct-gene-all-panels",
+        action="store_true",
+        help=(
+            "Materialize a standardized direct-gene representation for every selected panel. "
+            "By default direct-gene is only a fallback when at least one requested K is invalid."
+        ),
+    )
     parser.add_argument("--quick-stage2", action="store_true")
     parser.add_argument("--cv-folds", type=int, default=5)
     parser.add_argument("--seed", type=int, default=42)
@@ -1596,6 +1625,7 @@ def main() -> None:
             "methods": args.methods,
             "ks": args.ks,
             "small_panel_policy": args.small_panel_policy,
+            "direct_gene_all_panels": bool(args.direct_gene_all_panels),
             "seed": args.seed,
         },
         "stage2": {"quick_stage2": bool(args.quick_stage2), "split_policy": "GroupKFold_by_patient", "cv_folds": args.cv_folds},

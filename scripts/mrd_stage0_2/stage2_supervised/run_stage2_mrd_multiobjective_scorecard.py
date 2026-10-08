@@ -564,6 +564,11 @@ def resolve_selected_specs(experiment_dir: Path, scorecard: pd.DataFrame, shortl
     else:
         raise ValueError(f"Unknown panel selection: {args.panel_selection}")
 
+    panel_ids = split_csv(getattr(args, "panel_ids", "") or "")
+    if panel_ids:
+        selected = selected.loc[selected["stage0_panel_id"].astype(str).isin(panel_ids)].copy()
+        LOGGER.info("Restricted Stage 2 specs to panel_ids=%s (%d rows)", panel_ids, len(selected))
+
     if args.max_selected_representations:
         selected = selected.head(int(args.max_selected_representations)).copy()
 
@@ -1798,6 +1803,8 @@ def worker_command_from_args(args: argparse.Namespace, shard_index: int, shard_c
     ]
     if args.stage0_scorecard:
         cmd.extend(["--stage0-scorecard", str(args.stage0_scorecard)])
+    if getattr(args, "panel_ids", ""):
+        cmd.extend(["--panel-ids", args.panel_ids])
     if args.canonicalize_existing_quick_stage2:
         cmd.append("--canonicalize-existing-quick-stage2")
     if args.make_shortlist_from_quick_l2:
@@ -1895,6 +1902,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-discovery-full-cohort-fit", action="store_true")
     parser.add_argument("--run-sharedness-lopo", action="store_true")
     parser.add_argument("--run-patient-specific", action="store_true")
+    parser.add_argument(
+        "--panel-ids",
+        default="",
+        help="Optional comma/space-separated stage0_panel_id filter applied after --panel-selection.",
+    )
     parser.add_argument(
         "--panel-selection",
         choices=["shortlist_plus_controls", "shortlist", "all_quick_rows", "all_biological_quick_rows"],
