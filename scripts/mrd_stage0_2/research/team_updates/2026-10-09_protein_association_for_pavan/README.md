@@ -1,0 +1,29 @@
+# Protein association update for Pavan (2026-10-09)
+
+Reply material for Pavan's question "have you been able to integrate the protein data?": an updated version of the questions report's PC8 cell-type figure and top-ADT table (`protein_association_pc8.{png,pdf}`, caption in `caption.txt`), the compact tables behind it (`protein_association_table.csv` for PC8 and FA7, `protein_association_celltype.csv` for panel B) and a reply draft (`email_draft.md`; the bracketed sentence is optional). Protein is not integrated into Stage 1; this is a post-hoc, descriptive comparison.
+
+Two definitions the reply relies on (numbers in the devlog entry below):
+- CLR ADT: not a stored column. The D27 runner reads the raw CITE-seq counts from the cohort cache `obsm['ADT']` (161 markers + 9 isotypes; AGENTS R8) and applies a per-cell centered log-ratio at analysis time.
+- Isotype max |rho| (the "isotype floor"): for one factor, one label and one level (pooled, within patient, within patient x cell type), the largest |Spearman rho| between the factor score and any of the 9 isotype-control antibodies, i.e. the correlation that non-specific background alone reaches.
+
+Regenerate (lab env, from the repo root): `CONDA_PREFIX=$HOME/miniconda3/envs/sc-classification-rapids-py311 $HOME/miniconda3/envs/sc-classification-rapids-py311/bin/python scripts/mrd_stage0_2/research/team_updates/2026-10-09_protein_association_for_pavan/make_figure.py` (reads EXP only; imports the palette from `reports/2026-10-08_questions_report/report_style.py`).
+
+Sources (EXP-relative, read only): `analysis/scorecards/stage2_diagnostic/factor_modality_assoc_v1/` (`d27_ifna_pc8_fa7_adt.csv`, `d27_card_summary.csv`, `d27_strata.csv`, `d27_celltype_means.csv`, `d27_celltype_means_by_patient.csv.gz`; method notes in `factor_modality_assoc_v1_findings.md`). Devlog: 2026-10-09_d27-factor-modality-assoc (D27; pending integration into the repo, until then read the findings file above), 2026-10-08_d18-factor-cards (orientation), 2026-10-09_protein-association-for-pavan (this update; numbers live there).
+
+## v2 (2026-10-10): four single-idea figures
+
+The user found v1 panel A hard to read because it mixed pooled and within-patient estimates, and asked what "19 of 20" means. v2 replaces the single dense figure with four simple ones, one idea each. The v1 files above are kept unchanged.
+
+| File stem (`.png` 200 dpi, `.pdf`, `.csv` = numbers behind it) | One idea |
+|---|---|
+| `fig1_proteins_by_patient_v2` | Which proteins track PC8, patient by patient: a heatmap of within-patient rho for healthy and malignant cells, with the median, the same-sign count and a per-patient isotype row (largest absolute isotype rho in that patient; its median column is the row's own median). A dagger marks the proteins named in the questions report's PC8 protein list. It shows no pooled estimate, and a line under the healthy block says the correlations are mostly a cell-type effect (Figure 2). Answers "what other surface proteins track with healthy?" |
+| `fig2_cd34_between_within_v2` (+ `fig2a`, `fig2b`, `fig2c` CSVs and `fig2_cd34_raw_quantiles_v2.csv`) | Why CD34 tracks PC8 even though every cell passed a CD34+ sort: cell types differ in both CD34 and PC8 (A), inside a type the correlation is near zero (B), and the other healthy-cell proteins shrink the same way (C). |
+| `fig3_malignant_vs_healthy_same_type_v2` | What v1's "19 of 20" means: one example comparison drawn cell by cell (A), then every patient x cell type comparison with at least 10 cells of each label, shown as malignant minus healthy mean PC8 with a bootstrap 95% CI (B). v2 counts all 21 such pairs (19 of 21); v1's 20 left out pDC2 · P06 only because its panel showed types with at least 20 malignant cells pooled. The CSV also holds a sample/batch sensitivity (only P09 mixes samples). |
+| `fig4_isotype_noise_floor_v2` | How the noise floor is set: all 161 protein antibodies against the 9 isotype controls, with the malignant floor drawn again without the one isotype (RTK2071) that sets it. |
+
+- Colours: blue/red mean the sign of rho (Figure 1 only); Figure 2 uses gray (types mixed) and aqua (within one cell type); orange marks isotype controls (Figure 4).
+- Captions: `caption_v2.md`, with 4 or 5 sentences per figure. Reply draft: `email_draft_v2.md` (at most 220 words; attach Figures 1 and 3, with 2 and 4 optional).
+- Isotype controls: the cohort cache's ADT feature names mark them. The 9 isotype controls are named `Isotype-<clone>` (MOPC.173, G0114F7, MOPC.21, MPC.11, RTK4174, RTK4530, HTK888, RTK2071, RTK2758) and the 161 targeted antibodies are named `ADT-<target>`. D27 flags a feature as an isotype when its name starts with "isotype". An isotype control is a negative-control antibody with no target on human cells, so a correlation it reaches measures non-specific background. Using the largest one as a yardstick (the "floor") was a D27 design choice. It is not a significance test.
+- CD34 sort: obs `marker` is `CD34pos` for every cell in the cohort cache.
+- Regenerate (lab env, from the repo root, about 10 s): `CONDA_PREFIX=$HOME/miniconda3/envs/sc-classification-rapids-py311 $HOME/miniconda3/envs/sc-classification-rapids-py311/bin/python scripts/mrd_stage0_2/research/team_updates/2026-10-09_protein_association_for_pavan/make_figures_v2.py`. The script reads the D27 tables above, the stored IFN-alpha PCA K=40 scores (`stage1_dr/panel_id=single_geneset__hallmark_interferon_alpha_response/method=pca/k=40/seed=42/scores.npy`) and the cohort cache (obs and `obsm['ADT']`; never the raw AnnData, per R8). Before plotting, it asserts that its per-cell recompute matches D27 (per-patient cell-type means, per-patient CD34 rho, and the CD34 within-cell-type median over the 71 groups). It fails if any text falls outside the 7 in wide canvas.
+- The numbers live in devlog 2026-10-10_protein-association-for-pavan-v2.

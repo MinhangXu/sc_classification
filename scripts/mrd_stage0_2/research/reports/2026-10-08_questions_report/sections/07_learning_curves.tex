@@ -1,0 +1,139 @@
+\section{Learning curves: does more data raise AUPRC?}
+\label{sec:learning-curves}
+
+\begin{quote}
+``Plot AUPRC vs number of cells (learning curve / marginal benefit curve); useful for grant applications to justify sequencing more patients; randomly subsample to estimate the curve.''
+\end{quote}
+
+{\small\color{inkmuted}\emph{Reading guide (v2).} Why $C$ is retuned when the number of training cells or patients changes: the first paragraph of ``What we did'', drawn in Figure~\ref{fig:07a}b and in the gray lines of Figure~\ref{fig:07b}. The L1 entry rule worked through for one fold (P02 held out, PCA40 vs FA40): ``One fold worked through'', right after it.\par}
+
+\begin{answerbox}
+Yes, we can draw it, and we now have two versions, but neither yet justifies sequencing more patients. Adding \emph{cells} from the same 12 training patients (C fixed) raises median apoptosis lift from 7.65\pp{} at 500 training cells to 11.52\pp{} on the full fold. Adding \emph{patients} (C retuned for every training set, because a fixed C is a stronger penalty with fewer training cells; all 1,764 subset units) shows lift is already positive with one supported training patient (median 4.45--8.79\pp{}; the six low-malignancy patients are always in training), and going from two to six supported training patients adds a median 0.30--2.34\pp{} per held-out patient, with a 95\% CI that includes 0 for three of four representations. Descriptive only: one frozen transductive basis, seven supported patients, no extrapolation to new patients.
+\end{answerbox}
+
+\subsection*{What we did}
+
+\textbf{First: why $C$ is retuned whenever the training cells or patients change.} In scikit-learn the data term of the logistic loss is a sum over training cells and the penalty is not, so the same $C$ is a stronger penalty when there are fewer cells. Under class-balanced L1 a standardized factor enters the probe only if its training class-mean gap exceeds about $4/(C\,n_{\text{train}})$\,SD (the L1 entry rule; the IFN-$\alpha$ PCA40 vs FA40 section derives it). A curve drawn at one fixed $C$ therefore partly measures the penalty, not the data.
+
+\emph{The IFN-$\alpha$ example} (Figure~\ref{fig:07a}b): at the atlas $C = 10^{-4}$ the bar is 8\,SD with 5,000 training cells and 1.6\,SD with 25,000, and it falls below PC8's class gap (0.704--0.770\,SD) only near 52,000--57,000 cells. So the fixed-$C$ cell-depth curve of IFN-$\alpha$ PCA40 is exactly 0 at every subsample up to 25,000 cells (an all-zero probe scores AP $= \pi$ by construction) and jumps to 11.08\pp{} on the full fold: flat because of the penalty, not because the signal is missing. The same holds across patients. On the same training subsets, PCA40 at the fixed atlas $C$ climbs from 0 at one supported training patient to 11.08\pp{} at six, with all-zero probes in 100\% and then 29\% of the units; with $C$ retuned it is already 4.63\pp{} at one patient and ends at 8.71\pp{} (at six patients the atlas $C$, picked by pooled AP on these same held-out folds, scores higher). Most of the fixed-$C$ ``learning'' was the bar falling as $n$ grew.
+
+\emph{One fold worked through} (the same arithmetic gives the PCA40 vs FA40 gap of section \emph{IFN-$\alpha$: why does FA40 reach only P03 and P04?}). With P02 held out, Stage~2 trains on $n_{\text{train}} = 58{,}656$ cells, so at $C = 10^{-4}$ the bar is $4/(10^{-4} \times 58{,}656) = 0.682$\,SD. PC8's class-mean gap is 0.740\,SD, an entry margin of $0.740/0.682 = 1.085$: it enters, and the PCA40 probe scores 15.94\pp{} in P02. FA7's gap is 0.659\,SD, a margin of 0.967: no FA40 factor enters, so FA40 scores 0 by construction, although FA7 used alone gives 18.06\pp{} there. Because the bar depends on $C \times n_{\text{train}}$, FA7 would enter with a $C$ about 3.5\% higher, or at the same $C$ with about 3.5\% more training cells: whether a factor is used depends on the penalty and on $n$, not on the factor alone.
+
+\emph{Hence the rule we follow:} whenever the training set changes (subsets, subsampling, re-weighting, downsampling, new patients), $C$ is retuned for each training set by inner leave-one-patient-out over its training patients, and L2 is reported alongside. The patient-count curve below does this; the cell-depth curve, drawn earlier, keeps the atlas $C$ and is read with that caveat.
+
+Two curves, two questions, both on the same four representations of three gene programs: IFN-$\alpha$ PCA40 and FA40 (atlas penalty L1, $C = 10^{-4}$), apoptosis FactoSig-promax40 (L2) and allograft-rejection FactoSig-promax40 (elastic net).
+\begin{itemize}
+\item \textbf{Cell depth.} Keep all 12 other patients in training, randomly subsample their cells (500 to 25,000, 3 draws, plus the full fold), and keep penalty and C at the atlas choice. Is the probe data-starved at a fixed patient mix?
+\item \textbf{Patient count.} For each held-out supported patient, train on every subset of $k$ of the other six supported patients ($k = 1,\dots,6$; 63 subsets; the six unsupported patients always in), retuning penalty (L1 or L2) and C for every training set. $k = 6$ is the ordinary LOPO fold. This is the grant question: what does one more patient buy?
+\end{itemize}
+
+\begin{explainbox}{Four terms used in this section}
+\emph{Lift} = the held-out patient's AUPRC (average precision, AP) minus its malignant prevalence $\pi$, in percentage points (pp). A constant score has AP $= \pi$ exactly (no skill), so lift 0 means no ranking skill.
+
+\emph{Fixed-C entry threshold.} The bar $4/(C \cdot n_{\text{train}})$\,SD of the first paragraph. A probe with no factor over the bar is all-zero and scores lift 0 \emph{by construction}, not for lack of signal; retuning C per training set by inner leave-one-patient-out removes this (the patient-count curve does; the cell-depth curve does not).
+
+\emph{Transductive basis.} Stage 1 was fit once on all 60,118 cells, held-out patient included; both curves refit only the Stage 2 probe, so they measure label transfer on a basis that has seen everyone. An \emph{inductive} curve would refit the basis on the $k$ training patients.
+
+\emph{Paired gain.} Per held-out patient, lift in its LOPO fold ($k = 6$) minus its mean lift over the 15 two-patient subsets; median over the seven patients, 95\% CI by resampling patients (2,000 draws). It starts at $k = 2$ because at $k = 1$ inner LOPO is impossible and C is tuned by cell-level CV, a different protocol.
+\end{explainbox}
+
+\subsection*{What we found}
+
+\textbf{Cell depth, fixed C (Figure~\ref{fig:07a}).} Apoptosis is at 7.65\pp{} median lift with 500 training cells (about 13 malignant), 9.28\pp{} at 1,000 and 11.52\pp{} on the full fold: nearly saturated by about 1,000 cells. Allograft (elastic net, L1 ratio 0.5) is 0 through 2,000 cells because its probe is all-zero in all 21 units there, the same entry-threshold collapse as IFN-$\alpha$ (its L1 part needs a class gap above $4 \times 0.5/(C\,n)$, about 2.2\,SD at 2,000 cells); it then reaches 1.67, 3.14, 8.81 and 12.56\pp{} at 5k, 10k, 25k and full. Both IFN-$\alpha$ L1 probes are exactly 0 at every subsample up to 25,000 cells; on the full fold PCA40 reaches 11.08\pp{} and FA40 stays at 0. The reason is the penalty: at $C = 10^{-4}$ the entry bar is 8\,SD at 5,000 cells and 1.6\,SD at 25,000, and it falls below PC8's class gap (0.704--0.770\,SD) only at about 52,000--57,000 cells, close to the full-fold size (median 57,791).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig07a_cell_depth.pdf}
+\caption{Cell-depth curve: fixed 12-patient training mix, fixed atlas C. (a) Median held-out lift over the seven supported patients (each patient's mean over 3 draws); malignant training cells in brackets. Look at apoptosis (aqua circles), already positive at 500 cells, against allograft (aqua diamonds), all-zero through 2,000 cells, and both IFN-$\alpha$ L1 curves, pinned at 0 until the full fold. (b) The L1 entry threshold $4/(C\,n)$ at $C = 10^{-4}$; the blue band is PC8's class-mean gap. The IFN-$\alpha$ probe can become non-zero only right of the gray crossing.}
+\label{fig:07a}
+\end{figure}
+
+\textbf{Patient count, C retuned (Figure~\ref{fig:07b}, Table~\ref{tab:07}).} No representation collapses, and lift is positive with a single supported training patient for all four. From $k = 2$ to 6 the median curves rise by 1.58 to 2.83\pp{} (the difference of the two medians; the paired gain we quote, which compares each held-out patient with itself, is 0.30--2.34\pp) and are not monotone (PCA40 peaks at 9.30\pp{} at $k = 4$ and ends at 8.71\pp{}). Each median's 95\% CI is 7.7 to 37.6\pp{} wide, several times that rise. The lower tail (P20 lift, the 20th percentile over patients) stays between 1.18 and 3.29\pp{} at every $k$. Only allograft's paired-gain CI excludes 0.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig07b_patient_count.pdf}
+\caption{Patient-count curve (full design, 1,764 units). Coloured line (colour = representation): median over held-out patients of each patient's mean lift across all subsets of size $k$, C and penalty retuned per training set (open $k = 1$ point: cell-level CV tuning). Band: 95\% patient-bootstrap CI of that median. Gray: the same subsets at the fixed atlas C, which reproduces the cell-depth collapse (FA40 all-zero in every unit at $k = 1$--4 and in 90\% and 71\% at $k = 5$ and 6; PCA40's median climbs from 0 to 11.08\pp{} only because the bar falls as $n$ grows). With C retuned, FA40 has no all-zero unit and PCA40 only 5\% of its $k = 2$ units. Median malignant training cells at each $k$ are in the note of Table~\ref{tab:07}. Look at how flat the coloured lines are relative to the band.}
+\label{fig:07b}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Patient-count curve (full design), tuned arm: median held-out lift (pp) over the seven held-out patients by number of supported training patients $k$; P20 lift range over $k$; paired gain from $k = 2$ to 6 (median, 95\% patient-bootstrap CI, patients with gain $> 0$). Pooled AP is not computed for these curves.}
+\label{tab:07}
+\setlength{\tabcolsep}{3.6pt}
+\begin{tabular}{@{}lrrrrrrcl@{}}
+\toprule
+ & \multicolumn{6}{c}{median lift at $k$ =} & P20 & gain $k$ = 2 $\to$ 6 \\
+\cmidrule(lr){2-7}
+representation & 1 & 2 & 3 & 4 & 5 & 6 & range & median [95\% CI], $n_{>0}$ \\
+\midrule
+IFN-$\alpha$ PCA40 & 4.63 & 5.88 & 7.83 & 9.30 & 8.77 & 8.71 & 1.18--1.61 & 1.67 [$-0.44$, 2.89], 5/7 \\
+IFN-$\alpha$ FA40 & 4.45 & 4.77 & 5.51 & 6.66 & 6.20 & 7.03 & 1.27--1.96 & 0.30 [$-0.53$, 4.18], 4/7 \\
+Apoptosis FactoSig-promax40 & 5.34 & 8.68 & 8.27 & 9.96 & 10.31 & 10.26 & 1.26--2.25 & 1.14 [$-0.53$, 2.38], 5/7 \\
+Allograft FactoSig-promax40 & 8.79 & 7.63 & 8.13 & 8.63 & 9.32 & 10.12 & 2.22--3.29 & 2.34 [0.14, 2.73], 6/7 \\
+\midrule
+\multicolumn{9}{@{}l}{\footnotesize Median malignant training cells at $k = 1,\dots,6$: 254, 497, 740, 982, 1,224, 1,467.} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{The gain is uneven across patients (Figure~\ref{fig:07c}).} Per-patient gains run from $-2.80$\pp{} (P02, FA40) to $+13.32$\pp{} (P03, apoptosis: 28.54 to 41.86\pp{}); P01 and P06 stay within $-0.53$ to $+1.14$\pp{}. At $k = 6$, per-patient lift ranges from 0.06\pp{} (P06, PCA40) to 41.86\pp{} (P03, apoptosis): which patient is held out matters far more than how many are in training. Which patients are \emph{added} matters too (descriptive, since subsets also differ in their other members): at matched $k$, subsets containing P02 have 5.54\pp{} higher allograft lift, and subsets containing P09, a large low-prevalence patient, 2.70\pp{} lower apoptosis lift (medians over held-out patients).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig07c_patient_gain.pdf}
+\caption{Per-patient paired gain (tuned arm): lift in the LOPO fold minus the mean over the 15 two-patient subsets. Each lollipop is one held-out patient; the vertical line and band are the median gain over patients and its 95\% patient-bootstrap CI (numbers above each panel). Look at the bracketed highest-prevalence patients P02--P04: they hold the largest gain in every panel and the only IFN-$\alpha$ losses beyond 1\pp{}, while P01 and P06 barely move.}
+\label{fig:07c}
+\end{figure}
+
+\textbf{No reliable scaling law.} By a rule fixed before looking, an inverse power law $a - b\,k^{-c}$ fitted on $k \le 4$ is reportable only if it converges, has no parameter at a bound, rises by $\geq 0.5$\pp{} and predicts $k = 5$ inside the observed CI. Only apoptosis passes (predicted 9.51\pp{}, observed 10.31 [1.96, 35.80]), and its asymptote, 9.80\pp{}, is below the observed $k = 5$ and 6 medians: a plateau, not growth. With CIs this wide, passing is a weak check.
+
+\textbf{What would make this grant-grade.}
+(1)~\emph{An inductive basis per subset}: refit Stage 1 on each training subset, project the held-out patient and redraw the curve on the same subsets. This is feasible; for IFN-$\alpha$ the $k = 6$ endpoint already has an inductive counterpart (the inductive pilot; read it as paired changes against the same-code transductive refit: PCA40 tuned-L1 median per-patient change $-0.67$\pp, 5 of 7 patients lower; section \emph{Option 2}).
+(2)~\emph{New patients as external points}: score Yu-Hsiang's patients with models trained on this cohort and compare them with the curve.
+(3)~\emph{More patients with enough malignant cells}: with seven supported patients $k$ stops at 6 and every CI rests on seven clusters; a scaling claim needs more held-out patients, not more cells per patient.
+A sentence we can defend in a grant today:
+\begin{quote}
+``In seven post-transplant MRD patients with enough malignant cells, a knowledge-prior factor classifier whose malignant training examples came from a single other patient already ranked malignant cells above their prevalence in held-out patients (median lift 4.5--8.8 percentage points across four representations of three gene programs; label-free factors learned from all patients' cells). Increasing training from two to six such patients changed median lift by 0.3--2.3 points, with confidence intervals that include zero for three of the four. The cohort is too small to estimate how performance scales with more patients; the proposed sequencing would let us measure that curve on held-out patients.''
+\end{quote}
+
+\begin{caveatbox}
+\begin{itemize}
+\item That sequencing more patients raises AUPRC: the curve stops at six training patients and nothing is extrapolated.
+\item An inductive learning curve: the basis saw every patient at every $k$; a per-subset basis could move the level or slope either way.
+\item A patient-count effect from $k = 1$: tuning switches from cell-level CV to inner LOPO between $k = 1$ and 2.
+\item A scaling law: one of four fits passes a weak validation, and it describes a plateau.
+\item Patients separated from malignant cells: adding a patient adds its malignant cells (P03 carries 758, P09 375).
+\item That the cell-depth curve measures data alone: at fixed C the penalty weakens as $n$ grows, for L2 and elastic net as well as L1; the cell-depth curve with C retuned per subsample would separate the two.
+\item Recurrence risk: lift is a cell-level ranking metric.
+\end{itemize}
+Descriptive results on a transductive Stage 1 basis over seven supported patients; they do not establish inductive deployment, causal biology or recurrence risk.
+\end{caveatbox}
+
+\begin{teambox}
+``With C retuned for each training set, the classifier already transfers to a held-out patient after training on one supported patient (the six low-malignancy patients are always in training), and going from two to six supported patients adds only a few pp with CIs that mostly include zero, so we cannot yet claim that more patients help.''
+
+\textbf{Likely question:} ``Why retune C for every training set?''\\
+\textbf{Answer:} scikit-learn's C does not scale with the number of cells, so the same C is a stronger penalty on a smaller training set. At a fixed C the IFN-$\alpha$ curve is 0 up to 25,000 cells because no factor clears the bar, not because the signal is missing.
+
+\textbf{Likely question:} ``So the curve is useless for the grant?''\\
+\textbf{Answer:} No. It shows feasibility (transfer works with very few patients) and that seven patients are too few to measure scaling, which is itself a case for sequencing more. It does not show that more patients raise accuracy; that needs the inductive per-subset curve and new patients as external points.
+\end{teambox}
+
+\subsection*{Next step}
+\begin{itemize}
+\item W6.6: rerun the patient-count curve on an inductive Stage~1 basis refit per training subset and compare it with this curve on the same subsets.
+\item W6.5 (with W8.1): score Yu-Hsiang's new patients as external points against the curve.
+\item W6.2 and W6.3: the cell-depth curve with C retuned per subsample, and a patients $\times$ malignant-cells-per-patient design; then the W6.4 grant note.
+\end{itemize}
+
+\subsection*{How this was computed}
+{\small\raggedright
+\emph{D15.} Stored transductive Stage 1 scores (K = 40, seed 42). Per held-out supported patient, label-stratified subsets of the other 12 patients' cells (3 draws) plus the full fold (42,992 to 58,990 cells); scaler and probe refit at the atlas penalty and C (C policy: global, fixed). Full-fold refits match the D1 atlas within 0.000164 AUPRC. Code \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak stage2\_supervised/\allowbreak cell\_count\_learning\_curve.py}; artifacts \texttt{analysis/\allowbreak scorecards/\allowbreak stage2\_diagnostic/\allowbreak cell\_count\_learning\_curve\_v1/}. \src{D15; devlog 2026-10-02\_d15-cell-count-learning-curve}
+
+\emph{D15b, full design.} Same scores; 4 representations $\times$ 7 held-out patients $\times$ 63 subsets = 1,764 units. C policy: per training set, penalty in \{L1, L2\} and C tuned by inner LOPO through the D19 regularization contract (1,008 tuning runs; cell-level stratified 5-fold CV at $k = 1$); fixed-atlas and $n$-scaled C as reference arms. Per $(h, k)$ mean lift over subsets, then median and P20 over held-out patients; patient-cluster bootstrap, 2,000 draws. At $k = 6$, 84 of 84 reference checks reproduce D1, D15 and D19 (max $|\Delta\,\mathrm{AUPRC}| = 1.64 \times 10^{-4}$). CPU, screen \texttt{W6\_d15b}, 12 workers, 565.6\,s wall. Code \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak workstreams/\allowbreak W6\_learning\_curves/\allowbreak run\_d15b\_patient\_count\_curve.py}; artifacts \texttt{analysis/\allowbreak scorecards/\allowbreak stage2\_diagnostic/\allowbreak patient\_count\_learning\_curve\_v1/} (\texttt{d15b\_full\_*}); figure code \texttt{figs\_07\_curves.py} in this report. \src{D15b; devlog 2026-10-08\_d15b-full-design}
+
+\emph{Worked fold (D19).} The P02 row of \texttt{analysis/\allowbreak scorecards/\allowbreak stage2\_diagnostic/\allowbreak regularization\_contract\_v1/\allowbreak d19\_anchor\_ifna\_l1\_entry\_check.csv} (training cells, entry bar, PC8 and FA7 class-mean gaps on training-fold standardized scores, margins, critical $C$ multiplier 1.035) and \texttt{d19\_ifna\_pca40\_vs\_fa40\_by\_patient.csv} (stored PCA40 L1 lift; FA40 L1 at $1.05\times C$, where FA7 is the only factor). \src{D19; devlog 2026-10-08\_d19-regularization-contract}\par
+}

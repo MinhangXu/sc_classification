@@ -1,0 +1,51 @@
+% Core pages: what PC8 is (D18), then the surface-protein page (D27). Numbers: full report section 5, and,
+% for MX's 2026-10-10 protein questions (A-20261010-01, -03..-06), devlog 2026-10-10_protein-association-for-pavan-v2.
+% Both figures are placed at their drawn width (6.5 in, figs_05_pc8.py), so their text prints at its drawn size.
+\coreq{What is PC8?}{core:pc8}{PC8's opposite-sign gene groups: what is it? (team report)}
+
+\begin{coreanswer}
+\textbf{One axis that contrasts two groups of IFN-$\alpha$ genes; name it by its poles.} Oriented by its coefficient in the L1 probe ($C=10^{-4}$), malignant cells score toward TXNIP, IFITM2, TENT5A (the team's ``negative'' group) and normal cells toward IFI27, PSME2, PSMA3. It carries held-out lift in five of seven patients, but it is not identifiable as ``factor 8'': a refit of Stage~1 can spread the same direction over several factors.
+\end{coreanswer}
+
+\evidence
+\begin{itemize}[leftmargin=1.3em]
+\item \emph{Lift}: PC8 alone gives 5.47--16.27\pp{} of held-out lift in P02, P03, P04, P07 and P09 (FA7 alone 4.81--19.87\pp), and under 1\pp{} in P01 and P06.
+\item \emph{Poles} (figure): the malignant pole runs from TXNIP to ELF1, the normal pole from IFI27 to USP18. Interferon-stimulated genes sit on both poles, so the axis contrasts two parts of the response rather than measuring ``more interferon''; the team's two gene lists are its two ends.
+\item \emph{FA7 is related, not identical}: its loadings resemble PC8's (similarity 0.69 on a 0--1 scale, below the 0.85 at which two factors are usually called fairly similar), and it has the same sign as PC8 on 19 of the 20 pole genes in the figure.
+\item \emph{Not identifiable} (a refit can return a different single direction): PC8's variance is within 5.5\% of PC7's; without P01 in Stage~1, PC8's best single match falls to $|r|$ 0.58 while 98.8\% of it stays in the refit basis; FA7 is only loosely pinned down by the data (determinacy 0.649, below the usual 0.707 line).
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=6.5in]{figures/fig05a_pc8_poles.pdf}
+\caption{PC8's poles, oriented toward malignant: the top 10 genes per pole (bars = PC8 weight; dots = FA7 loading; bold = named in the team report).}
+\end{figure}
+
+\doesnot{the pole genes as differential expression (they are loadings on one axis); ``factor 8'' as a stable object across refits; malignancy apart from recipient origin or batch.}
+
+\fullref{section 5, \emph{What is PC8} (identifiability box and figure; the 1,810 factor cards). \src{D18; 2026-10-08\_d18-factor-cards}}
+
+\coreq{Have we integrated the protein data? Does it track PC8?}{core:protein}{Pavan: ``have you been able to integrate the protein data?''; MX: how are isotypes known, and why do they define noise? Is the CD34 correlate the CD34 sort? What other surface protein tracks with healthy? What does ``19 out of 20'' mean? (A-20261010-01, -03..-06)}
+
+\begin{coreanswer}
+\textbf{Not into the factors: Stage~1 is fit on RNA only. We use the 170 surface proteins to read the factors.} PC8's protein correlates are mostly cell identity: CD34 tracks PC8 across cell types, not within them. Inside one patient and one cell type, malignant cells still score higher on PC8 than healthy cells in 19 of 21 comparisons.
+\end{coreanswer}
+
+\evidence
+\begin{itemize}[leftmargin=1.3em]
+\item \emph{CD34} (normal cells, Spearman $\rho$ with oriented PC8): median $+0.245$ within patients (7/7 same sign) but $+0.019$ inside predicted cell types (panel a). Every cell passed a CD34+ sort, yet CD34 still varies with differentiation stage (brightest in HSC/MPP), so the correlate says which cell type a cell is.
+\item \emph{Other healthy-cell proteins} shrink the same way inside cell types: CD131 $+0.190$, CD112 $+0.154$, CD81 $-0.201$, CD22 $-0.246$ within patients (6--7 of 7).
+\item \emph{Malignant cells} (rule for a \emph{robust} correlate: median within-patient $|\rho| \geq 0.20$ and $\geq$5 of 7 patients with the same sign): CD99 (pooled $+0.222$) is $+0.159$ within patients and fails it (panel b); CD48 (pooled $-0.192$) is the robust one, $-0.308$ within patients, 6 of 7 (panel c), because P03, with half the malignant cells, sits near 0 and dilutes the pooled value.
+\item \emph{``19 of 21''}: for each supported patient $\times$ predicted cell type with at least 10 cells of each label, the malignant-minus-healthy mean PC8. Malignant is higher in 19 of the 21 pairs (the first Pavan figure counted 19 of 20 pairs, over fewer cell types). PC8's sign was set by the malignant-vs-healthy probe, so only the persistence inside one patient and cell type is new.
+\item \emph{Isotypes}: 9 of the 170 protein columns are named \texttt{Isotype-<clone>} in the data: control antibodies that bind nothing specific. Their correlation with a factor shows how large a $\rho$ arises from background staining alone, so we use it as a noise floor (gray band); a design choice, not a test.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=6.5in]{figures/fig05e_rho_anchors.pdf}
+\caption{One pooled $\rho$ taken apart: per patient (dots; cell counts in parentheses), the median of the seven, pooled over all cells, and inside predicted cell types; gray band = isotype range; dotted lines = the robust rule's $|\rho| = 0.20$.}
+\end{figure}
+
+\doesnot{any protein as a malignancy marker; dsb-normalized protein (CLR only); a factor fit that uses the protein (not attempted); malignancy apart from recipient origin or batch.}
+
+\fullref{section 5, \emph{What is PC8} (D27 box ``How to read $\rho$'', every factor card); Pavan's v2 figures and captions: \texttt{research/\allowbreak team\_updates/\allowbreak 2026-10-09\_protein\_association\_for\_pavan/}. \src{D27; 2026-10-09\_d27-factor-modality-assoc; 2026-10-10\_protein-association-for-pavan-v2}}

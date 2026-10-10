@@ -1,0 +1,147 @@
+\section{Should we aggregate patients on one Stage 1 basis?}
+\label{sec:03_aggregate}
+
+\begin{quote}
+``Data driven statistical test for whether to aggregate patients: 1. Learn factors on all patients, project each patient's cells onto those factors. 2. Check the per-patient factor distributions. 3. If distributions overlap significantly: patients share variation; if distinct: treat as separate subtypes.''
+\end{quote}
+
+\begin{answerbox}
+Yes, on the current Stage~1 bases. \emph{Aggregate} has a fixed, quantitative meaning here: pooling is supported when, averaged over factors with variance weights, the median pair of patients shares at least 75\% of its normal-cell factor-score histogram and at least 45\% of its malignant-cell histogram, no patient's normal cells share less than 60\% with all the other patients' normal cells, and the malignant overlap sits less than 0.15 below that of label-shuffled patients. Of 47 representations (41 biological panels, 6 broad gene-bag controls), 45 meet all four gates, 2 are location shifts and none is a subtype candidate. On biological panels the median pair shares 0.777--0.890 of its normal-cell histogram (median 0.843) and 0.538--0.657 of its malignant-cell histogram (median 0.610). The only patient-private axis is P03's; it appears in three broad gene bags and in none of the 41 biological representations tested (one per panel). The test asks whether patients' cells \emph{land in the same score range}, not how much each patient \emph{contributes} to a factor. Confidence: descriptive, transductive basis, seven supported patients, uncalibrated gates.
+\end{answerbox}
+
+\subsection*{What we did}
+
+\textbf{What the test asks, and what it does not.} Hold the Stage~1 factors fixed. For each patient, look at where that patient's cells fall on each factor, and ask whether that score distribution overlaps the other patients' distributions. If it does for every patient, one basis describes everybody and pooling the patients is reasonable. If one patient's cells sit in a range nobody else occupies, that patient behaves like a separate subtype on this basis. The test does \emph{not} measure how much each patient contributes to a factor: a patient can overlap the others completely whether or not its cells steered the loadings. Contribution is the subject of the section on whether the highest-prevalence patients shape the factors (score-energy shares and leave-out refits).
+
+We ran the three steps as written, without refitting anything. Step~1 is how the pipeline already works. Every Stage~1 basis is \emph{transductive}: it was fit on all 60,118 cells of all 13 patients, including any patient later held out in LOPO. We took the stored scores of the 47 representations shown in the interactive atlas: one per Stage~0 panel, each at the method and $K$ with the highest patient-median lift.
+
+\textbf{The method on one factor} (Figure~\ref{fig:03w1_one_factor}). Normal and malignant cells are never mixed. Each label is its own \emph{stratum}, with its own patients, bin grid, pairs and null: normal cells come from the 13 patients with $\geq 200$ normal cells (58,549 cells, 78 patient pairs) and malignant cells from the 7 supported patients, each with $\geq 20$ malignant cells (1,557 cells, 21 pairs). The split matters because P03's cells are 32.6\% malignant and P09's 2.2\%. On pooled cells, any factor that tracks malignancy would make P03 look different through prevalence alone. Within a stratum, for each factor:
+\begin{enumerate}[leftmargin=1.6em]
+\item bin all of the stratum's scores into 32 equal-width bins between the 1st and 99th percentile (the end bins take the tails), and turn each patient's counts into proportions (panels a and b);
+\item for every pair of patients, take the area their two histograms share, the overlap coefficient OVL (panel c), and summarise the factor by the median OVL over all pairs (panel e);
+\item for every patient, take the OVL between that patient's histogram and the pooled histogram of all the other patients' cells, the \emph{patient-vs-rest} overlap (panel d). A single patient that sits apart shows up here even when the median pair looks fine.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig03w1_one_factor.pdf}
+\caption{\textbf{Worked example: how the test reads one factor} (IFN-$\alpha$ PCA $K = 40$, PC8, the axis the Stage~2 probe uses). \emph{(a, b)} Each row is one patient's PC8 histogram, as the share of that patient's cells in each of the 32 bins (cells in brackets; bold = highest-prevalence). Normal cells (a) and malignant cells (b) are binned separately, each on the 1st--99th percentile of its own stratum, so the two x-ranges differ. The number on the right is that patient's patient-vs-rest overlap on PC8 alone. Small patients give spiky histograms (one cell is 4.5\% of P07's 22). \emph{(c)} One pair drawn on the same bins: the shaded area is $\sum_b \min(p_b, q_b)$, their OVL. P02 and P06 are the median of the 21 malignant pairs, so 0.634 is PC8's median-pair overlap. \emph{(d)} P03 against the pooled histogram of the other six patients' 799 malignant cells: 0.857. \emph{(e)} All 21 malignant pairs; the boxed cell is the median. The same steps on normal cells give 78 pairs with median 0.909.}
+\label{fig:03w1_one_factor}
+\end{figure}
+
+\textbf{From factors to one call} (Figure~\ref{fig:03w2_factors_to_call}). A representation has $K$ factors, so each stratum gives $K$ median-pair overlaps. They are averaged with weights equal to each factor's share of score variance among the stratum's cells: this is the \emph{weighted overlap}. Each patient's per-factor patient-vs-rest overlaps are averaged with the same weights, which gives one number per patient. On IFN-$\alpha$ PCA $K = 40$, PC8 carries 0.026 of the normal-cell weight and 0.022 of the malignant-cell weight, and no factor carries more than 0.100, so the summary describes the whole basis rather than the factor Stage~2 uses.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig03w2_factors_to_call.pdf}
+\caption{\textbf{From 40 factors to one call, for the worked example.} Top row normal cells, bottom row malignant cells; the x-axis is the same overlap scale everywhere. \emph{(a)} Each blue dot is one factor at its median-pair overlap (Figure~\ref{fig:03w1_one_factor}e computed for every factor), with area proportional to its share of score variance; the ringed dot is PC8. The solid black line is their variance-weighted mean, the \emph{weighted overlap} (normal 0.890, malignant 0.637). The dotted gray line is the same quantity after shuffling patient labels (mean of 25 shuffles); the \emph{gap} is the distance between the two. The dashed line is the aggregate gate. \emph{(b)} Each dot is one patient: its patient-vs-rest overlap per factor, averaged with the same weights. Only normal cells have a per-patient gate. The line under the panels shows the four checks this representation passes.}
+\label{fig:03w2_factors_to_call}
+\end{figure}
+
+\begin{explainbox}{The quantities, exactly}
+\emph{Overlap} of two histograms $p$ and $q$ on the same bins: $\mathrm{OVL}(p,q)=\sum_b \min(p_b,q_b)=1-\mathrm{TV}(p,q)$. It is 1 for identical histograms and 0 when no bin is shared. If A puts 50\% of its cells in each of two bins and B puts 20\% and 80\%, then $\mathrm{OVL}=\min(0.5,0.2)+\min(0.5,0.8)=0.7$. Two normal distributions one SD apart overlap by about 0.62.
+\emph{Weighted overlap} of a representation in one stratum: $\sum_j w_j m_j$, where $m_j$ is the median OVL over all patient pairs on factor $j$, and $w_j$ is factor $j$'s score variance over the stratum's cells divided by the sum over all factors.
+\emph{Patient-vs-rest overlap} of patient $i$: $\sum_j w_j\,\mathrm{OVL}(p_{ij}, r_{ij})$, where $r_{ij}$ is the histogram of all other patients' cells pooled.
+\emph{Gap}: the mean weighted overlap over 25 label shuffles minus the observed weighted overlap.
+\emph{$\eta^2$} of a factor: the share of its score variance explained by patient identity, i.e.\ the $R^2$ of a one-way ANOVA on patient.
+\end{explainbox}
+
+\textbf{Why not a KS test on cells.} A two-sample KS test asks whether two distributions are exactly equal. With 58,549 normal cells it rejects any shift, however small, and it treats the cells of one patient as independent. Aggregation does not need equality. It needs patients to occupy the same range, possibly shifted, rather than separate ranges. So we measure overlap and compare it with a null.
+
+\textbf{The permutation null, and why its p-value cannot decide.} Within a stratum, we shuffle patient labels across cells, keeping each patient's cell count and the bins fixed, and recompute the weighted overlap (25 shuffles). This is the overlap that interchangeable patients of these sizes would show (the dotted line in Figure~\ref{fig:03w2_factors_to_call}). Its median over biological panels is 0.942 for normal cells and 0.659 for malignant cells; the malignant value is far below 1 because patients with 22--45 cells give noisy histograms. The p-value is $p=(1+\#\{\text{shuffles}\leq\text{observed}\})/26$. The observed overlap fell below all 25 shuffles in all 47 normal strata and in 43 of 47 malignant strata, giving $p=1/26=0.038$, the floor of this design. That only says patients are not interchangeable, which is expected given their different cell-type mix, genotype and batch. It cannot rank panels or decide aggregation.
+
+\textbf{The three calls.} The call therefore rests on magnitude gates, set by judgment before the run and not yet calibrated (Figure~\ref{fig:03w3_call_types}). The subtype gates are checked first:
+\begin{itemize}
+\item \emph{Separate-subtype candidate} if either holds: some patient's normal patient-vs-rest $< 0.40$; or malignant weighted overlap $< 0.35$ together with a malignant gap $\geq 0.15$.
+\item \emph{Aggregate} if all four hold: normal weighted overlap $\geq 0.75$; every patient's normal patient-vs-rest $\geq 0.60$; malignant weighted overlap $\geq 0.45$; malignant gap $< 0.15$.
+\item \emph{Location shift} otherwise: the supports overlap, but one patient or the malignant cloud is displaced enough to miss an aggregate gate.
+\end{itemize}
+The malignant stratum has no per-patient gate; its patient-vs-rest values track cell count (Figure~\ref{fig:03b_patient_vs_rest}). A weighted average can hide one patient-private factor, so any factor with malignant $\eta^2 \geq 0.75$ and variance share $\geq 0.15$ is also flagged.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig03w3_call_types.pdf}
+\caption{\textbf{The three calls, drawn as schematic shapes (not data).} In each panel three blue curves stand for the other patients and the black curve for one patient. The overlap printed above each panel is computed on these synthetic curves, to show which side of the 0.60 and 0.40 per-patient gates each picture falls on. The rules under each panel are the exact gates from the decision file; the last line counts the 47 screened representations.}
+\label{fig:03w3_call_types}
+\end{figure}
+
+\subsection*{What we found}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig03a_decision_map.pdf}
+\caption{\textbf{The aggregation call for every representation.} Each coloured point is one Stage~0 panel at its atlas-selected Stage~1 method and $K$ (colour = method; open squares = the six broad gene-bag controls), placed at its two weighted overlaps: normal cells on $x$, malignant cells on $y$ (the two black lines of Figure~\ref{fig:03w2_factors_to_call}a). Gray dots: the same representations' label-shuffle nulls, where interchangeable patients of these sizes would sit. Blue region: both weighted-overlap gates pass. Two gates are not drawn: the per-patient normal gate (Figure~\ref{fig:03b_patient_vs_rest}) and the malignant gap (how far a point's height sits below the height of its own gray dot; it must stay under 0.15). Read the distance to the red subtype band, which is large everywhere; the distance to the gray cluster only says that patients are not interchangeable.}
+\label{fig:03a_decision_map}
+\end{figure}
+
+\textbf{Pooling passes almost everywhere} (Figure~\ref{fig:03a_decision_map}). The calls are 45 aggregate, 2 location shifts and 0 subtype candidates; 40 of the 41 biological panels are aggregate. Every point sits below its own null: on biological panels the gap is 0.053--0.163 for normal cells (median 0.098) and 0.008--0.111 for malignant cells (median 0.060). Patients are distinguishable but share most of their score support, and neither location shift is disjoint. Allograft rejection (FactoSig-promax $K = 40$) has high weighted overlaps (0.850 normal, 0.619 malignant), but P02's normal cells overlap the rest at 0.575, under the 0.60 gate. The HVG 10k bag has a malignant gap of 0.182.
+
+\textbf{No patient sits apart, including the highest-prevalence ones} (Figure~\ref{fig:03b_patient_vs_rest}). In normal cells, patients' medians over the 41 biological panels run from 0.820 (P02) to 0.920 (P09); of 533 patient $\times$ panel values, one is below 0.60 (allograft rejection, P02, 0.575) and none below 0.40. In malignant cells, P02, P03 and P04 overlap the rest at medians of 0.788, 0.806 and 0.747. The seven malignant medians rank exactly in the order of malignant cell counts, from P07 (22 cells, 0.531; lowest in 38 of 41 panels) to P03 (758 cells, 0.806). Small-sample noise predicts this ordering, so the low overlaps of P07, P06 and P01 cannot be read as distinct biology, or as its absence, until a support-matched subsampling is done (D20).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig03b_patient_vs_rest.pdf}
+\caption{\textbf{Each patient against all the others, over the 41 biological panels.} Each gray dot is one patient's patient-vs-rest overlap on one panel's selected representation, averaged over that representation's factors with variance weights: the per-patient dots of Figure~\ref{fig:03w2_factors_to_call}b, now for all 41 panels (41 dots per patient). Black bar: the patient's median over the 41. Patients are ordered by their cell count in the stratum. Normal cells: aggregation needs every patient $\geq 0.60$ on a panel; one value of 533 falls under it and none under the 0.40 subtype gate. Malignant cells: no gate applies, and the medians rise with cell count.}
+\label{fig:03b_patient_vs_rest}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig03c_factor_spectrum.pdf}
+\caption{\textbf{Shared, shifted and private single factors (malignant cells).} The layout of Figure~\ref{fig:03w1_one_factor}b: each row is one patient's histogram on that factor's 32 bins (cells in brackets; bold = highest-prevalence), and the number on the right is that patient's overlap with all other patients pooled, on this factor alone. \emph{Left:} IFN-$\alpha$ PC8 is shared; P07's 0.483 rests on 22 cells. \emph{Middle:} the biological factor closest to the flag, on which P03 is shifted but still overlaps. \emph{Right:} a broad-bag factor on which P03 sits apart; the other patients' vs-rest overlaps are low too because P03's 758 cells, far to the right, make up 49--64\% of each one's rest pool, and only P03's own histogram is disjoint. Scores keep their raw, arbitrary sign.}
+\label{fig:03c_factor_spectrum}
+\end{figure}
+
+\textbf{Only broad gene bags hide a patient-private factor} (Figure~\ref{fig:03c_factor_spectrum}). Of the 1,500 factors in the malignant stratum, 3 pass the single-factor flag. All three isolate P03 and come from broad gene bags; none of the 1,260 biological-panel factors meets the flag.
+
+\begin{center}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrr}
+\toprule
+Representation (malignant cells) & P03-vs-rest overlap & Variance share & $\eta^2$ \\
+\midrule
+HVG 10k bag, FactoSig $K = 40$, factor 21 & 0.007 & 0.373 & 0.913 \\
+HVG 3k bag, FA $K = 40$, factor 27 & 0.013 & 0.196 & 0.907 \\
+All gene sets (full\_34), FactoSig $K = 40$, factor 30 & 0.009 & 0.299 & 0.898 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The closest biological factor is p53 pathway FactoSig $K = 40$ factor~9 ($\eta^2$ 0.569, variance share 0.104), on which P03 is shifted but still shares 0.263 of its histogram with the rest. The HVG 3k and full\_34 bags pass the aggregate gates despite their P03-private factors, which is why the per-factor flag must accompany the weighted average.
+
+\textbf{What this means for downsampling healthy cells.} Pooling patients and thinning their healthy cells rest on the same property: each patient's normal cells occupy the score range that the other patients' normal cells occupy (532 of the 533 normal patient $\times$ panel values above are at least 0.60). Within single cell types the patients sit closer still: on IFN-$\alpha$ PCA $K = 40$, across eight predicted cell types (8--12 patients each), the gap to the shuffled null is 0.024--0.047, against 0.053 over all normal cells, and no patient's within-type patient-vs-rest overlap falls below 0.725. That is what makes downsampling healthy cells within cell types plausible: thinning P09's 16,751 normal cells (29\% of the normal stratum) type by type should not empty a region of healthy score space that only P09 covers. It does not show that downsampling helps, or why. The overlap was measured on bases fit with all cells, while downsampling changes the fit itself, the Stage~2 class ratio and the training $n$ (so $C$ must be retuned per condition). The earlier donor downsampling, stratified by patient and cell type (D10, D11), held $C$ fixed; its sparse probes mostly collapsed to all-zero, and under L2 held-out AP barely moved. The draft pre-registration (not yet locked), \nolinkurl{scripts/mrd_stage0_2/workstreams/W8_new_cohort/healthy_downsampling_plan.md}, uses this overlap both as the reason stratified thinning is plausible and as a check that the retained healthy cells still overlap the full healthy set; it runs when the team's new data arrive. \src{D14 focus\_celltype\_overlap.csv; 2026-08-21\_donor-sensitivity-d10-d11 (D10, D11)}
+
+\begin{caveatbox}
+\begin{itemize}
+\item \textbf{Transductive basis.} Each patient helped fit the axes it is scored on, and an inductive basis could separate it more. The test must be rerun on inductive bases.
+\item \textbf{Overlap is neither predictive sharing nor loading influence.} Whether the same factors drive lift is a separate, predictive question; whether P02/P03/P04 shape the axes needs refits without them. \src{D3; D17}
+\item \textbf{The summary weights all factors by variance.} It is not about the factor Stage~2 uses: PC8 carries 0.022--0.026 of the IFN-$\alpha$ PCA $K = 40$ weight. A basis can pass while its one discriminative factor separates patients; the single-factor flag is the guard against that.
+\item \textbf{Small malignant samples.} The overlaps for P07 (22 cells), P06 (44) and P01 (45) are dominated by noise. No support-matched subsampling has been done yet.
+\item \textbf{Promax weighting.} Degenerate late factors dominate the variance weights; in allograft rejection $K = 40$, factor 40 carries 0.71 of the malignant weight. The 13 promax calls mostly reflect these factors.
+\item \textbf{Not significance.} The gates are judgment calls, $p$ is at its floor, and each panel was tested at one lift-selected representation.
+\item \textbf{The P03 axis is not a subtype.} Genotype, label provenance, batch and composition have not been excluded.
+\end{itemize}
+\end{caveatbox}
+
+\begin{teambox}
+``On the current bases, patients' factor-score distributions overlap enough to pool them. 45 of 47 representations pass the aggregate gates and none looks like a separate subtype. The one patient-private axis, P03's, appears only in broad gene bags, not in any biological program.''
+
+\textbf{Likely question:} ``So every patient contributes to every factor? Doesn't that contradict the worry that P02/P03/P04 dominate the factors?''\\
+\textbf{Answer:} No to both. This test asks whether their cells land in the same score range as everyone else's, and they do (malignant patient-vs-rest medians 0.788, 0.806, 0.747). Whether they steer the axes is answered by refitting without them. On IFN-$\alpha$, the axis that best matches PC8/FA7 after dropping all three still correlates with it at $|r|$ 0.9885--0.9969 (PCA and FA, $K$ = 10, 20, 40). \src{D17}
+
+\textbf{Likely question:} ``Where do the gates come from?''\\
+\textbf{Answer:} They were set before the run, by judgment, and are not calibrated. With $p$ at its floor the call rests on them; calibrating them with matched subsampling is the next step.
+\end{teambox}
+
+\subsection*{Next step}
+\begin{itemize}
+\item Harden the test (D20, W1.2). Down-weight scale-outlier promax factors, screen all PCA/FA representations, use $\geq 200$ shuffles, calibrate the gates and match cell counts by subsampling.
+\item Rerun the test on the inductive leave-patient-out bases (W1.3, after W2.6).
+\item Audit P03's broad-bag axis for genotype, label provenance, batch and composition (D25, W1.4).
+\item Healthy-cell downsampling (W8, with the new cohort): reuse this overlap to check that the retained healthy cells still cover the full healthy range, per the draft pre-registration.
+\end{itemize}
+
+\subsection*{How this was computed}
+{\small\raggedright
+\emph{Data:} stored transductive scores \nolinkurl{stage1_dr/panel_id=*/method=*/k=*/seed=42/scores.npy} (no refit) for the 47 D1-selected representations; \texttt{CN.label} and patient from the cohort cache. \emph{Estimand:} within label, the variance-weighted mean over factors of the median pairwise 32-bin histogram overlap; patient-vs-rest overlap; per-factor $\eta^2$. \emph{Null:} 25 within-label shuffles of patient labels (counts and bins fixed). \emph{C policy:} not applicable (no Stage~2 fit). \emph{Code:} \nolinkurl{scripts/mrd_stage0_2/stage2_supervised/patient_factor_overlap.py}, via \nolinkurl{scripts/mrd_stage0_2/notebooks/stage0_2/stage2_old34_patient_factor_overlap.ipynb}. Figures: \nolinkurl{figs_03_aggregate.py} (this report's directory) reads the D14 tables and the gates in \nolinkurl{overlap_decision_rule.json}. For the worked example (Figures~\ref{fig:03w1_one_factor}--\ref{fig:03w2_factors_to_call}) and Figure~\ref{fig:03c_factor_spectrum} it recomputes single-factor histograms with the D14 functions (\texttt{evaluate\_stratum} and its helpers), on the same cells and bins, and checks every recomputed summary against the D14 tables. Figure~\ref{fig:03w3_call_types} is a schematic. The within-cell-type numbers are from \nolinkurl{focus_celltype_overlap.csv}. \emph{Artifacts} (relative to the experiment dir): \nolinkurl{analysis/scorecards/stage2_diagnostic/patient_factor_overlap_v1/}. \src{2026-10-02\_d14-patient-factor-overlap (D14); 2026-10-08\_d17-composition-matched-controls (D17); 2026-08-21\_donor-sensitivity-d10-d11 (D10, D11)}\par}

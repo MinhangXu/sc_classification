@@ -1,0 +1,99 @@
+\section{The cohort and the yardstick}
+\label{sec:cohort}
+
+This primer fixes the cohort facts, the effect size used everywhere (lift), and what ``transductive'' means here. Every term is also in Appendix~A.
+
+\begin{answerbox}
+The cohort is 60,118 MRD CITE-seq cells from 13 patients, 1,569 of them malignant (2.61\%). Seven patients are \emph{supported} (at least 10 malignant cells and both classes): P01, P02, P03, P04, P06, P07, P09. P03, P02 and P04 are the highest-\emph{prevalence} patients (32.6\%, 14.4\%, 9.0\%). They hold 68.3\% of the malignant cells but only 8.2\% of all cells, whereas P09 and P01 alone are 48.2\% of the cells the label-blind Stage~1 is fit on. Results are reported as \emph{lift}: held-out AUPRC minus the patient's prevalence $\pi$, in percentage points (pp). We subtract $\pi$ because a constant score has AP exactly $\pi$. These numbers are counts and definitions, not estimates.
+\end{answerbox}
+
+\subsection*{What the cohort looks like}
+
+The cells are the labelled (malignant or normal) CITE-seq cells from the MRD time point. After library-size normalization and log1p, genes detected in at least 1\% of cells were kept: 60,118 cells $\times$ 15,560 genes. All malignant cells are recipient-derived; the normal class is 58,499 donor-derived and 50 recipient-derived cells.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig01a_cohort.pdf}
+  \caption{\textbf{The cohort, patient by patient.} Dark: the seven supported patients, whose held-out lift is reported. Light gray: patients that stay in every training fold but are never summarized as held-out patients. Top: P09 and P01 dominate the cell count. Middle (log scale): malignant cells against the 10-cell support rule. Bottom: prevalence, which is also each patient's no-skill AP; note how far the bracketed patients sit above the rest.}
+  \label{fig:01a}
+\end{figure}
+
+Figure~\ref{fig:01a} separates three rankings that the team discussion ran together. \textbf{By prevalence}, P03, P02 and P04 lead by a wide margin; the next patient is P09 at 2.2\%. \textbf{By malignant count}, the order is P03 (758), P09 (375), P02 (211), P04 (102), so ``the patients with the most malignant cells'' misdescribes P02 and P04. \textbf{By size}, P09 (17,126 cells) and P01 (11,860) are the largest patients, while P02, P03 and P04 are among the smallest (1,462, 2,327 and 1,128 cells).
+
+This matters when we ask who ``shapes the factors''. Stage~1 is label-blind and weights every cell equally, so it sees cell shares, which P09 (28.5\%) and P01 (19.7\%) dominate. Stage~2 is supervised, so it sees malignant-cell shares: P02, P03 and P04 supply 1,071 of the 1,569 positives, and P03 alone 48.3\%. One consequence: weighting every patient equally in Stage~1 would \emph{raise} P02+P03+P04 from 8.2\% to 23.1\% of the fit (3 of 13 patients).
+
+\subsection*{The yardstick: AUPRC, the no-skill floor, and lift}
+
+Average precision (AP, our AUPRC) walks down a patient's cells ranked by the probe's score and asks how pure the list is each time it reaches another malignant cell. A ranking that knows nothing keeps that purity at the base rate, the prevalence $\pi$. So the no-skill floor differs by patient, from 0.38\% (P01) to 32.6\% (P03), and raw AP compared across patients mostly compares their prevalence.
+
+\begin{explainbox}{Constant-score no-skill AP $=\pi$, exactly}
+scikit-learn computes $\mathrm{AP}=\sum_n (R_n-R_{n-1})P_n$ over the distinct score thresholds. If every cell gets the same score, all cells form one tie group, and the only step goes from recall 0 to recall 1 at precision $N_+/(N_++N_-)=\pi$. Hence $\mathrm{AP}_{\text{const}}=\pi$ exactly; a random score only fluctuates around $\pi$. ``All healthy'' and ``all malignant'' both have AP $=\pi$. They differ only once a threshold is applied (P06: accuracy 0.9865 versus 0.0135).
+\end{explainbox}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig01b_yardstick.pdf}
+  \caption{\textbf{Lift is the vertical gap between the probe's held-out AP (blue) and the patient's no-skill AP $=\pi$ (gray).} IFN-$\alpha$ PCA40, L1 at $C=10^{-4}$, transductive Stage~1, LOPO. P03 has the highest dot but not the longest gap. In P01 and P09 the dots coincide because the probe is all-zero. P07, the median patient here (11.08\pp), rests on 22 malignant cells (\emph{Remaining TODOs}, the inclusion decision).}
+  \label{fig:01b}
+\end{figure}
+
+For a held-out patient $h$,
+\[
+  \lift_h=\mathrm{AP}_h-\pi_h \ \text{(pp)},\qquad
+  \lift_h^{\mathrm{norm}}=\frac{\mathrm{AP}_h-\pi_h}{1-\pi_h}.
+\]
+Lift counts the AP points gained over a constant score, so 0 means no better than one. Its ceiling is $1-\pi_h$, which is 67.4\pp{} for P03 and 99.6\pp{} for P01. Normalized lift is the share of that headroom used; it is secondary. Per-patient lifts are summarized with every patient weighted equally, as the \textbf{median} and \textbf{P20} (20th percentile) over the seven supported patients. They are always quoted together with the cell-weighted \textbf{pooled LOPO AP} (AP over all held-out cells concatenated), because the three can disagree.
+
+Figure~\ref{fig:01b} applies this to one stored probe (IFN-$\alpha$ PCA40, L1, $C=10^{-4}$). P03 has the highest AP (46.0\%), but its lift of 13.40\pp{} is below P04's (16.27\pp) and P02's (15.94\pp). Of P03's 46.0 AP points, 32.6 are prevalence. Normalized lift reorders the patients again (P03 0.199, P02 0.186, P04 0.179), because P03 has the least headroom. In P01 and P09 the L1 probe kept no factor at all, so the score is constant, AP $=\pi$, and lift is 0 \emph{by construction}. This is a regularization outcome, not evidence of no signal; the regularization section explains it.
+
+\subsection*{The pipeline, and what ``transductive'' means}
+
+\textbf{Stage~0} restricts the genes to a prior panel and z-scores them within it. The panel is either one of 41 curated programs (for example, Hallmark IFN-$\alpha$ response, 92 genes present) or one of 6 broad control bags (full\_34, core\_only and the HVG anchors). \textbf{Stage~1} reduces the panel to $K\in\{5,10,20,40\}$ factors with PCA, FA, FactoSig or FactoSig-promax (seed 42), or keeps the genes as they are (the \emph{direct-gene} representation). \textbf{Stage~2} fits a regularized logistic probe (L1, L2 or elastic net; balanced class weights; features standardized on the training cells). It is scored by \emph{LOPO}: each patient is held out in turn, the probe is trained on the other 12, and the held-out patient's cells are ranked. Each stored representation uses one of 65 settings ($C$ from $10^{-4}$ to $10^{4}$), chosen by pooled LOPO AP on the same folds, so the choice is not nested. Under balanced L1, a standardized factor enters only if its training class-mean gap exceeds $4/(C\,n_{\text{train}})$; that is where all-zero probes come from.
+
+\begin{explainbox}{Transductive versus inductive Stage~1}
+Stage~1 never sees labels, but the stored bases were fit on all 60,118 cells, \emph{including} those of the patient that Stage~2 later holds out. That patient's expression therefore helped define the axes. Such a basis is \emph{transductive}, and LOPO on it is label transfer on a shared atlas, not deployment to an unseen patient. An \emph{inductive} basis is refit without the held-out patient, whose cells are then projected onto it. This has been done for one panel only (IFN-$\alpha$; PCA and FA at $K=10,20,40$). There, lift stayed positive in 7/7 supported patients under tuned $C$ or L2. The per-patient median change was between $-1.29$ and $-0.05$\pp{} across 18 summaries, always negative: a small but consistent transductive optimism.
+\end{explainbox}
+
+\begin{explainbox}{How to read a 0 in the interactive heatmap}
+A lift of exactly 0 is usually a threshold outcome, not a verdict. All 757 all-zero supported (cell, fold) pairs have $|\lift| \leq 5.6\times10^{-17}$, and 46 of the 783 atlas cells are all-zero in one to six supported folds (87 in all seven), so a count of patients above a lift cutoff partly counts all-zero folds. The cell view's per-fold strip shows each LOPO fold's nonzero-coefficient count at the cell's selected penalty and $C$ and flags all-zero supported folds (IFN-$\alpha$ FA40 is active in 3 of 13 folds, PCA40 in 11): open it before reading a patient pattern.
+
+Treat \emph{knife-edge} cells as unresolved. A fold is knife-edge when its largest \emph{entry margin} (class-mean gap divided by the bar $4/(C\,n_{\text{train}})$) is within 10\% of 1, so a small change in $C$ flips the probe between all-zero and active. Among the 396 atlas cells with an L1 or elastic-net probe on a reduced basis, 136 of 2,772 supported folds in 49 cells are knife-edge (134 of them at the lowest $C$ on the grid), and crossing the bar changes lift by $\geq 5$\pp{} in 41 of 131 evaluable folds (up to 39.06\pp: hallmark hypoxia FA $K = 10$, P04 held out). The grid floor is common: 528 of 783 cells select it. The atlas picks $C$ by pooled LOPO AUPRC, which pools seven fold models and gives an all-zero fold one tied score, so it need not penalize all-zero folds: the fixed-$C$ L1 arms have the highest pooled AP of all IFN-$\alpha$ arms (PCA40 0.1630, FA40 0.1959) despite 2 and 5 all-zero folds. \src{2026-10-08\_d19-regularization-contract; 2026-10-08\_w7-atlas-strip-factor-explorer}
+\end{explainbox}
+
+\begin{explainbox}{Denominators used in this report}
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{783 atlas cells}: 47 panels $\times$ 17 Stage~1 configurations (16 DR = 4 methods $\times$ 4 $K$, plus direct genes), less 16 grid points where one of three small panels has fewer genes than $K$.
+\item \textbf{640 biological DR cells}: the 681 biological atlas cells less their 41 direct-gene cells. Each panel has up to 16 DR cells; the three small panels have 8--12.
+\item \textbf{643 representations} in the lift--prevalence correlations: the 640 biological DR cells plus the direct-gene probes of those three small panels.
+\item \textbf{320 bases} in the factor-by-patient matrix: 41 programs $\times$ \{PCA, FA\} $\times$ $K \in \{5, 10, 20, 40\}$, less 8 grid points where a panel has fewer genes than $K$.
+\end{itemize}
+\end{explainbox}
+
+\begin{caveatbox}
+\begin{itemize}
+  \item The normal class is 99.9\% donor-derived (58,499 of 58,549 cells), so malignant versus normal is almost recipient versus donor; genotype-linked genes could separate the classes without malignant biology. How the malignant labels were assigned may also differ by patient; a label-provenance audit is planned.
+  \item Subtracting $\pi$ removes the floor, not the association. Across 643 representations, the median within-representation Spearman $\rho$ is 0.821 between lift and prevalence (0.964 for raw AP). These $\rho$ values are descriptive, not tests.
+  \item Three supported patients rest on few positives: P07 (22 malignant cells), P06 (44) and P01 (45).
+  \item Lift is a cell-level ranking quantity, not an improvement in recurrence risk.
+\end{itemize}
+\end{caveatbox}
+
+\begin{teambox}
+``Every result is scored as lift: held-out AUPRC minus the patient's malignant prevalence, which is exactly the AP a constant score gets. Prevalence runs from 0.38\% to 32.6\% across our seven scorable patients. P03, P02 and P04, the highest-prevalence patients, carry 68\% of the malignant cells but only 8\% of all cells.''
+
+\textbf{Likely question:} ``Why not compare AUPRC directly, or use AUROC?''\\
+\textbf{Answer:} Raw AP mostly ranks prevalence (median $\rho$ 0.964). Lift removes the floor but not the whole association ($\rho$ 0.821). AUROC has a 0.5 floor for everyone, yet it also ranks with prevalence (median $\rho$ 0.500). And because it ignores prevalence, it can be high while the top of the list is mostly normal cells. AUROC is planned as a companion column, not a replacement.
+
+\textbf{Likely question:} ``Isn't malignant-vs-normal here just recipient-vs-donor?''\\
+\textbf{Answer:} We cannot rule it out yet: 99.9\% of normal cells (58,499 of 58,549) are donor-derived. The planned label audit checks genotype-linked genes (HLA, ERAP2, chrY, XIST), sex match and the 50 recipient-normal cells; until then we say malignant-vs-normal transfer, not malignancy biology.
+\end{teambox}
+
+\subsection*{Next step}
+\begin{itemize}
+  \item Support- and prevalence-matched lift, to test whether the patient pattern survives equal prevalence (W1.5).
+  \item Patient-level uncertainty and the AUROC companion column (W4.1).
+  \item New MRD patients (W8.1). Runs on the new data leave out patients without malignant cells (your decision of 2026-10-09) and keep only patients with at least 100 malignant cells (your decision of 2026-10-10); the stored bases and the leverage refits of section~\ref{glance:02b} keep all 13 patients. \emph{Remaining TODOs}, subsection \emph{Proposed for the new data}, tabulates what the threshold keeps and what it does to median and P20 lift. The support rule for this report's summaries stays at 10 malignant cells.
+\end{itemize}
+
+\subsection*{How this was computed}
+{\small\raggedright The counts come from \texttt{analysis/\allowbreak scorecards/\allowbreak stage2\_diagnostic/\allowbreak meeting\_followup\_v1/\allowbreak mrd\_patient\_cell\_composition.csv} (EXP-relative; D6, panel D6A). They match \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak research/\allowbreak study\_config.json}, and the shares are ratios of these counts. The worked example is the stored sharedness-LOPO result for IFN-$\alpha$ PCA40, L1, $C=10^{-4}$, on the transductive Stage~1 (\texttt{meeting\_followup\_v1/\allowbreak interferon\_alpha\_pca40\_fa40\_\allowbreak patient\_comparison.csv}). AP is \texttt{sklearn.metrics.\allowbreak average\_precision\_score}. C policy: the stored global selection by pooled LOPO AP, not nested; training $n$ unchanged. The Stage~2 runner is \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak stage2\_supervised/\allowbreak run\_stage2\_mrd\_multiobjective\_\allowbreak scorecard.py}. The figures come from \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak research/\allowbreak reports/\allowbreak 2026-10-08\_questions\_report/\allowbreak figs\_01\_cohort.py}. The inductive numbers are from D17 (\texttt{basis\_variant\_pilot\_ifna\_v1}). \src{D6, D8, D17; devlog 2026-08-31\_d6-d9-meeting-followup, 2026-10-08\_team-report-devlog-pivot, 2026-05-25\_set-a-old34-broad-screen, 2026-06-05\_set-a-all-biological-fullgrid, 2026-10-08\_d17-basis-variant-pilot}\par}

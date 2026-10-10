@@ -1,0 +1,176 @@
+\section{The three scientific questions (the paper spine)}
+\label{sec:three-questions}
+
+\begin{quote}
+\emph{Current scientific questions:}
+1.~Shared or patient-specific? Do the same factors drive lift across the high-cell patients, or different factors for each?
+2.~How strong is the evidence? How much variation do cohort-shared versus patient-specific factors explain, and with what effect size and statistical significance?
+3.~What does dimensionality reduction add? Compare with direct-gene classification to establish the method's value.
+\end{quote}
+
+This section pulls the earlier results into the three questions a paper would be built on. For each question it gives the current answer, the evidence that only this section shows, short pointers to the sections that hold the rest, and what a publication claim still needs.
+
+\begin{answerbox}
+\textbf{Q1.} Tested directly on one program only. On IFN-$\alpha$ the same axis carries held-out lift in five of seven supported patients, including two low-prevalence ones. Across the atlas, lift above 0 reaches every supported patient, but lift above 5\pp{} occurs in 64--80\% of the 640 biological DR cells for P02, P03 and P04 and in at most 23\% for the other four, so shared transfer and prevalence are not yet separated.
+\textbf{Q2.} The effect size is well defined (lift above constant-score no-skill AP $=\pi$), but there is no inferential framework yet: no calibrated null, no patient-level intervals on the atlas, no nested selection.
+\textbf{Q3.} It depends on the estimand and on how the winning DR cell is chosen. When the winner is picked by pooled AP, best DR beats direct genes on pooled AP in 38/41 programs, on median lift in 16/41 and on P20 lift in 17/41. When it is picked by median lift, it wins on median lift in 28/41 programs (30/47 with the control bags). Large gains are confined to a few programs, and broad control bags favour direct genes.
+All of this is descriptive, on a transductive Stage~1 basis, over seven supported patients.
+\end{answerbox}
+
+\begin{explainbox}{Terms used in this section}
+\begin{itemize}
+\item \textbf{Lift}: held-out AUPRC minus that patient's malignant prevalence $\pi$, in percentage points (pp). A constant score has AP exactly $\pi$, so lift 0 means no skill. An L1 probe that keeps no factor (an \emph{all-zero} probe) is such a constant score.
+\item \textbf{Median and P20 lift}: patient-equal summaries over the seven supported patients (the median and the 20th percentile, the weak-patient tail). \textbf{Pooled AP}: one AP over all held-out cells pooled across folds; it weights patients by cell count and is dominated by the high-prevalence patients.
+\item \textbf{Transductive vs inductive}: the stored Stage~1 bases were fit on all 60,118 cells, including the held-out patient's (transductive), so LOPO on them is label transfer. An inductive basis is fit without the held-out patient.
+\item \textbf{DR cell}: one panel at one Stage~1 method and $K$ (4 methods $\times$ 4 $K$, so up to 16 per panel). \textbf{$\eta^2$}: the share of a factor's within-label score variance explained by patient identity.
+\end{itemize}
+\end{explainbox}
+
+\subsection{Q1. Shared or patient-specific?}
+
+\textbf{Current answer.} Tested directly on one program only. On IFN-$\alpha$ the same axis (PC8, or the related FA7) carries held-out lift in five of seven supported patients, including two low-prevalence ones (P07 11.08\pp, P09 5.47\pp), and survives a basis fit without the held-out patient. Across the atlas, lift above 0 reaches every supported patient (69--84\% of the 640 biological DR cells), but lift above 5\pp{} occurs in 64--80\% of cells for P02, P03 and P04 and at most 23\% for the others, so shared transfer and prevalence are not yet separated. Patients' factor-score distributions overlap on 40 of 41 programs; that permits one basis but does not show that the same factors drive lift.
+
+\textbf{Evidence only this section shows.}
+\begin{itemize}
+\item \emph{Transfer is common; strong transfer is not} (Figure~\ref{fig:08a}). Of the 783 atlas cells, 506 have lift above 0 in all seven patients, but only 84 reach lift above 5\pp{} in at least five patients and 2 in all seven. The median within-representation Spearman $\rho$ between lift and prevalence is 0.821 over 643 representations (nominal, not a test). \src{D1f, D6; 2026-09-11\_d1-atlas-783-d1e-d1f}
+\item \emph{Low-support patients.} P01 and P06 have 157 and 232 within-patient DE genes, yet their best held-out lift is only 6.3 and 5.7 AP points. \src{D13}
+\end{itemize}
+\textbf{Elsewhere in this report.} The IFN-$\alpha$ axis and its per-patient lifts: the section on what PC8 is. Its survival without the held-out patient: the section on option~2. Overlap of factor-score distributions (40 of 41 programs aggregate; the only patient-private axes are P03's, in broad gene bags): the section on aggregating patients. Leverage of P02, P03 and P04 on the Stage~1 axis (IFN-$\alpha$, allograft rejection, apoptosis; PCA and FA): beyond composition-matched drops on allograft and apoptosis, mostly through P03, but on no panel beyond the contrast patients, and P01 moves the axes most (D26): sections~\ref{glance:02} and \ref{glance:02b}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig08a_patient_concentration.pdf}
+\caption{Where the lift sits. For each supported patient, ordered by malignant prevalence $\pi$, the bars show the share of the 640 biological DR atlas cells with held-out lift above 0 (light) and above 5\pp{} (dark). The dark bars are 64--80\% for P03, P02 and P04, at most 23\% for the rest and under 1\% for P06 and P01. The light bars (69--84\%) show that some transfer above $\pi$ reaches every patient. Each cell uses one global $C$, chosen on pooled LOPO AP, on the transductive basis.}
+\label{fig:08a}
+\end{figure}
+
+\textbf{What a publication claim still needs.} Prevalence- and support-matched lift, to separate shared transfer from prevalence. The same factor-level transfer test as IFN-$\alpha$ on other programs. Inductive bases for the selected representations beyond IFN-$\alpha$. The leverage test on FactoSig bases and on the other 38 panels (W2.2, W2.8). A calibrated overlap test. New patients as an external test.
+
+\subsection{Q2. How strong is the evidence?}
+
+\textbf{Current answer.} The effect sizes are good, with a clean zero point, and several robustness checks exist. Strength of evidence in the statistical sense does not: nothing has been tested against a null model, the atlas has no patient-level intervals, and the best configurations are chosen on the folds they are scored on. ``How much variation do shared and patient-specific factors explain'' has three different answers, one for each kind of variance (Table~\ref{tab:08-variance}). Report them separately.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Three variance estimands, with IFN-$\alpha$ $K$ = 40 as the example and the cohort-wide value where it exists. They answer different questions and are never added or compared directly.}
+\label{tab:08-variance}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{3.0cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+Estimand & What it measures & Value \\
+\midrule
+Label-free Stage~1 variance & Share of the panel's gene variance the basis captures (PCA), or a common-variance proxy (FA) & IFN-$\alpha$: PCA40 captures 54\% of the gene variance; its first 8 PCs carry about 21\% (38\% of the captured part); FA40 proxy 16\% \\
+Per-factor patient effect ($\eta^2$), IFN-$\alpha$ & Share of one factor's within-label score variance explained by patient & PC8 0.010 (normal) / 0.031 (malignant); FA7 0.015 / 0.025; largest malignant $\eta^2$ 0.114 (PCA40), 0.121 (FA40) \\
+Per-factor patient effect ($\eta^2$), all programs & The same, over all 41 programs, PCA and FA, $K$ = 5--40 (5,838 non-degenerate factors) & Median 0.024 (normal) and 0.051 (malignant); largest 0.352 and 0.619 \\
+Stage~2 attribution & Held-out lift of one factor alone & IFN-$\alpha$ PC8: 11.08--16.27\pp{} in P02, P03, P04, P07; 5.47\pp{} in P09 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Evidence.}
+\begin{itemize}
+\item \emph{Effect size.} Constant-score no-skill AP $=\pi$ holds exactly: all 757 all-zero (cell, fold) pairs have $|\lift|\leq5.6\times10^{-17}$. Median lift is above 0 in 670 of 783 atlas cells and P20 lift in 639. \src{D6, D1; 2026-10-08\_w7-atlas-strip-factor-explorer}
+\item \emph{Significance: none yet.} The overlap test's permutation $p$ is at its floor ($1/26=0.038$, 25 permutations) in all 47 normal strata, so its calls rest on uncalibrated magnitude gates. The prevalence correlations are nominal. \src{D14, D6}
+\item \emph{Selection optimism, where measured.} With $C$ tuned per training set, the full-LOPO medians are 8.71 (IFN-$\alpha$ PCA40), 10.26 (apoptosis) and 10.12\pp{} (allograft), against 11.08, 11.52 and 12.56\pp{} at the stored atlas $C$, which saw the held-out patients. FA40 goes the other way (7.03 vs 0.00\pp) because the atlas $C$ zeroes it. \src{2026-10-08\_d15b-full-design}
+\item \emph{Robustness.} 528 of 783 atlas cells select the lowest $C$ on the grid. 136 L1/elastic-net folds in 49 cells sit within $\pm10\%$ of the entry threshold, and crossing it changes lift by $\geq5$\pp{} in 41 of 131 evaluable folds (maximum 39.06\pp). \src{D19; 2026-10-08\_d19-regularization-contract}
+\end{itemize}
+\textbf{Elsewhere in this report.} The only patient-level intervals so far (the 7-cluster bootstrap of the patient-count curve: gains from two to six training patients of 0.30--2.34\pp, CIs including 0 for three of four representations): the learning-curve section. Transductive optimism on IFN-$\alpha$ ($-1.29$ to $-0.05$\pp{} per patient at the median): the section on option~2. Why FA40 is all-zero at the atlas $C$: the IFN-$\alpha$ section.
+
+\textbf{What a publication claim still needs.} A matched random gene-set null, which compares ``this program'' with ``any genes of this size and expression profile''. Patient-level uncertainty and an AUROC companion for the atlas. Nested selection of method, $K$ and $C$. Stage~1 seed and resample stability. A variance decomposition that keeps the estimands of Table~\ref{tab:08-variance} apart.
+
+\subsection{Q3. What does dimensionality reduction add over direct genes?}
+
+\textbf{Current answer.} For a few programs DR clearly adds something, and for broad gene bags it clearly does not. For most programs the verdict depends on the estimand and on how the winning DR cell is chosen (Table~\ref{tab:08-estimands}). Each panel has up to 16 DR cells (4 methods $\times$ 4 $K$; the three small panels have 8--12). ``Best DR'' is the best of these, chosen \emph{in-sample} on the held-out folds it is scored on, so every win count is optimistic (winner's curse).
+
+\begin{table}[H]
+\centering
+\small
+\caption{Biological programs (of 41) where best DR beats the direct-gene probe, by selection rule (rows) and estimand (columns). Quote the three estimands together.}
+\label{tab:08-estimands}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X c c c}
+\toprule
+Best of up to 16 DR cells, chosen in-sample by \ldots & pooled LOPO AP & median lift & P20 lift \\
+\midrule
+pooled LOPO AP (the atlas rule) & 38/41 & 16/41 & 17/41 \\
+median lift & not tabulated & 28/41 (30/47 with controls) & 24/41 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Under the pooled-AP rule, the median DR value added is $+0.0221$ pooled AP, $-0.33$\pp{} median lift and $-0.19$\pp{} P20 lift. The rule matters even within one program. For IFN-$\alpha$ the pooled-AP rule picks FA $K = 10$. That probe has 11.36\pp{} lift in P03 and is all-zero (lift 0 by construction) in the other six folds. Its pooled AP (0.2009, against 0.0486 for direct genes) is still the highest of the 16 DR cells, because P03 holds 758 of the 1,557 supported malignant cells and dominates pooled AP. The median-lift rule picks PCA $K = 40$ instead. \src{D9, D1e; 2026-08-31\_d6-d9-meeting-followup}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig08b_dr_vs_direct.pdf}
+\caption{Best DR versus direct genes, one point per Stage~0 panel, median lift over the seven supported patients; both axes in pp on the same scale. A point above the diagonal means that the best of the panel's DR cells (up to 16, chosen in-sample by median lift) beats the direct-gene probe on the same genes. Each value is at that cell's stored atlas $C$. The three labelled programs on the left edge show the largest gains: allograft rejection (12.56 vs 0.23\pp), apoptosis (11.52 vs 0.005\pp) and IFN-$\alpha$ (11.08 vs 1.27\pp). Most other programs sit near the diagonal (median gap $+0.93$\pp{} when the DR cell is chosen by median lift; $-0.33$\pp{} under the atlas's pooled-AP rule). Four of the six control bags (open squares) sit below it, three of them far below.}
+\label{fig:08b}
+\end{figure}
+
+\textbf{Evidence.}
+\begin{itemize}
+\item \emph{Large gains are confined to a few programs and to the highest-prevalence patients} (Figure~\ref{fig:08b}). For allograft, selected DR minus direct genes is $+46.37$\pp{} in P03, $+18.48$ in P02, $+10.33$ in P04 and $+12.69$ in P07. It is $+0.09$ in P01, $+1.57$ in P06 and $+4.12$ in P09. A DR advantage is therefore entangled with prevalence. \src{F2/F4, D1DD5; 2026-09-17\_team-feedback-f1-f7, 2026-09-10\_d1a-descriptive-deep-dives}
+\item \emph{Control bags favour direct genes.} On HVG~10,000, direct genes reach 37.9\pp{} and best DR 11.9\pp. On the full\_34 union the values are 27.1 and 12.9\pp. One plausible reading, not yet tested: with thousands of genes, the direct-gene probe keeps signal that a 40-factor basis compresses away. \src{D1e}
+\item \emph{Fairness of the comparison.} The program-level comparison is not a relabelled HVG comparison: the 2,719-gene old34 union and HVG~3,000 have Jaccard 0.199, and 65.1\% of the union lies outside HVG~3,000. A mean-$z$ one-score proxy gives 1.68, 5.30 and 1.97\pp{} median lift for allograft, apoptosis and TNF-$\alpha$, against 12.56, 11.52 and 18.06\pp{} for selected DR; the proxy is not UCell, AUCell or ssGSEA, and its Stage~2 is not matched. The comparison is also tilted towards DR: direct-gene LOPO standardizes on the training fold only, which makes it effectively inductive for gene scaling, while the DR bases saw the held-out patient. \src{D12, D1DD9; 2026-08-25\_repository-audit}
+\end{itemize}
+
+\textbf{What a publication claim still needs.} Nested or prespecified selection of method, $K$ and $C$, with $C$ tuned per fold. Exact single-score baselines (UCell, AUCell, ssGSEA) with a matched Stage~2. Inductive DR bases for the selected representations. A matched random gene-set null and patient-level uncertainty, so that ``DR adds $x$\pp'' comes with an interval.
+
+\begin{caveatbox}
+\begin{itemize}
+\item Everything here is descriptive, on a transductive Stage~1 basis (the inductive pilot covers IFN-$\alpha$ only), over seven supported patients. It does not establish inductive deployment, causal biology or recurrence risk.
+\item ``Best DR'' is picked on the same held-out folds it is scored on, and the atlas $C$ was chosen on pooled LOPO AP with held-out outcomes. Win counts will shrink under nested selection, and fixed-$C$ atlas cells do not rank methods.
+\item Lift ranks with prevalence. The highest-prevalence patients drive both the strong transfer (Q1) and the DR gains (Q3), so shared biology and prevalence are not separated.
+\item There are no $p$-values and no patient-level intervals, except the coarse 7-cluster bootstrap of the patient-count curve.
+\end{itemize}
+\end{caveatbox}
+
+\begin{teambox}
+``On the current transductive basis and seven supported patients, transfer above prevalence is widespread, but strong transfer and DR's advantage over direct genes both concentrate in P02, P03 and P04, and none of it has yet been tested against a null.''
+
+\textbf{Likely question:} ``So does DR beat direct genes or not?''\\
+\textbf{Answer:} On pooled AP, usually (38/41). On patient-equal median and P20 lift it wins in fewer than half of the programs: 16/41 and 17/41 under the same rule, or 28/41 programs (30/47 with the control bags) on median lift if the winner is picked by median lift. The clear wins are allograft, apoptosis and IFN-$\alpha$, and the clear losses are the broad HVG bags. The winner is picked in-sample, so these counts are upper bounds until selection is nested.
+
+\textbf{Likely question:} ``Isn't the concentration in P02--P04 just prevalence?''\\
+\textbf{Answer:} We can't tell yet: lift ranks with prevalence (median $\rho$ 0.821 over 643 representations). Prevalence- and support-matched lift is the test.
+\end{teambox}
+
+\subsection*{Next step}
+\begin{itemize}
+\item Inductive Stage~1 for all 47 atlas-selected representations (W2.6), and the leverage test on the other 38 panels and on FactoSig bases (W2.8, W2.2; W2.4 is done: D26, section~\ref{glance:02b}).
+\item Nested DR-vs-direct selection with tuned $C$, plus exact single-score baselines (W3.3, W3.4).
+\item A matched random gene-set null, patient-level uncertainty and support-matched lift (W4.2, W4.1, W1.5), then the new patients as external points (W8.1).
+\end{itemize}
+
+\subsection{Central theme (draft paragraph for the paper)}
+
+\emph{Draft.} We use classification as a biological probe of post-transplant MDS measurable residual disease. Curated gene programs restrict the gene space (Stage~0). Label-free dimensionality reduction learns low-dimensional bases on all cells (Stage~1). Regularized logistic probes then transfer malignant-versus-normal labels to a held-out patient (Stage~2). The question is at what biological resolution malignant cells show phenotypic convergence that transfers between patients: a curated program, a learned sub-axis of a program, or the individual patient. Across seven supported patients, many curated programs carry held-out signal above the constant-score baseline in most patients. Patients also share one factor basis without patient-private program factors. In the interferon-$\alpha$ program, the signal lives on a combination axis that contrasts two groups of interferon-stimulated genes, and it holds when the basis is learned without the held-out patient. Strong transfer, and the advantage of a learned representation over the program's genes, concentrate in the patients with the highest malignant prevalence. Turning this description into a claim needs four steps: rule out donor-versus-recipient genotype as the separating signal (58,499 of 58,549 normal cells are donor-derived), separate shared biology from prevalence, test against matched random gene sets, and validate on new patients.
+
+\subsection{Claim boundary}
+
+The canonical list is \texttt{research/THEME.md} \S6, and the labels S and N are its stable references.
+
+{\footnotesize
+\begin{longtable}{>{\raggedright\arraybackslash}p{1.7cm} >{\raggedright\arraybackslash}p{6.9cm} >{\raggedright\arraybackslash}p{6.4cm}}
+\toprule
+Question & Supported as descriptive & Not yet claimable \\
+\midrule
+\endhead
+Q1 shared vs patient-specific &
+Patients can be pooled on one transductive Stage~1 basis, and no program has a patient-private factor (S15). Lift ranks with prevalence and support across representations (S07). Strong patient $\times$ panel $\times$ method $\times$ K heterogeneity (S01). IFN-$\alpha$ transfer survives an inductive Stage~1 under tuned $C$ or L2, on one panel (S18). Low-support patients carry within-patient DE (S14). &
+High lift reflects patient-specific biology rather than prevalence or support (N01). Score overlap is predictive sharedness (N12). The P03 broad-bag axis is a subtype (N11). The highest-prevalence patients shape the Stage~1 loadings (N14). LOPO equals inductive deployment (N07). \\
+\addlinespace
+Q2 strength of evidence &
+Constant-score no-skill AP $=\pi$ (S06). On a frozen basis with fixed $C$, held-out AUPRC rises with Stage~2 cell depth where the probe is not collapsed (S16). Donor downsampling at fixed $C$ can collapse sparse probes to AP $=\pi$ (S11). FA7 is more stable than PC8 under donor downsampling (S12). &
+Panels beat matched-size random gene sets (N05). Best configurations are unbiased estimates (N06). More patients help (N08). Cell-level lift is recurrence-risk improvement (N09). Rank-defined TP/FN are clinical misclassifications (N10). The model is invariant to donor versus recipient origin (N03). \\
+\addlinespace
+Q3 what DR adds (and the IFN-$\alpha$ lens) &
+Direct-gene baselines exist for every panel (S08). DR usually improves pooled AP but not consistently median or P20 lift, with in-sample selection (S09). Selected DR reaches clearly positive median lift for allograft and apoptosis where direct genes are near zero (S03). A mean-$z$ proxy is weaker than selected DR, but this is not yet a UCell, AUCell or ssGSEA comparison (S04). The prior is not an HVG alias (S13). Larger K wins most panels, and no method dominates (S02). The IFN-$\alpha$ PCA/FA coverage gap is an L1-at-fixed-$C$ effect on related directions (S10, S17). &
+DR universally adds value over direct genes (N04). FA is intrinsically inferior to PCA for IFN-$\alpha$ (N02). ``FA misses patients'' is a property of FA (N13). PC8 or FA7 is a unique, identifiable IFN-$\alpha$ sub-program (N15). \\
+\bottomrule
+\end{longtable}
+}
+% Uncaptioned longtable: undo its table-counter step so the numbering stays consecutive.
+\addtocounter{table}{-1}
+
+\subsection*{How this was computed}
+{\small\raggedright This section synthesizes devlog Results and adds no new model fits. Figure~\ref{fig:08a} counts, per supported patient, the 640 biological DR atlas cells with held-out lift $>10^{-9}$ (all-zero folds score about $10^{-17}$) or $>0.05$. The source is \nolinkurl{analysis/scorecards/stage2_diagnostic/old34_d1_atlas_supported_patient_metrics.csv}. Figure~\ref{fig:08b} and the median-lift row of Table~\ref{tab:08-estimands} use \nolinkurl{old34_d1e_best_dr_vs_direct_gene_selection.csv} in the same directory (best of up to 16 DR cells by median lift, in-sample). The pooled-AP row uses \nolinkurl{meeting_followup_v1/old34_direct_gene_vs_best_dr_summary.csv}. The all-program $\eta^2$ row of Table~\ref{tab:08-variance} summarizes \nolinkurl{factor_patient_matrix_v1/factor_patient_matrix_factor_summary.csv} (non-degenerate PCA and FA factors; patients with $\geq 200$ normal or $\geq 20$ malignant cells). Every atlas cell has one global penalty and $C$, selected on pooled LOPO AP over the same folds (not nested), and uses the transductive Stage~1 scores. Patient-count and tuned-versus-atlas numbers come from \nolinkurl{patient_count_learning_curve_v1} (full design). The code is \nolinkurl{scripts/mrd_stage0_2/research/reports/2026-10-08_questions_report/figs_08_dr_vs_direct.py}; its \texttt{main()} regenerates both figures and prints every derived count. The upstream notebooks are \nolinkurl{stage2_old34_comprehensive_diagnostic_suite.ipynb} and \nolinkurl{stage2_old34_meeting_followup_metric_interactions.ipynb}. The claim boundary follows \texttt{research/THEME.md} \S2--\S6 and \texttt{research/CLAIMS.md}. \src{D1, D1e, D1f, D6, D9, D12--D19, F2/F4; devlogs 2026-09-11\_d1-atlas-783-d1e-d1f, 2026-08-31\_d6-d9-meeting-followup, 2026-10-08\_d15b-full-design, 2026-10-08\_d16-factor-patient-matrix, 2026-10-08\_research-spine-adopted}\par}

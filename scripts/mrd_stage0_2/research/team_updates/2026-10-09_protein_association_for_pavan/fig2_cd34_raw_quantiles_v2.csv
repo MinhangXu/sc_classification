@@ -1,0 +1,2 @@
+population,n_cells,sort_gate_marker,raw_cd34_p05,raw_cd34_p50,raw_cd34_p95
+"all cells (13 patients, both labels)",60118,CD34pos=60118,5.0,41.0,340.0

@@ -1,0 +1,43 @@
+% Core page: the cohort and the yardstick (half page), plus the key terms. Numbers: full report section 1;
+% per-patient counts from study_config.json, as in Figure 1 of the full report.
+\coreq{The cohort and the yardstick}{core:cohort}{what are we classifying, and how do we score it? (primer)}
+
+\begin{coreanswer}
+60,118 CD34-sorted MRD CITE-seq cells from 13 patients after transplant; 1,569 (2.61\%) are malignant. Seven patients are \emph{supported} (at least 10 malignant cells and both classes): P01, P02, P03, P04, P06, P07, P09. We report \emph{lift}: held-out AUPRC minus the patient's malignant prevalence $\pi$, in percentage points (pp), because a constant score has AP exactly $\pi$.
+\end{coreanswer}
+
+{\footnotesize
+\setlength{\tabcolsep}{4pt}
+\noindent\begin{tabularx}{\linewidth}{@{}l *{7}{>{\centering\arraybackslash}X} >{\centering\arraybackslash}p{2.9cm}@{}}
+\toprule
+ & P01 & P02 & P03 & P04 & P06 & P07 & P09 & other 6 (training only) \\
+\midrule
+Cells & 11,860 & 1,462 & 2,327 & 1,128 & 3,259 & 2,185 & 17,126 & 20,771 \\
+Malignant cells & 45 & 211 & 758 & 102 & 44 & 22 & 375 & 12 (P05 8, P13 4; 4 with 0) \\
+Prevalence $\pi$ & 0.38\% & 14.4\% & 32.6\% & 9.0\% & 1.4\% & 1.0\% & 2.2\% & -- \\
+\bottomrule
+\end{tabularx}\par}
+
+\vspace{3pt}
+\evidence
+\begin{itemize}[leftmargin=1.3em]
+\item P03, P02 and P04 are the \emph{highest-prevalence} patients (not the ones with the most malignant cells: P09 has more than P02 or P04). Together they hold 68.3\% of the malignant cells but only 8.2\% of all cells; P09 and P01 alone are 48.2\% of the cells.
+\item Lift reads the gap above no skill (figure): P03 has the highest AP (46.0\%) but less lift ($+13.40$\pp) than P04 ($+16.27$) or P02 ($+15.94$), because its $\pi$ is 32.6\%.
+\item An L1 probe that keeps no factor (\emph{all-zero}) scores AP $=\pi$ by construction: lift 0 then means ``nothing entered'', not ``no signal'' (P01 and P09 in the figure; page~\pageref{core:pcafa}).
+\item Subtracting $\pi$ removes the floor, not the association: across 643 representations the median Spearman $\rho$ between lift and prevalence is 0.821.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.66\linewidth]{figures/fig01b_yardstick.pdf}
+\caption{Lift is the vertical gap between the held-out AP (blue) and the no-skill AP $=\pi$ (gray). IFN-$\alpha$ PCA $K=40$, L1 at the atlas $C=10^{-4}$, transductive Stage~1, leave-one-patient-out.}
+\end{figure}
+
+\doesnot{malignant biology apart from genotype (the normal cells are 99.9\% donor-derived, so malignant vs normal is almost recipient vs donor), or recurrence risk (lift ranks cells). P07, P06 and P01 rest on 22, 44 and 45 malignant cells.}
+
+\begin{explainbox}{Key terms used on every page}
+\footnotesize
+\textbf{Stage~0}: a gene panel (e.g.\ hallmark IFN-$\alpha$ response, 92 genes; 41 biological panels). \textbf{Stage~1}: dimension reduction (DR) of the panel's genes into $K$ factors (PCA, factor analysis FA, FactoSig, FactoSig-promax; $K$ = 5, 10, 20, 40), fit without labels. \textbf{Stage~2}: a penalized logistic regression (\emph{probe}) on the factor scores; L1, L2 or elastic net (EN), penalty strength set by $C$ (smaller $C$, stronger penalty). \textbf{Representation}: one panel $\times$ method $\times$ $K$, e.g.\ IFN-$\alpha$ PCA40; the \emph{atlas} scores all of them. \textbf{LOPO}: leave one patient out; train on the others, score the held-out patient. \textbf{Transductive}: Stage~1 was fit on all cells, the held-out patient's included (labels never); \textbf{inductive}: fit without them. \textbf{AUPRC} (area under the precision--recall curve) is computed as average precision, \textbf{AP}. \textbf{Median / P20 lift}: the median and 20th percentile of lift over the seven supported patients; \textbf{pooled AP}: AP over all their held-out cells; three \textbf{estimands} (quantities estimated) that can rank methods differently. \textbf{Leverage test}: refit Stage~1 without a patient set and measure how far the malignant axis moves, against 20 random drops of as many cells and malignant cells; \textbf{matched $|r|$}: correlation of the original factor with its best match after the refit (1 = unchanged); \textbf{contrast sets}: P01, P06, P09 and P01+P09, the comparison sets that are not highest-prevalence. \textbf{CLR}: centred log-ratio normalized protein counts (no dsb background correction). \textbf{Descriptive}: an effect size on these data, with no calibrated test and no patient-level interval.
+\end{explainbox}
+
+\fullref{section 1, \emph{The cohort and the yardstick}; Appendix A (glossary).}

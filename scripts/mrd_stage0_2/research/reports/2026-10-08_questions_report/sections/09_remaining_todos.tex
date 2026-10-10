@@ -1,0 +1,228 @@
+\section{Remaining TODOs and decisions}
+\label{sec:remaining-todos}
+
+\begin{quote}
+``Incorporate new patient MRD data from Yu-Hsiang.'' \ldots\ ``1.1 subset to top 4-5 patients with sufficient malignant cells'' \ldots\ ``3. Focus only on patients with large cell counts (2, 3, 4) and rerun the full pipeline on that subset.'' \ldots\ ``Use days since transplant and days before relapse per patient to plot variation across patients and think about how timing could be modeled as a covariate (low priority).'' \ldots\ ``Ankit: end-to-end semi-supervised analysis where factors are learned jointly to discriminate healthy vs malignant (later, with new data).'' \ldots\ ``Review single-cell ML literature for existing frameworks.''
+\end{quote}
+
+\begin{answerbox}
+Most of what remains waits on Yu-Hsiang's new patients: the email and a pre-registered integration plan are drafted, but the email has not been sent. Option 3's supervision question has a first answer in the patient-count curve: training on two of P02/P03/P04 and scoring the third differs from full LOPO by a median $+0.13$\pp{} over 12 folds, but folds range from $-8.18$ to $+10.09$\pp{} and follow the held-out patient (P02 lower in all four representations, P04 higher in all four). With seven patients, timing cannot be separated from patient identity: median lift tracks prevalence (Spearman $\rho = 0.89$) more closely than days since transplant ($\rho = 0.57$, exact $p = 0.20$) or days before relapse ($\rho = 0.18$, $p = 0.71$), and with seven patients these correlations cannot be told apart. The literature review is done. New since version 1: your healthy-cell downsampling idea is written up as a pre-registered plan that runs with the new patients; new full runs leave out patients without malignant cells and, by your decision of 2026-10-10, keep only patients with at least 100 malignant cells (on the current cohort P02, P03, P04 and P09, so summaries over them run 1.8--2.7 times higher in median lift than today's seven-patient summaries); re-weighting will target the Stage~2 labels in those runs. All descriptive.
+\end{answerbox}
+
+\subsection*{What we did}
+
+We collected the TODOs that the other sections do not answer and gave each a status and a next step (Table~\ref{tab:09status}). Two items have new descriptive results, both read from existing artifacts without new compute: Option 3, from the patient-count learning curve, and timing, from the per-sample metadata. \emph{Lift} is the held-out patient's AUPRC minus that patient's malignant prevalence $\pi$, in percentage points (pp); a constant score has AP $= \pi$, so lift 0 means no skill.
+
+% Not a float: in the assembled report a floating table here was placed above this section's heading.
+\begin{center}
+\begin{minipage}{\linewidth}% keeps the caption and the table on one page
+\centering
+\small
+\captionof{table}{Status of the remaining TODOs on 2026-10-10.}
+\label{tab:09status}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.7cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X}
+\toprule
+TODO & Status & Waiting on & Next step \\
+\midrule
+New patients & Email and plan drafted; email not sent & You send the email & Lock the plan (11 open choices) \\
+Which patients new runs use & Zero-malignant patients out; only patients with $\geq$100 malignant cells kept (both decided) & You (W8.2 lock) & Confirm: patients below 100 left out, not train-only \\
+Healthy-cell downsampling & Plan drafted (pre-registered, not locked) & New patients; W8.5 & Runner and tests (W8.6), then lock with the plan \\
+Option 1.1 (top 4--5) & Not run; subset rule = the $\geq$100 cut & New patients & Run with the new patients \\
+Option 3 (P02/P03/P04) & Supervision part read from the patient-count curve & -- & Merge into the 1.1 subset pipeline \\
+Timing & Two figures; descriptive & Manuscript plot & P09 per-draw score check \\
+Ankit's joint factors & Later & New patients, locked plan & Pre-register the comparison \\
+Literature review & Done (two reviews) & -- & Single-score baselines, matched nulls \\
+\bottomrule
+\end{tabularx}
+\end{minipage}
+\end{center}
+
+\subsection{New MRD patients from Yu-Hsiang}
+
+They are the study's only external test: patients that took no part in choosing the panel, the basis, the probe or its C. The draft email (\texttt{email\_yu-hsiang\_draft.md} in \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak workstreams/\allowbreak W8\_new\_cohort/}) is ready for you to edit and send. It asks for (1) the new patients' samples, assay and ADT panel, batch, genome reference, and one \texttt{.h5ad} with raw RNA and ADT counts and our obs columns (\texttt{CN.label}, \texttt{predicted.annotation}, both timing columns); (2) per patient, the evidence behind \texttt{CN.label} (Souporcell, Numbat CNVs, mtDNA, CD5/CD56, cluster reference), donor/recipient calls and sex; (3) what \texttt{Days.from.Relapse} means for P10--P12, which have no relapse sample in our data ($-1{,}329$, $-1{,}158$, $-1{,}382$ days; we checked these values against the cell metadata), and whether our labels are final; (4) the manuscript's timing plot.
+
+\begin{explainbox}{Pre-registration, and transductive vs inductive}
+\emph{Lock.} Every analysis choice and a frozen configuration are hashed into a decision entry before unblinding; until then no AP, AUROC or probe score may be computed on a new-patient cell, and anything outside the plan is labelled exploratory.
+
+\emph{Transductive vs inductive.} Our stored Stage 1 bases are transductive: fit once, without labels, on all 60,118 cells including each held-out patient's, so LOPO on them is label transfer to a patient the basis has seen. An inductive basis is refit without the held-out patient, whose cells are then projected. In the plan's primary arm the original bases stay frozen and new cells are projected with the original per-gene statistics, so new patients are held out of every step; probes are fitted at lock time at the stored C and at C tuned by inner LOPO, with L1 and L2.
+\end{explainbox}
+
+The plan (\texttt{integration\_plan.md}, same directory, a draft) fixes the estimand (lift per new supported patient; median and 20th percentile, P20, across them, with pooled AP), the primary family (IFN-$\alpha$ PCA40 and FA40 plus the selected allograft-rejection, apoptosis and TNF-$\alpha$/NF-kB representations; Holm within it), the inclusion rules (since 2026-10-10, new full runs and new summarized patients need $\geq$100 malignant cells and both classes; the study's $\geq$10 rule stays for existing results; the 15,560-gene universe is unchanged) and patient-level uncertainty (patient-cluster bootstrap, exact sign test). FactoSig bases cannot yet project new cells, so each FactoSig-promax focus selection has a named PCA/FA fallback. Eleven choices are left to you before the lock, including whether the tuned or the stored-C probe is primary, whether to lock before the data arrive (the plan's preference), and three added on 2026-10-09: the patient-inclusion threshold (decided on 2026-10-10: 100 malignant cells), how the zero-malignant exclusion applies to the frozen probes, and the downsampling plan's own choices (next subsections).
+
+\subsection{Options 1.1 and 3: patient subsets}
+
+\textbf{Option 1.1} needs a rule for ``sufficient malignant cells''. At $\geq$100 it selects P03 (758), P09 (375), P02 (211) and P04 (102); the other supported patients have 22--45. Until new patients arrive it is a four-patient design. The 100 started as an illustrative cut, not a derived rule: it was first used in our review of the team report and in version~1 to make ``sufficient'' concrete, and any cut from 46 to 102 selects the same four patients, because the next supported patient has 45. On 2026-10-10 you chose it for the runs on the new data (W8.5; see \emph{Proposed for the new data} below). It is not the study's support rule, which stays at 10 malignant cells and both classes (\texttt{study\_config.json}).
+
+\textbf{Option 3's premise needs one correction.} P02, P03 and P04 are the \emph{highest-prevalence} patients, but among the \emph{smallest} by cell count (1,462, 2,327 and 1,128 cells; P09 has 17,126 and P01 11,860). They hold 1,071 of 1,569 malignant cells (68.3\%) but 4,917 of 60,118 cells (8.2\%). A strict three-patient rerun would train each LOPO fold on the other two, 2,590--3,789 cells against 57,791--58,990 in the full folds. Because scikit-learn's C does not scale with $n$, under balanced L1 a standardized factor enters only if its training class-mean gap exceeds about $4/(C \cdot n_{\text{train}})$ SD; at the stored C that bar would be 16--22 times higher, so C must be retuned by an inner LOPO whose two folds each train on one patient.
+
+\textbf{The supervision half has a first, descriptive answer.} The full patient-count curve contains, for each of P02, P03 and P04 held out, a training set made of exactly the other two plus the six unsupported patients (20,771 cells, including 12 malignant cells from P05 and P13), so 23,361--24,560 training cells with 325--981 malignant; frozen transductive basis; penalty and C tuned by two-fold inner LOPO. Against the full LOPO fold (Table~\ref{tab:09opt3}), the median difference is $+0.13$\pp{} with 6 of 12 folds higher, but single folds move by $-8.18$ to $+10.09$\pp, and the sign follows the held-out patient, not the method: P02 is lower in all four representations, P04 higher in all four.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Held-out lift (pp) when training on the other two highest-prevalence patients (``pair'') vs on all six other supported patients (``LOPO''). Tuned penalty and C; frozen transductive basis; the six unsupported patients are always in training. diff = pair $-$ LOPO.}
+\label{tab:09opt3}
+\setlength{\tabcolsep}{3.6pt}
+\begin{tabular}{l rrr rrr rrr}
+\toprule
+ & \multicolumn{3}{c}{Held out P02} & \multicolumn{3}{c}{Held out P03} & \multicolumn{3}{c}{Held out P04} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}
+Representation & pair & LOPO & diff & pair & LOPO & diff & pair & LOPO & diff \\
+\midrule
+IFN-$\alpha$ PCA40 & 15.94 & 16.74 & $-0.79$ & 18.27 & 15.57 & $+2.69$ & 17.04 & 15.48 & $+1.56$ \\
+IFN-$\alpha$ FA40 & 6.88 & 15.05 & $-8.18$ & 13.25 & 16.66 & $-3.41$ & 19.99 & 18.93 & $+1.06$ \\
+Apoptosis FactoSig-promax40 & 31.86 & 39.80 & $-7.94$ & 38.14 & 41.86 & $-3.72$ & 26.01 & 15.93 & $+10.09$ \\
+Allograft FactoSig-promax40 & 21.99 & 27.76 & $-5.76$ & 39.00 & 37.52 & $+1.48$ & 20.35 & 12.65 & $+7.70$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The converse, leaving P02/P03/P04 out of the Stage~1 basis, is the leave-out arm of the basis-variant pilot (see the section on whether these patients shape the factors). What remains of Option 3 is a basis fit on these three patients only. We recommend running it, if at all, in one patient-subset pipeline with Option 1.1, with the subset rule fixed in advance and the new patients included.
+
+\subsection{Proposed for the new data: healthy-cell downsampling}
+\label{sec:09_downsampling}
+
+Your reading notes proposed thinning the healthy cells, stratified by cell type and trajectory, to show that the healthy-to-malignant \emph{ratio}, not only the malignant \emph{count}, makes classification hard, and asked first of all \emph{why} any gain would happen. The ratio varies widely: among the supported patients there are about 2 healthy cells per malignant cell in P03 and about 263 in P01. As you decided, the run waits for the new patients. A draft pre-registration exists (\texttt{healthy\_downsampling\_plan.md} in \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak workstreams/\allowbreak W8\_new\_cohort/}; not locked; hypothesis H-S2-09, open); nothing has been computed.
+
+\begin{explainbox}{Why fewer healthy cells could help, and why it might not}
+\emph{Intuition.} Our probe already balances the classes: with \texttt{class\_weight='balanced'} each class carries half of the loss, however many healthy cells there are. Removing healthy cells at random therefore leaves the objective the same in expectation, only fitted on fewer cells, which in scikit-learn is the same problem at a smaller $C$ (the loss is a sum over cells). And AP and AUROC only rank the held-out cells, so the intercept shift that a new class ratio causes cannot move them.
+
+\emph{So a gain can come from four places only.} (1) \emph{Stage~1 geometry}: with fewer healthy cells, malignant cells hold more of the fit's variance (for PCA a class-mean difference $\Delta$ adds $p(1-p)\lVert\Delta\rVert^2$ along $\Delta$, with $p$ the malignant fraction of the fit set), so the malignant direction moves to an earlier factor; this should help most at small $K$, and on panels whose axis is partly made by malignant cells (allograft PCA, section~\ref{glance:02b}). The supported patient with the most healthy cells per malignant cell, P01, also has the largest Stage~1 leverage on all three tested panels; whether that is its cell count, its ratio or its ncMono cells is untested (W2.9). (2) \emph{Which healthy cells define ``normal''}: thinning abundant types more than rare ones moves weight toward healthy cells that resemble malignant cells. (3) \emph{The effective penalty} $C\,n_{\text{train}}$: removed by retuning $C$ on an extended grid. (4) \emph{Sampling noise}. The plan is built to tell these apart. All four are arguments, not results; section~\ref{glance:02} makes the same case from the shaping analyses.
+\end{explainbox}
+
+\textbf{What your earlier donor downsampling showed (D10, D11).} D10 thinned the donor-healthy \emph{training} cells of Stage~2 only, stratified by patient $\times$ predicted cell type, on the stored transductive basis, with the held-out patient untouched and $C$ fixed at each representation's atlas value (47,670 fits over 681 targets). At 25\% of the donor cells the sparse probes mostly collapsed to all-zero (mean collapse 0.604 for L1, 0.303 for elastic net), so their AP returned to $\pi$ by construction; L2, which cannot collapse, barely moved (mean $\Delta$AP $-0.0002$, median $+0.0001$). D11 refit the PCA/FA bases on the retained cells: at 25\% the IFN-$\alpha$ supervised factor kept score $r$ 0.952 for FA40 and 0.854 for PCA40. So the Stage-2-only arm has been run once and showed no gain under L2, but with $C$ fixed, which mostly changes the L1 penalty (channel 3). Not yet done: $C$ retuned per condition, a scheme that changes the cell-type mix (channel 2), the malignant count varied apart from the ratio, and a Stage~1 refit with Stage~2 retuned (channel 1); the plan's placements isolate exactly these. \src{2026-08-21\_donor-sensitivity-d10-d11; plan \S2.1}
+
+\textbf{As a paper.} Your catch line is recorded as candidate arc R12 in \texttt{research/\allowbreak paper/\allowbreak OUTLINE.md}, phrased as a question until W8.7 reports; both outcomes are reportable (plan \S10).
+
+\textbf{The design, in brief} (plan \S5--\S8):
+\begin{itemize}[leftmargin=1.4em]
+\item \emph{Schemes}, compared at the same number of kept healthy cells: random; proportional within patient $\times$ predicted cell type $\times$ pseudotime bin (your ``representative'' scheme); type-equalizing; patient-capped (thins the largest patients, such as P09 and P01, most); sketching optional.
+\item \emph{Where}: Stage~1 only, Stage~2 only, or both; Stage~1 transductive and inductive. Since your re-weighting decision (2026-10-10) Stage~2 only is the primary placement, and a Stage~2 sample-weight scheme (each training patient's malignant cells sum to the same weight, likewise its healthy cells; no cell dropped) joins the schemes there; the Stage~1 placements stay as read-outs of why a gain happens. The held-out patient is never thinned, so its $\pi$, and so its lift, is the same in every condition.
+\item \emph{Count vs ratio}: malignant retention $\{1, \tfrac12, \tfrac14\}$ $\times$ healthy retention $\{1, \tfrac12, \tfrac14, \tfrac18\}$; per held-out patient, lift is regressed on $\log_2$ malignant count and $\log_2$ healthy-to-malignant ratio, which separates the two effects.
+\item \emph{$C$}: retuned per condition by inner LOPO on a grid extended below the current floor, L1 and L2; diagnostic arms at fixed $C$ (should reproduce the earlier donor-downsampling collapse), at fixed $C\,n_{\text{train}}$, and the full-data $C$ path.
+\item \emph{Why-read-outs}: malignant share of score energy and the rank of the most discriminative factor (Stage~1); entry margins and the probe direction (Stage~2); the retained cell-type mix and the share of healthy cells in the malignant cells' types.
+\item \emph{Success and failure, fixed in advance}: a nested recipe must beat the full-data probe per patient (interval excluding 0, tuned L1 and L2), the ratio effect must be positive, no point of the full-data $C$ path may match the gain, and it must hold inductively, outside the highest-prevalence patients and, in direction, on the new patients. If nothing beats the full-data probe beyond seed noise with $C$ tuned, the idea is falsified, which is still a useful methods result.
+\item \emph{Cost}: roughly 100--150 CPU-hours in phased screens; the runner (W8.6) is not written yet.
+\end{itemize}
+
+\textbf{Decided: no patients without malignant cells in new runs.} Your note (A-20261009-14) is recorded: P08, P10, P11 and P12 (10,638 cells, 17.7\% of 60,118, all normal) leave the Stage~1 fit set, Stage~2 training and the $C$-tuning folds of every new run, including the patient-subset pipeline and the downsampling arm. Training $n$ changes, so $C$ is retuned. The stored bases are not a new run and keep all 13 patients. One reading of the rule is left to you: whether the frozen probes for the external test also drop these patients (plan \S14, item 10; no recommendation). The allograft and apoptosis leverage run (D26), which refits variants of the stored bases, ran as built on all 13 patients, so it compares directly with the IFN-$\alpha$ leverage test (section~\ref{glance:02b}).
+
+\textbf{Decided (2026-10-10): new full runs keep only patients with at least 100 malignant cells} (A-20261010-07; W8.5). On the current cohort that is P02, P03, P04 and P09; a new patient qualifies by the same rule, from its counts, before any score is computed. Patients below 100 are left out of every step (Stage~1 fit, Stage~2 training, summaries). That is our reading of your note together with your earlier ``subset the patients to do the whole stage0-2 pipeline'' (A-20261009-14); the alternative, keeping them in training only as P05 and P13 are now, stays possible until the plans are locked (W8.2), where you confirm. The study's support rule (10 malignant cells) and every existing result keep the seven supported patients, and a comparison between a new run and an existing result names both cohort definitions. Table~\ref{tab:09incl} lists what the threshold implies on the current cohort, including what it does to the headline summaries. \src{2026-10-10\_decisions-new-run-inclusion-reweighting-lfs}
+
+\begin{table}[H]
+\centering
+\small
+\caption{What each inclusion threshold implies on the current cohort, after the zero-malignant patients are excluded. Counts from the study configuration; ``inner folds'' are the training patients available to tune $C$ by inner LOPO in each outer fold; the sign-test entry is the smallest exact one-sided $p$ possible if every held-out patient has lift $> 0$. Median / P20 lift: the stored LOPO folds of the patient-count curve (tuned penalty and $C$, frozen transductive basis, nothing refit), summarized over the seven or over the four patients (promax40 = FactoSig-promax $K = 40$); computed for this report from \texttt{d15b\_full\_unit\_results.csv} by \texttt{figs\_09\_timing.py}.}
+\label{tab:09incl}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{4.2cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+ & $\geq$10 (current rule) or $\geq$20 & $\geq$100 (your choice, 2026-10-10) \\
+\midrule
+Held-out, summarized patients & 7: P01, P02, P03, P04, P06, P07, P09 & 4: P02, P03, P04, P09 \\
+Below the threshold (left out; train-only is the alternative) & P05, P13 & P01, P05, P06, P07, P13 \\
+Inner folds for $C$ & 6 & 3 \\
+Prevalence of the held-out patients & 0.38--32.57\% & 2.19--32.57\% \\
+Highest-prevalence patients among them & 3 of 7 & 3 of 4 \\
+Smallest exact sign-test $p$ & 1/128 & 1/16 (cannot reach 0.05) \\
+Cells kept if they are left out & 39,347 (1,557 malignant) & 22,043 (1,446 malignant) \\
+\addlinespace
+\multicolumn{3}{@{}l}{\emph{Median / P20 lift (pp) over the summarized patients:}} \\
+\quad IFN-$\alpha$ PCA40 & 8.71 / 1.37 & 15.52 / 11.54 \\
+\quad IFN-$\alpha$ FA40 & 7.03 / 1.27 & 15.86 / 11.84 \\
+\quad apoptosis promax40 & 10.26 / 2.25 & 27.86 / 10.55 \\
+\quad allograft promax40 & 10.12 / 3.06 & 20.20 / 11.08 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The thresholds $\geq$10 and $\geq$20 select the same patients here (P07 has 22 malignant cells) and differ only for new patients with 10--19. At $\geq$100, with the patients below it left out, P01 also leaves the Stage~1 fit set, so the bases change; P01 is the patient with the largest leverage on all three tested panels (section~\ref{glance:02b}). Existing patient summaries all use the seven folds. \emph{What $\geq$100 does to the summaries:} median lift rises 1.8--2.7-fold and P20 lift from 1.3--3.1 to 10.5--11.8\pp, because three of the four summarized patients are the highest-prevalence ones and the low-lift patients P01 and P06 drop out. So the same probe reads much better over the $\geq$100 set without being better; summaries on the new data should say which set they cover, and the seven-patient numbers in this report do not compare with them. P07 is the median patient of the seven in the atlas IFN-$\alpha$ PCA40 summary (11.08\pp) and in three of the four representations above (FA40: P09), so dropping it moves the median.
+
+\textbf{Where this report already shows P01, P06 and P07} (the evidence your note asks for; \texttt{integration\_plan.md} \S4.1 has the same pointers with devlog ids):
+\begin{itemize}[leftmargin=1.4em]
+\item IFN-$\alpha$ PCA40 at the atlas setting, patient by patient: the yardstick figure in \emph{The cohort and the yardstick} (lift as the gap above $\pi$; P01's probe is all-zero).
+\item P07's IFN-$\alpha$ lift: \emph{IFN-$\alpha$: why does FA40 reach only P03 and P04?}, the entry-margin figure (P06's and P07's PC8 margins sit just above the entry bar) and the $C$-policy figure (every patient, P01, P06 and P07 included, gets a factor once $C$ is tuned per fold). Why P07 ranks its cells well: in \emph{What is PC8}, PC8 alone gives 11.08\pp{} in P07 and $+10.3$\pp{} inside HSC/MPP2 alone, and a cell-type oracle reaches only 8.17\pp{} there, so P07's lift is not just which cell types are malignant (unlike P02 and P03). P07's IFN-$\alpha$ score energy is not its cell-type mix either (PCA40 1.31 observed, 1.54 adjusted; section~\ref{glance:02}). It rests on 22 malignant cells: one cell is 4.5\% of them.
+\item Across the whole atlas: \emph{The three scientific questions}, the figure ``Where the lift sits'' (each patient's share of DR representations with lift above 0 and above 5\pp).
+\item What each patient gains when more training patients are added: \emph{Learning curves}, the per-patient paired-gain figure.
+\item Each patient's median lift against prevalence and timing: Figure~\ref{fig:09b} below.
+\item Proposed, as an input to the W8.2 confirmation: a cell-bootstrap interval on lift for P01, P06 and P07 (resampling cells within the held-out patient, on the stored scores); new compute, not run.
+\end{itemize}
+
+\subsection{Days since transplant and days before relapse}
+
+Timing is recorded per sample. Each supported patient has one MRD draw except P09, which has four, so timing is a property of the patient: with seven patients it cannot be separated from anything else that differs between patients, such as prevalence, sequencing batch or label evidence.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig09a_timeline.pdf}
+\caption{Each supported patient from transplant (day 0) to relapse (tick). Filled dot: the MRD draw holding the patient's malignant cells, labelled with days to relapse; hollow dots: P09's earlier draws with their malignant counts. Right: malignant / all cells, pooled over draws. Look at the narrow window before relapse against the wide spread since transplant, and at P09.}
+\label{fig:09a}
+\end{figure}
+
+Every malignant-bearing draw was taken 28--118 days before relapse (P02 closest), while days since transplant range from 76 (P06) to 694 (P03); relapse came 150 to 805 days after transplant (Figure~\ref{fig:09a}). P09 is the only within-patient series: 0, 1, 2 and 372 malignant cells at 586, 399, 294 and 112 days before relapse. In the last draw malignant cells are 8.4\% of cells (372 of 4,410); P09's pooled 2.2\% averages it with three nearly malignant-free draws. Among unsupported patients, the draws with few malignant cells came early: P05 (8 malignant) at 30 days after transplant, P13 (4) at 35.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig09b_timing.pdf}
+\caption{Per-patient median lift (median over 643 representations) against days since transplant and days before relapse of the malignant-bearing draw, and against prevalence for reference. Bold: highest-prevalence P02, P03, P04. Hollow dots: P09's earlier draws. Exact permutation $p$ over all 5,040 orderings. Look at how the right panel orders the patients more closely than the timing panels; with seven points none of the three correlations can be told apart from the others.}
+\label{fig:09b}
+\end{figure}
+
+Spearman $\rho$ between median lift and days since transplant is 0.57 (exact $p = 0.20$) and 0.18 for days before relapse ($p = 0.71$), against 0.89 for prevalence (exact $p = 0.012$; Figure~\ref{fig:09b}). With seven patients these correlations cannot be told apart, and prevalence is itself a known correlate of lift (the cohort section), so the comparison is partly circular. Placing P09 at an earlier draw gives 0.54--0.57 and 0.14; without P03, which has both the latest draw and the highest lift, the first falls to 0.31.
+
+\textbf{How timing could be modelled.} In a cell-level probe, a per-patient timing value adds the same amount to every cell of the held-out patient, so by itself it cannot change that patient's ranking or AUPRC. It could act only indirectly, by absorbing between-patient differences while the factor weights are fitted: an adjustment learned from six training patients. Timing belongs in a patient-level model of lift once there are many more patients, and in P09's four draws, the only place where it varies within a patient.
+
+\subsection{Ankit's end-to-end semi-supervised factors}
+
+The literature review turns the idea into a ladder: supervised PCA, then sparse PLS-DA, then a linear supervised autoencoder minimizing reconstruction loss plus $\lambda$ times logistic loss ($\lambda = 0$ is close to the current pipeline, large $\lambda$ is end-to-end; $\lambda$ chosen by inner LOPO). It waits for three reasons. The IFN-$\alpha$ bottleneck was the Stage~2 penalty, not the basis: with C tuned per fold, FA40 has positive lift in 7/7 supported patients under L1, L2 and elastic net (see the IFN-$\alpha$ section). A label-aware Stage 1 must be refit inside every LOPO fold, and choosing $\lambda$ by nested LOPO over seven patients is fragile. Per-fold bases also lose the shared coordinates we use to compare discovery, LOPO and patient-specific models.
+
+\textbf{The bar it must clear}, on the same folds, with pooled AP, median lift and P20 lift read together: the inductive basis with C tuned per fold (the inductive pilot), for IFN-$\alpha$ under tuned L1 PCA40 0.1164 / 10.55 / 1.29\pp{} and FA40 0.0869 / 6.69 / 1.42\pp{} (pooled AP / median / P20); plus the direct-gene probe on the same panel and, once they exist, single-score baselines. The comparison must be pre-registered.
+
+\subsection{Single-cell ML literature: what to adopt}
+
+Two agent-run reviews (2026-10-08) live in \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak workstreams/\allowbreak W9\_literature/}, with each of their 32 recommended actions routed to a task. Table~\ref{tab:09lit} lists the six frameworks from the single-cell review that change what we do.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Frameworks from the single-cell ML review and what we adopt.}
+\label{tab:09lit}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{4.4cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{1.4cm}}
+\toprule
+Framework & What we adopt & Task \\
+\midrule
+UCell, AUCell, singscore, scanpy \texttt{score\_genes}: one per-cell score per gene set (inductive by construction) & One-feature Stage 2 comparators on the same LOPO folds: a second baseline next to direct genes for ``what does DR add'' & D24 \\
+Matched random gene-set nulls (Venet 2011; Goeman and B\"uhlmann 2007) & Random sets matched on size, expression and detection, put through the same selection (``is this prior special?''); within-patient label permutation (``is there any signal?'') & D21, W4.3 \\
+MOFA+ multi-group factors (Argelaguet 2020) & Groups = patients: factors active in some patients only and variance explained per factor $\times$ patient, the variance split Q2 asks for & W1.3 \\
+Spectra, f-scLVM, PLIER (Kunes 2024) & Gene-set-guided, label-free factors that let a Hallmark set split; to name IFN-$\alpha$ sub-programs (PC8/FA7) & W5.6 \\
+Nested selection and patient-level uncertainty (Varma and Simon 2006; Bates 2024; McDermott 2024) & Method, $K$ and C chosen inside inner LOPO; patient-cluster intervals and exact tests; AUROC and AUPRC/$\pi$ next to lift & D23, D22 \\
+The cohort paper and label tools (Chen 2025; Souporcell, Numbat) & 58,499 of 58,549 normal cells are donor cells and labels rest on per-patient evidence: audit HLA, ERAP2, chrY and XIST genes, sex match and recipient-normal cells (the review's top priority) & D25 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{caveatbox}
+\begin{itemize}
+\item \textbf{Timing is $n = 7$}, one value per patient except P09; $\rho$ and exact $p$ are descriptive, P09's position is a choice, and median lift pools 643 representations, including all-zero folds (lift 0 by construction). No causal or recurrence-risk reading.
+\item \textbf{Option 3 is read, not rerun:} the 12 pair folds keep the six unsupported patients in training (20,771 cells, 12 of them malignant) and the basis fit on all cells, and cover three held-out patients; single folds move by $-8.18$ to $+10.09$\pp.
+\item \textbf{Plans are drafts:} the email is unsent, the integration and downsampling plans are not locked, no new data exist on disk. Nothing about downsampling has been computed; the design's channels and predictions are arguments, not results.
+\item \textbf{The literature table summarizes agent-run reviews;} their numbers count only after a routed task reproduces them.
+\end{itemize}
+\end{caveatbox}
+
+\begin{teambox}
+``Most of what is left waits on Yu-Hsiang's patients, and the plan for them is written before we see their labels. Training on two of P02/P03/P04 transfers to the third with a median change of $+0.13$\pp{} from full LOPO, though single folds move by $-8$ to $+10$\pp{} depending on which patient is held out; and with seven patients, timing cannot be told apart from patient identity.''
+
+\textbf{Likely question:} ``Why not just rerun everything on P02, P03 and P04?''\\
+\textbf{Answer:} They are among the smallest patients (1,128--2,327 cells), so each fold would train on 2,590--3,789 cells with C tuned on one-patient inner folds. The supervision question already has a first answer inside the patient-count curve (Table~\ref{tab:09opt3}); only a basis fit on the trio is new, and it is better run with Option 1.1 once the new patients arrive.
+\end{teambox}
+
+\subsection*{Next step}
+\begin{itemize}
+\item You: send the Yu-Hsiang email (W8.1); confirm, at the plan lock, that patients below 100 malignant cells are left out of every step rather than kept in training (W8.2; the threshold itself is decided, W8.5); settle the remaining open choices so the integration and downsampling plans can be locked together (W8.2).
+\item The downsampling runner and its tests (W8.6), tested on toy data and on labels permuted within patients only; the run itself (W8.7) waits for the new patients.
+\item New-cohort readiness code (W8.3) and a descriptive P09 per-draw score check (W1.7).
+\end{itemize}
+
+\subsection*{How this was computed}
+{\small\raggedright
+\emph{Timing:} per-sample days and malignant/normal counts from the D1DD13 table \texttt{analysis/\allowbreak scorecards/\allowbreak stage2\_diagnostic/\allowbreak d1a\_deep\_dive\_20260910/\allowbreak d1dd\_rank\_matched\_\allowbreak confusion\_by\_\allowbreak sample\_collection.csv}, checked against \texttt{stage2\_supervised/\allowbreak multiobjective/\allowbreak discovery\_full\_cohort/\allowbreak cell\_metadata.csv.gz} (EXP-relative). \texttt{d1dd\_supported\_\allowbreak patient\_\allowbreak collection\_\allowbreak context.csv} was not used: its P09 days before relapse do not pair with its days since transplant, whereas in the per-sample table every P09 draw gives relapse at day 723. Prevalence and median raw lift per patient (643 representations, LOPO on the stored transductive bases at each representation's selected penalty and C) and $\rho = 0.89$ from D6 (\texttt{meeting\_followup\_v1/}). Timing $\rho$: Spearman, exact two-sided permutation $p$; nothing refit, so no C policy. \emph{Option 3:} tuned arm (penalty in \{L1, L2\}, C by inner LOPO over the training patients) of \texttt{patient\_count\_\allowbreak learning\_curve\_v1/\allowbreak d15b\_full\_\allowbreak unit\_results.csv}, $k = 2$ units whose subset is the other two of P02/P03/P04, against the $k = 6$ unit for the same patient and representation. Status: workstream READMEs, the email draft, the plans and the review. \emph{Inclusion table and the zero-malignant exclusion:} per-patient malignant and total counts in \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak research/\allowbreak study\_config.json} (checked against the cell metadata), as tabulated in \texttt{integration\_plan.md} \S4.0--\S4.1; healthy-per-malignant ratio $=$ (total $-$ malignant)/malignant. \emph{Downsampling design:} \texttt{healthy\_downsampling\_plan.md} (draft, not locked). Figures, $\rho$ values and Table~\ref{tab:09opt3}: \texttt{figs\_09\_timing.py}. \src{2026-09-10\_d1a-descriptive-deep-dives; 2026-08-31\_d6-d9-meeting-followup; 2026-10-08\_d15b-full-design; 2026-10-08\_d17-basis-variant-pilot; 2026-10-08\_d19-regularization-contract; 2026-10-08\_literature-reviews; 2026-10-08\_team-update-and-wave2-integration; 2026-10-08\_team-report-devlog-pivot; 2026-10-09\_report-reading-notes; 2026-10-09\_w8-healthy-downsampling-plan}\par}

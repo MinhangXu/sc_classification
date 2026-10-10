@@ -1,0 +1,65 @@
+% MRD Stage 0--2: the core answers to the 2026-10-08 questions (hard limit 12 pages, target 10).
+% Build: bash build.sh (the default target: figures, then report_core.pdf). See README.md.
+%
+% This is the short read. The long companion is report.tex (built as report_full.pdf), whose section numbers
+% the "Full report" pointers on every page use. Nothing is computed for this file: every number is copied from
+% the full report's sections/*.tex or from the devlog entry named in a page's [Source: ...] pointer.
+% One file per page in sections_core/; drop a page by commenting out its \input line below.
+% Figures are reused from figures/ (written by the figs_NN_*.py modules). Two are cropped here with
+% \includegraphics trim (fig02a, fig02b_d26a); if their layout changes, check the crops (README.md).
+
+\documentclass[10pt]{article}
+\input{preamble.tex}
+
+% Tighter page than the full report: the core answers are meant to fit about one page each.
+\geometry{letterpaper,left=0.7in,right=0.7in,top=0.75in,bottom=0.65in,headsep=10pt,footskip=18pt}
+\setlength{\parskip}{3pt}
+\setlist{itemsep=1.5pt,topsep=2pt,parsep=0pt}
+\captionsetup{font=footnotesize,labelfont=bf,margin=0pt,skip=3pt}
+\fancyhead[L]{\small\color{inkmuted}MRD Stage 0--2: core answers to the 2026-10-08 questions (v3, 2026-10-10)}
+\titleformat{\section}{\large\bfseries}{}{0em}{}
+\titlespacing*{\section}{0pt}{0pt}{4pt}
+\renewcommand{\thefigure}{\arabic{figure}}
+
+\hypersetup{
+  pdftitle={MRD Stage 0--2: core answers to the 2026-10-08 questions},
+  pdfsubject={Short read for the project lead and collaborators; descriptive results, seven supported patients},
+}
+
+% ---- page macros (core only)
+% One question per page: \coreq{title}{label}{the question in the asker's words}
+\newcommand{\coreq}[3]{%
+  \clearpage
+  \phantomsection\section*{#1}\label{#2}%
+  {\small\color{inkmuted}\emph{Asked:} #3\par}\vspace{2pt}}
+% Half-page item that does not force a new page.
+\newcommand{\corehalf}[3]{%
+  \phantomsection\section*{#1}\label{#2}%
+  {\small\color{inkmuted}\emph{Asked:} #3\par}\vspace{2pt}}
+% Evidence list heading.
+\newcommand{\evidence}{\noindent\textbf{Evidence}\par\nobreak\vspace{-1pt}}
+% One-line claim boundary.
+\newcommand{\doesnot}[1]{%
+  \begin{tcolorbox}[colback=boxcaveat,colframe=boxcaveatedge,boxrule=0.4pt,arc=1pt,left=5pt,right=5pt,top=2pt,bottom=2pt,before skip=4pt,after skip=3pt]
+  \small\textbf{Does not show:} #1
+  \end{tcolorbox}}
+% Pointer to the long companion.
+\newcommand{\fullref}[1]{{\small\color{inkmuted}\textbf{Detail:} full report (\texttt{report\_full.pdf}), #1\par}}
+% Compact short-answer box (same colours as the full report's).
+\newtcolorbox{coreanswer}{colback=boxtake,colframe=boxtakeedge,boxrule=0.6pt,arc=2pt,left=6pt,right=6pt,top=3pt,bottom=3pt,before skip=3pt,after skip=5pt,fonttitle=\bfseries\small,title=Short answer}
+
+\begin{document}
+
+\input{sections_core/00_title_and_glance}   % p1: title + answers at a glance
+\input{sections_core/01_cohort_yardstick}   % cohort and yardstick (+ key terms)
+\input{sections_core/02_shape_ifna}         % do P02/P03/P04 shape the factors? (IFN-alpha; D16, D17, D28)
+\input{sections_core/03_allograft_apoptosis} % allograft rejection and apoptosis: the leverage test (D26)
+\input{sections_core/04_aggregate}          % should we aggregate patients? (D14)
+\input{sections_core/05_pca_vs_fa}          % IFN-alpha PCA40 vs FA40: the L1 entry rule (D19)
+\input{sections_core/06_pc8_protein}        % what PC8 is, and surface protein (D18, D27)
+\input{sections_core/07_inductive}          % excluding the held-out patient from Stage 1 (D17)
+\input{sections_core/08_learning_curves}    % learning curves (D15, D15b)
+\input{sections_core/09_three_questions}    % Q1-Q3 and the claim boundary
+\input{sections_core/10_decisions_next}     % decisions taken and what runs next with the new data
+
+\end{document}

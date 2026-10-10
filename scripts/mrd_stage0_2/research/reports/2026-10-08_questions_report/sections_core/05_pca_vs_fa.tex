@@ -1,0 +1,24 @@
+% Core page: IFN-alpha PCA40 vs FA40, the L1 entry rule (D19). Numbers: full report section 4.
+\coreq{IFN-\texorpdfstring{$\alpha$}{alpha}: why does PCA40 reach four patients but FA40 only two?}{core:pcafa}{why does PCA40 transfer to four patients but FA40 only to P03 and P04? Hypothesis (a): FA keeps allocating factors to the highest-prevalence patient. (team report)}
+
+\begin{coreanswer}
+\textbf{A Stage~2 regularization threshold, not missing FA structure.} Under L1 a factor can enter a fold's probe only if its standardized class-mean gap exceeds $4/(C\,n_{\text{train}})$ ($n_{\text{train}}$ = training cells). FA40's best factor, FA7, misses that bar by 1.4--3.3\% in P02, P06 and P07, so those folds keep no factor and score lift 0 by construction. With $C$ tuned per fold, FA40 has positive lift in all 7 supported patients. Hypothesis (a) is retired. (The team's ``four'' are PCA40's patients above 5\pp; its fifth positive patient, P06, is at $+0.06$\pp, which the figure counts as lift $>$ 0.)
+\end{coreanswer}
+
+\evidence
+\begin{itemize}[leftmargin=1.3em]
+\item \emph{The bar moves with the fold}: at the atlas setting (L1, $C = 10^{-4}$) PC8 clears it by 7.3--8.5\% in P02, P06 and P07, FA7 misses it by 1.4--3.3\%. A 5\% higher $C$ already gives FA40 18.06\pp{} in P02 and 6.97\pp{} in P07 (figure, second panel).
+\item \emph{Tuned $C$}: positive lift in 7 of 7 patients for both bases under L1, L2 and elastic net; tuned-L1 median lift 8.71\pp{} (PCA40) and 7.03\pp{} (FA40).
+\item \emph{The rule is exact}: it reproduces 14/14 IFN-$\alpha$ folds and 2,772/2,772 audited atlas folds. Across the atlas, 528 of 783 cells select the lowest $C$ on the grid and 136 folds in 49 cells sit at the knife-edge of entry, so a zero in the atlas is often a threshold, not an absence of signal.
+\item \emph{Hypothesis (a)}: FA40 does not favour the highest-prevalence patients more than PCA40 does. P02--P04 hold 8.4\% of FA40's and 9.1\% of PCA40's score energy against 8.2\% of the cells, and P03 tops none of either basis's factors.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.93\linewidth]{figures/fig04b_policy_lift.pdf}
+\caption{Held-out lift per supported patient for PCA40 (blue) and FA40 (orange) under four $C$ policies; hollow = all-zero probe (lift 0 by construction). Look at the hollow orange circles for P02, P06 and P07 in the first panel, and how they fill in once $C$ rises by 5\% or is tuned.}
+\end{figure}
+
+\doesnot{that PCA is better or worse than FA (nothing here ranks them); one panel at $K = 40$; the atlas $C$ was chosen with the held-out patients' outcomes (not nested).}
+
+\fullref{section 4, \emph{IFN-$\alpha$: why does FA40 reach only P03 and P04?} (entry-margin figure; box on the entry rule). \src{2026-10-08\_d19-regularization-contract}}

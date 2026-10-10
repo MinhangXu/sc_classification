@@ -1,0 +1,24 @@
+% Core page: Option 2, excluding the held-out patient from Stage 1 (D17). Numbers: full report section 6.
+\coreq{Excluding the held-out patient from Stage~1}{core:inductive}{Option~2: fit Stage~1 without the held-out patient, so the factors never see it (team report)}
+
+\begin{coreanswer}
+\textbf{Yes, on the one panel tested (IFN-$\alpha$; PCA and FA at $K$ = 10, 20, 40).} With Stage~1 fit without the held-out patient and that patient's cells projected onto the frozen factors (\emph{inductive}), held-out lift stays positive in all 7 supported patients under tuned $C$ or L2 (126 of 126 patient $\times$ setting pairs). The transductive numbers are slightly optimistic per patient, by little.
+\end{coreanswer}
+
+\evidence
+\begin{itemize}[leftmargin=1.3em]
+\item \emph{Cost per patient}: against the transductive refit, the median per-patient change is between $-1.29$ and $-0.05$\pp{} across the 18 tuned/L2 settings; always negative, but small next to median lifts of 2.5--10.6\pp.
+\item \emph{Pooled AP is more sensitive}: FA40 under tuned L2 falls from 0.1325 to 0.0794.
+\item \emph{The axis survives}: the discriminative factors (PC8, FA7) survive the refit, and a basis fit on normal cells only carries them too (median change $+0.02$\pp{} for PCA40 and $+0.25$\pp{} for FA40 under tuned L1; figure).
+\item \emph{Single patients move more}: FA40 P03 $-3.83$\pp, PCA10 P04 $+6.13$\pp; with seven patients these are not identifiable effects.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig06a_inductive_lift.pdf}
+\caption{Held-out lift per supported patient at $K = 40$, $C$ tuned per fold, L1, on three Stage~1 bases: transductive refit (open circle), inductive (filled circle) and normal cells only (diamond).}
+\end{figure}
+
+\doesnot{the other representations (the 47 atlas-selected ones, FactoSig included, are untested); fully inductive tuning (the inner folds reuse the outer fold's basis); new data such as Yu-Hsiang's patients.}
+
+\fullref{section 6, \emph{Option 2: inductive Stage 1} (all 18 settings, paired changes). \src{2026-10-08\_d17-basis-variant-pilot}}

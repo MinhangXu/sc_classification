@@ -1,0 +1,29 @@
+% Core page: allograft rejection and apoptosis, the leverage test (D26). Numbers: full report section 2b.
+% Figure: fig02b_d26a panels (a-c), cropped by trim (fig02b_d26a is 479 x 386 bp; panels a-c, their x label
+% and the title span the top 220 bp, so trim removes the bottom 165 bp; recheck if figs_02b_d26.py changes the layout).
+% Numbers not in the D26 done entry (PCA-only and FA-only ranges, control |r| ranges, normal-only refits, the
+% 17-of-18 count) are recorded in devlog 2026-10-10_core-report-v3 (Results, with their source tables).
+\coreq{Allograft rejection and apoptosis: what did we do?}{core:d26}{``What did we do with allograft and apoptosis? Please update all that as a new section in the report.'' (MX, 2026-10-10, A-20261010-13; also A-20261009-02, -15)}
+
+\begin{coreanswer}
+\textbf{We ran the IFN-$\alpha$ leverage test on both panels (D26, MX's screen run of 10 October). By the rule fixed before the run, P02, P03 and P04 do not shape these factors more than other patients do.} Leaving them out moves the malignant axis beyond random drops of the same composition, mostly through P03, but on the primary axis never beyond what leaving out another patient set does; P01 moves it most. So hypothesis H-S1-05 (``they shape the factors'') is not supported for PCA and FA.
+\end{coreanswer}
+
+\evidence
+\begin{itemize}[leftmargin=1.3em]
+\item \emph{Design} (as for IFN-$\alpha$, on the two programs where DR gains most): refit Stage~1 without P02+P03+P04, without each of them, or without a contrast set (P01, P06, P09, P01+P09); PCA and FA at $K = 10$, 20, 40; 2,364 refits. Rule: (1) \emph{beyond composition} if the axis moves more than all 20 composition-matched drops in at least 4 of 6 method $\times$ $K$ cells; (2) \emph{support} also needs the group to beat every contrast set in at least 4 of 6.
+\item \emph{(1) is met} (panels b, c): above all 20 drops in 5 of 6 cells (allograft) and 6 of 6 (apoptosis), at 1.3--4.1$\times$ and 2.0--4.0$\times$ the drops' mean (IFN-$\alpha$, panel a: 3 of 6). P03 alone accounts for 74--93\% and 72--88\% of what the three together lose.
+\item \emph{Size} (rule (4): matched $|r| \geq 0.98$ is ``small''): small for apoptosis ($|r| \geq 0.994$) and allograft FA ($\geq 0.988$). Allograft PCA's primary axis (its PC8, not the IFN-$\alpha$ PC8 of page~\pageref{core:pc8}) is not small: $|r|$ 0.945--0.970, 0.9--2.8\% of its variance lost. But the 20 random drops of 4,917 cells, 1,071 of them malignant, rotate it about as much ($|r|$ 0.90--0.97): that axis is partly made by the malignant cells, whoever they belong to.
+\item \emph{(2) fails}: the group beats every contrast set in 0 of 6 primary-axis cells on each panel (1 of 6 on the apoptosis probe axis). P01 (11,860 cells, 45 malignant) moves the axes 21--141$\times$ and 48--128$\times$ its own controls, the largest ratio in 17 of 18 primary-axis cells over the three panels.
+\item \emph{What it means}: it fits MX's choice to re-weight the Stage~2 labels. For healthy-cell downsampling, P01 (about 263 healthy cells per malignant cell, the most of the supported patients) is where thinning the Stage~1 fit would bite; a prediction, not a result.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.86\linewidth,trim=0 165 0 0,clip]{figures/fig02b_d26a_ratio_by_set.pdf}
+\caption{Each column is one patient set left out of the Stage~1 fit (02 = P02; 02+03+04 = the three together); each marker is one method $\times$ $K$ (blue PCA, orange FA; triangle $K$ = 10, square 20, circle 40; open = inside its 20 drops). The y-axis is how far the primary axis moves (axis loss) divided by the mean of that set's 20 composition-matched drops; above 1 = more than random drops. The number over each column counts cells above all 20; P01's column is shaded. The full report's panels (d--f) show matched $|r|$.}
+\end{figure}
+
+\doesnot{FactoSig or FactoSig-promax (the atlas winners on both panels) or the other 38 panels; held-out lift (no Stage~2 probe was refit); why P01 moves the axes (proposed: a cell-type-matched control, W2.9).}
+
+\fullref{section 2b, \emph{What did we do with allograft rejection and apoptosis?} (rule table, next steps). \src{2026-10-09\_d26-leverage-allograft-apoptosis; 2026-10-10\_d26-leverage-allograft-apoptosis-done; 2026-10-10\_core-report-v3}}

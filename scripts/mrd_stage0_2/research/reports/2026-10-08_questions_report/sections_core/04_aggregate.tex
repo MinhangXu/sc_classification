@@ -1,0 +1,24 @@
+% Core page: should we aggregate patients? (D14). Numbers: full report section 3.
+\coreq{Should we aggregate patients?}{core:aggregate}{should we aggregate patients, given the per-patient factor distributions? (team report)}
+
+\begin{coreanswer}
+\textbf{Yes, on the current Stage~1 bases.} The patients' cells land in the same factor-score ranges: of 47 representations (41 biological panels and 6 broad gene-bag controls), 45 pass all four overlap gates, 2 are \emph{location shifts} (one patient's cells sit shifted) and none looks like a patient-specific subtype.
+\end{coreanswer}
+
+\evidence
+\begin{itemize}[leftmargin=1.3em]
+\item \emph{Overlap}: the shared area of two patients' histograms of one factor's scores (1 = identical, 0 = disjoint), averaged over factors with variance weights, for normal and malignant cells separately.
+\item \emph{The gates} (a fixed definition of ``aggregate''; judgment calls, not calibrated): the median patient pair shares at least 0.75 of its normal-cell and 0.45 of its malignant-cell histogram; no patient's normal cells share less than 0.60 with the rest; the malignant overlap is less than 0.15 below that of label-shuffled patients.
+\item On the 41 biological panels the median pair shares 0.777--0.890 of its normal-cell histogram (median 0.843) and 0.538--0.657 of its malignant-cell histogram (median 0.610).
+\item The two location shifts: allograft rejection FactoSig-promax $K = 40$ (P02's normal cells overlap the rest at 0.575) and the HVG 10k control bag. The only patient-private axis, P03's, appears in three broad gene bags and in none of the 41 biological representations.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\linewidth]{figures/fig03a_decision_map.pdf}
+\caption{The aggregation call for every representation: one point per Stage~0 panel at its atlas-selected method and $K$ (colour = method; open squares = broad gene-bag controls; gray dots = label-shuffled patients). The shaded region passes the overlap gates; the red band would flag a subtype. The title counts the 41 biological panels (40 pass); with the 6 controls it is 45 of 47.}
+\end{figure}
+
+\doesnot{how much each patient \emph{contributes} to a factor (that is the leverage test) or whether the same factors drive lift; the basis is transductive and the gates are judgment calls (permutation $p$ at its floor). P07, P06 and P01's malignant overlaps rest on 22--45 cells.}
+
+\fullref{section 3, \emph{Should we aggregate patients?} (worked example on PC8, the three calls drawn as shapes). \src{2026-10-02\_d14-patient-factor-overlap}}

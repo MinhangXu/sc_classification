@@ -1,0 +1,77 @@
+% Core page 1: title block and the answers-at-a-glance table. Page numbers resolve through \pageref;
+% the last column is the section of the full report (report_full.pdf) that holds the detail.
+\thispagestyle{plain}
+\begin{flushleft}
+{\LARGE\bfseries MRD Stage 0--2: the core answers\par}
+\vspace{3pt}
+{\large\color{inkmuted}The 2026-10-08 questions, one page each \textperiodcentered{} version 3, 10 October 2026\par}
+\end{flushleft}
+\vspace{-2pt}
+{\small
+This is the short read. Each page answers one question with a short answer, 3--5 pieces of evidence with their numbers, one figure, a line on what the result does \emph{not} show, and a pointer to the section of the long companion (\texttt{report\_full.pdf}) that has the detail. Terms are defined in a few words where they first appear, and in a box on page~\pageref{core:cohort}.
+
+\emph{MX} is Minhang Xu, the study lead and repository owner: ``MX chose'' marks a decision of the study's, and the last page lists the decisions still open for MX. Every result here is \emph{descriptive}: an effect size measured on these data (seven supported patients; a Stage~1 basis mostly fit on all cells, held-out patient included), with no calibrated test, no patient-level interval and no outside cohort behind it. The study's claim list is THEME \S6 (\texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak research/\allowbreak THEME.md}).\par}
+
+\vspace{4pt}
+\noindent{\large\bfseries Answers at a glance}\par\vspace{2pt}
+{\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.18}
+\noindent\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.35cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3.0cm} >{\centering\arraybackslash}p{0.72cm} >{\centering\arraybackslash}p{0.6cm}@{}}
+\toprule
+\textbf{Question} & \textbf{Answer} & \textbf{How sure} & \textbf{Page} & \textbf{Full} \\
+\midrule
+What is the cohort, and how do we score a classifier? &
+13 patients, 60,118 cells, 1,569 malignant; 7 supported patients. Lift = held-out AUPRC minus the patient's malignant prevalence $\pi$, in percentage points (pp). &
+Counts and definitions &
+\pageref{core:cohort} & 1 \\
+Do P02, P03, P04 disproportionately shape the factors? (IFN-$\alpha$) &
+No more than other patients: without them the IFN-$\alpha$ axis barely moves (matched $|r| \geq 0.988$). Their imbalance is mainly in Stage~2: 68.3\% of the malignant labels. &
+Descriptive; leverage on 1 panel, score variance on 41; PCA/FA only &
+\pageref{core:shape} & 2 \\
+What did we do with allograft rejection and apoptosis? &
+Ran the same leverage test (D26). Leaving P02+P03+P04 out moves the axis beyond matched random drops (mostly P03), not beyond other patients on the primary axis; P01 moves it most. &
+Descriptive; 2 panels, PCA/FA; rule fixed before the run &
+\pageref{core:d26} & 2b \\
+Should we aggregate patients? &
+Yes, on the current bases: 45 of 47 representations pass all four overlap gates, 2 are location shifts, none looks like a patient-specific subtype. &
+Descriptive; transductive basis; gates are judgment calls &
+\pageref{core:aggregate} & 3 \\
+IFN-$\alpha$: why does PCA40 reach four patients (lift $>$ 5\pp) but FA40 only P03 and P04? &
+An L1 entry threshold, not missing FA structure: FA7 misses the entry bar by 1.4--3.3\%; with $C$ tuned per fold FA40 reaches all 7 patients. &
+Descriptive; 1 panel; the rule reproduces 2,772/2,772 audited folds &
+\pageref{core:pcafa} & 4 \\
+What is PC8? &
+One axis, named by its poles: malignant cells lean toward TXNIP, IFITM2, TENT5A, normal cells toward IFI27, PSME2, PSMA3. A refit can spread it over several factors. &
+Descriptive; 1 panel &
+\pageref{core:pc8} & 5 \\
+Have we integrated the protein data? Does it track PC8? &
+Not into the factors (RNA only); we use it to read them. PC8's CD34 correlate reflects cell type (inside cell types $\rho$ $+0.019$). &
+Descriptive; 1 panel; protein CLR-normalized, no dsb &
+\pageref{core:protein} & 5 \\
+Exclude the held-out patient from Stage~1 (Option~2)? &
+Done on IFN-$\alpha$: lift stays positive in 7/7 patients; the median per-patient cost is 0.05--1.29\pp, so transductive numbers are slightly optimistic. &
+Descriptive; IFN-$\alpha$ only, PCA/FA &
+\pageref{core:inductive} & 6 \\
+AUPRC against the number of cells or patients? &
+Drawn, with $C$ retuned: one supported training patient already gives positive lift; going from two to six adds 0.30--2.34\pp, CIs mostly include 0. &
+Descriptive; frozen basis; nothing extrapolated &
+\pageref{core:curves} & 7 \\
+Q1--Q3: shared or patient-specific? how strong? what does DR add? &
+Q1: shared transfer seen, not yet separated from prevalence. Q2: no inferential framework yet. Q3: DR's gain depends on the estimand. &
+Not yet inferential &
+\pageref{core:q123} & 8 \\
+What did we decide, and what runs next? &
+New runs: patients with $\geq$100 malignant cells (P02, P03, P04, P09 today); re-weight the Stage~2 labels; downsampling and Yu-Hsiang's data come next. &
+Decisions and plans; nothing run yet &
+\pageref{core:next} & 9 \\
+\bottomrule
+\end{tabularx}
+}
+
+\vspace{6pt}
+{\small
+\noindent\textbf{What changed since the team report, in three lines.}
+(1) The imbalance specific to P02--P04 sits mainly in the Stage~2 labels, not in the Stage~1 factors; the patient with the most Stage~1 leverage is P01 (pages~\pageref{core:shape}--\pageref{core:d26}).
+(2) A zero in the atlas is often an L1 threshold, not an absence of signal (page~\pageref{core:pcafa}).
+(3) PC8 is named by its poles, and its protein correlates are mostly cell identity (pages~\pageref{core:pc8}--\pageref{core:protein}).\par}

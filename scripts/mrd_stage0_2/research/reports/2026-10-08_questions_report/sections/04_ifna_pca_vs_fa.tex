@@ -1,0 +1,95 @@
+\section{\texorpdfstring{IFN-$\alpha$}{IFN-alpha}: why does FA40 reach only P03 and P04?}
+\label{sec:ifna-pca-vs-fa}
+
+\begin{quote}
+We looked at the odd observation wrt Interferon alpha response: PCA 40 factor achieve lift in four patients whereas FA(K=40) only capture P03 and P04.
+(a) Data science angle: Hypothesizing PCA's orthogonality constraint forces later components to capture variance beyond P03 whereas FA keep allocating factors toward the highest-prevalence patient. Need to inspect the factor-by-patient matrix for FA to test this.
+\end{quote}
+
+\begin{answerbox}
+The gap is a Stage~2 regularization threshold, not missing FA structure. At the atlas setting (L1, $C = 10^{-4}$) a factor can enter a fold's probe only if its class-mean gap beats $4/(C\,n_{\mathrm{train}})$; PCA40's best factor (PC8) clears that bar by 7.3--8.5\% in P02, P06 and P07, while FA40's best factor (FA7) misses it by 1.4--3.3\%, so those FA folds keep no factor and score lift 0 by construction. A 5\% higher $C$ gives FA40 18.06\pp{} in P02 and 6.97\pp{} in P07, and with $C$ tuned per fold FA40 has positive lift in all 7 supported patients under L1, L2 and elastic net, so hypothesis (a) is retired. Confidence: descriptive, one panel, 7 supported patients, transductive Stage~1 (the threshold account also holds on inductive bases); the rule reproduces 14/14 IFN-$\alpha$ folds and 2,772/2,772 audited atlas folds.
+\end{answerbox}
+
+\subsection*{What we did}
+
+Everything below rests on one property of L1 probes.
+
+\begin{explainbox}{The L1 entry rule, and why one $C$ is a different penalty in every fold}
+\textbf{Intuition.} An L1 probe starts with every coefficient at zero. Moving one off zero costs a fixed price per unit; the initial benefit is how far apart the classes sit on that factor times how much loss the probe sums ($C$ times the training cells). A factor enters only if the benefit rate beats the price; otherwise its coefficient is exactly zero, not small.
+
+\textbf{Exact.} Stage~2 minimizes $C\sum_{i} s_i\,\ell(y_i,\, b + w^{\top} z_i) + \lVert w\rVert_1$ with balanced weights $s_i = n/(2n_{c(i)})$, a free intercept and training-fold standardized scores. At $w = 0$ the optimal intercept gives every cell probability $1/2$, so the gradient for factor $j$ is $C\,(n/4)\,\mathrm{gap}_j$, with $\mathrm{gap}_j = \bar z_j^{\,\mathrm{normal}} - \bar z_j^{\,\mathrm{malignant}}$ in training-SD units. The subgradient (KKT) condition keeps $w_j = 0$ unless $|\mathrm{gap}_j| > \tau = 4/(C\,n_{\mathrm{train}})$. The \textbf{entry margin} is $m_j = |\mathrm{gap}_j|/\tau$; if every $m_j \leq 1$ the probe is all-zero, and a fold is \textbf{knife-edge} when its largest margin is within 10\% of 1. (Elastic net with L1 ratio $\alpha$: $\tau = 4\alpha/(C\,n_{\mathrm{train}})$.)
+
+\textbf{Consequence.} Balanced weights remove the class sizes but not the total, so $\tau$ depends on $n_{\mathrm{train}}$, the cells outside the held-out patient. At $C = 10^{-4}$, $\tau$ is 0.678\,SD with P04 held out ($n_{\mathrm{train}} = 58{,}990$) and 0.930\,SD with P09 held out (42,992): the same $C$ demands a 37\% larger gap in the P09 fold. The atlas grid steps by $\times 4.64$ (13 values per penalty, $10^{-4}$ to $10^{4}$) and $10^{-4}$ is its floor, so the next $C$ the atlas could choose was $4.64\times10^{-4}$, far above the 1.5--3.5\% increase FA7 needs. The atlas still chose the floor because, of its 65 settings, that one had the highest pooled LOPO AP, which P03 dominates (see \emph{Reading the atlas heatmap} below).
+
+\textbf{One fold in numbers.} With P02 held out, $n_{\mathrm{train}} = 58{,}656$, so $\tau = 4/(10^{-4} \times 58{,}656) = 0.682$\,SD. PC8's gap gives margin 1.085 and it enters (the PCA40 probe's held-out lift is 15.94\pp); FA7's gives 0.967, so the FA40 probe keeps no factor and scores lift 0 by construction. The section on learning curves (paragraph ``One fold worked through'') takes this fold step by step and shows what $C \times n$ would let FA7 in.
+\end{explainbox}
+
+The observation is one pair of atlas cells: the hallmark interferon-alpha response panel (92 genes) reduced by PCA or FA to $K = 40$ factors, both with the atlas-selected probe, L1 at $C = 10^{-4}$. \emph{Lift} is held-out AUPRC minus the held-out patient's malignant prevalence $\pi$ under leave-one-patient-out (LOPO). PCA40 has positive lift in P02 15.94, P03 13.40, P04 16.27, P07 11.08 and P06 0.06\pp{} (the team's ``four'' are those above 5\pp), FA40 in P03 14.37 and P04 19.87\pp. The other folds are \emph{all-zero}: the probe kept no factor, every held-out cell gets one score, AUPRC $= \pi$ (constant-score no-skill AP) and lift is 0 by construction. We tested the L1 optimality condition fold by fold, then moved $C$ or tuned it per outer fold by an inner LOPO over the six other supported patients, on the stored \emph{transductive} basis (fit without labels on all cells, the held-out patient's included) and on \emph{inductive} bases (fit without the held-out patient).
+
+
+\subsection*{What we found}
+
+\textbf{FA40 has the direction.} FA7 is FA40's largest-margin factor in every fold, as PC8 is PCA40's. On its own FA7 gives held-out lift 18.06\pp{} in P02 and 6.97\pp{} in P07 (PC8: 15.94 and 11.08\pp). They are related, not identical, directions: $r(\mathrm{PC8}, \mathrm{FA7}) = -0.685$ over all cells ($-0.575$ to $-0.722$ within patients), and PC8 has $R^2$ 0.920 on the 40 FA scores. Among their top-loading genes both put malignant cells toward IFITM2 and TENT5A and away from IFI27, PSME2 and PSMA3 (orientation from the L1 coefficient sign at $C = 10^{-4}$). The factor-by-patient matrix the team asked for (Figure~\ref{fig:04c}) shows no FA allocation toward the highest-prevalence patients. P02, P03 and P04 hold 8.4\% of FA40's score energy (summed squared deviations of factor scores from the cohort mean) against 8.2\% of cells (PCA40: 9.1\%), and P03 \emph{tops} (has the largest over-representation ratio of the 13 patients on) none of either basis's factors. P02 tops most factors in both bases (27 of 36 in FA40, 31 of 40 in PCA40), through excess spread on low-variance trailing factors, so it does not separate FA from PCA either.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig04c_factor_patient_matrix.pdf}
+  \caption{The factor-by-patient matrix for IFN-$\alpha$ PCA40 (left) and FA40 (right), transductive bases. Colour: the over-representation ratio, a patient's share of that factor's score energy divided by its share of cells (1$\times$ = in proportion; log scale, clipped at 0.35$\times$ and 2.8$\times$). Dot: the patient that tops the factor; numbers above the columns count the factors each patient tops. Look at the P02 column, red on the trailing factors in both bases, and at P03 and P04, near 1$\times$ throughout; the outlined rows are PC8 and FA7. Rows are factor indices, so row $j$ in one basis is not row $j$ in the other.}
+  \label{fig:04c}
+\end{figure}
+
+\textbf{The rule explains every fold (Figure~\ref{fig:04a}).} Predicted and stored zero/nonzero outcomes agree in 14 of 14 folds. PC8's gap is 3--12\% larger than FA7's in every fold (0.704--0.770 vs 0.658--0.705\,SD), and in P02, P06 and P07 that small difference straddles the bar: PC8 margins 1.085, 1.074, 1.073; FA7 margins 0.967, 0.986, 0.981. P01 and P09 fall below the bar for both methods because they are the two largest patients (11,860 and 17,126 cells): holding either out shrinks $n_{\mathrm{train}}$ and raises $\tau$.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig04a_entry_margin.pdf}
+  \caption{Entry margins at the atlas setting, one pair of points per held-out supported patient. \textbf{(a)} Margin of PC8 (blue) and FA7 (orange); above 1 the factor enters, below it the probe is all-zero; gray band = knife-edge zone. Look at P02, P06, P07: PC8 just above, FA7 just below. \textbf{(b)} The same folds in training-SD units: gray bar $= 4/(C\,n_{\mathrm{train}})$, dots = class-mean gaps. The gaps are nearly constant; the bar is highest when P01 or P09 is held out.}
+  \label{fig:04a}
+\end{figure}
+
+\textbf{Lift is a step in $C$, and tuning $C$ closes the gap (Figure~\ref{fig:04b}).} Once one factor enters, the held-out ranking is that factor's ranking, so lift jumps from 0 to the factor's full single-factor lift, whatever the coefficient's size. FA7 would enter P02 at $1.035\times$, P06 at $1.015\times$ and P07 at $1.020\times$ the atlas $C$; at $1.05\times$ FA40 covers the same five patients as PCA40, whose lifts do not change up to $1.25\times$ (except P01, 0.23\pp{} at $1.25\times$). Conversely, at $0.9\times$ PCA40 keeps only P03. With $C$ chosen by inner LOPO on the training patients only, both methods have positive lift in 7 of 7 supported patients under L1, L2 and elastic net (L1 ratio 0.5), and neither is ahead overall. PCA40 vs FA40, pooled AP / median lift / P20 lift: tuned L1 0.1001 / 8.71 / 1.37\pp{} vs 0.0894 / 7.03 / 1.25\pp; tuned L2 0.0871 / 5.60 / 1.17\pp{} vs 0.1325 / 6.38 / 1.85\pp; tuned elastic net 0.1209 / 10.16 / 1.30\pp{} vs 0.0891 / 7.40 / 1.21\pp. P09, all-zero for both at the atlas $C$, gets 5.63 (PCA40) and 7.03\pp{} (FA40) under tuned L1. One PCA40 advantage survives tuning, in P07 (22 malignant cells): 8.71 vs 4.97\pp{} (L1), 10.16 vs 7.40 (elastic net), 5.60 vs 5.07 (L2); it is one patient and its size depends on the penalty.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig04b_policy_lift.pdf}
+  \caption{Per-patient held-out lift of PCA40 (blue) and FA40 (orange) under four $C$ policies; filled = a factor entered, hollow = all-zero probe. Look at the hollow orange circles for P02, P06 and P07 in the first panel: they fill at $1.05\times$ the atlas $C$, and every patient is filled once $C$ is tuned per fold.}
+  \label{fig:04b}
+\end{figure}
+
+\textbf{The Stage~1 basis does not change this.} On bases fit without the held-out patient, on normal cells only, with patient-balanced weights, or without P02, P03 and P04, tuned L1 and tuned L2 give positive lift in 7 of 7 patients for both methods (tuned L1 medians, PCA40 / FA40: inductive 10.55 / 6.69\pp, normal-only 6.98 / 7.57, balanced 9.25 / 6.85, without P02--P04 6.31 / 15.08). At the fixed atlas $C$ coverage moves with the basis in both directions: on the patient-balanced basis both cover 5 patients and FA40 has the higher median (14.28 vs 8.29\pp), while on the inductive basis PCA40 loses P07 because PC8's margin falls from 1.073 (stored basis) to 0.928.
+
+\textbf{Why hypothesis (a) fails: FA is not ``PCA without orthogonality''.} Both methods give uncorrelated scores, the space Stage~2 sees: the largest off-diagonal score correlation is 0.000 for PCA40 and 0.003 for FA40 (FactoSig-promax, an oblique rotation, reaches 0.924), because unrotated maximum-likelihood FA makes $W^{\top}\Psi^{-1}W$ diagonal ($W$ loadings, $\Psi$ per-gene noise variances). What FA drops is orthogonality of the loadings in gene space (largest off-diagonal entry of $W^{\top}W$: 0.403, vs below $10^{-6}$ for PCA40); what it adds is a noise variance per gene, so it models shared rather than total variance. So L1 has no collinear FA columns to choose between. Stage~1 never sees labels, so it can favour a patient only through that patient's expression; it sometimes does (the P03-private axes in three broad gene bags, in the section on aggregating patients), but on IFN-$\alpha$ it does not for either method. The threshold accounts for the gap fold by fold.
+
+\textbf{Reading the atlas heatmap.} A lift of exactly 0 there is this threshold, not an absence of signal; the cell view's per-fold strip flags all-zero folds (IFN-$\alpha$ FA40 is active in 3 of 13 folds, PCA40 in 11). The atlas picks $C$ by pooled LOPO AUPRC, which pools seven fold models and gives an all-zero fold one tied score, so it need not penalize all-zero folds: the fixed-$C$ L1 arms have the highest pooled AP of all IFN-$\alpha$ arms (PCA40 0.1630, FA40 0.1959) despite 2 and 5 all-zero folds. Across the atlas, 528 of 783 cells select the grid floor, and 136 L1 or elastic-net folds in 49 cells are knife-edge, where crossing the bar changes lift by $\geq 5$\pp{} in 41 of 131 evaluable folds (the primer section's note on reading a 0 has the details).
+
+\begin{caveatbox}
+\begin{itemize}
+  \item Descriptive: one panel, $K = 40$, seven supported patients (P07 has 22 malignant cells, P06 44, P01 45); no test statistic on any PCA-versus-FA difference.
+  \item Transductive Stage~1 for the main numbers (LOPO is label transfer, not inductive deployment); the inductive check covers this panel only.
+  \item The atlas-$C$ arms (stored, $1.05\times$, fixed L2) are not nested: the atlas $C$ was chosen by pooled LOPO AUPRC including each held-out patient. Tuned arms are nested in $C$ only (method and $K$ were fixed after looking); tuned L2 lands on the grid floor in 6 of 7 FA40 and 5 of 7 PCA40 folds.
+  \item PC8 and FA7 are not one axis, and neither is individually identifiable (PC8 relative eigengap 0.055; FA7 determinacy 0.649). Nothing here ranks PCA against FA.
+\end{itemize}
+\end{caveatbox}
+
+\begin{teambox}
+``On IFN-$\alpha$ the PCA-versus-FA difference was a regularization threshold, not a difference in what the factors capture: FA's best factor sat 1.4 to 3.3\% below the L1 entry bar in P02, P06 and P07; a 5\% higher $C$ brings those patients in, and with $C$ tuned per fold FA reaches all seven supported patients.''
+
+\textbf{Likely question:} ``So which is better here, PCA or FA?''\\
+\textbf{Answer:} Neither, on this evidence. With $C$ tuned per fold PCA40 is ahead under L1 (median 8.71 vs 7.03\pp) and elastic net (10.16 vs 7.40\pp), FA40 under L2 (6.38 vs 5.60\pp, also on P20 lift and pooled AP). The one per-patient gap that survives tuning (P07, 22 malignant cells) changes with the penalty and cannot be identified from one patient.
+
+\textbf{Likely question:} ``Why did the atlas pick $C = 10^{-4}$ at all?''\\
+\textbf{Answer:} It picks $C$ by pooled LOPO AP, which P03 dominates; the sparse FA40 probe has the highest pooled AP of any IFN-$\alpha$ arm (0.1959) despite five all-zero folds. 528 of 783 atlas cells sit at the grid floor, so the selection is censored there.
+\end{teambox}
+
+\subsection*{Next step}
+\begin{itemize}
+  \item Nested selection over method, $K$ and $C$ for the whole atlas, with pooled AP, median and P20 lift together and the 49 knife-edge cells flagged (W3.3, D23).
+  \item Re-score the 49 knife-edge cells with per-fold tuned $C$ under L1, L2 and elastic net (proposed W3.8); add knife-edge badges to the per-fold strip (W7.1 follow-up).
+  \item Name PC8 and FA7 from both poles under the tuned-$C$ probes (W5.1).
+\end{itemize}
+
+\subsection*{How this was computed}
+{\small\raggedright
+Data: stored transductive Stage~1 scores (seed 42) for the hallmark interferon-alpha response panel, PCA and FA at $K = 40$ (FA40 has 36 non-degenerate factors); 60,118 cells from 13 patients, LOPO over all 13, summaries over the 7 supported patients. Estimands: held-out lift per supported patient; entry margin $= |\mathrm{gap}|/(4/(C\,n_{\mathrm{train}}))$ on training-fold standardized scores. C policies: the stored atlas L1 probe at $C = 10^{-4}$ (cuML; the sklearn-objective refit reproduces its per-patient lift within 0.00014\pp); L1 refits at 0.90--1.25$\times$ that $C$; L2 at that $C$; L1, L2 and elastic net (L1 ratio 0.5) with $C$ tuned per outer fold by inner LOPO over the six supported training patients (median inner lift; ties to the sparser probe, then the smaller $C$; grid $1/\mathrm{logspace}(-4, 4, 17)$). Code: \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak workstreams/\allowbreak W3\_dr\_value\_regularization/\allowbreak run\_d19\_\allowbreak regularization\_\allowbreak contract.py} (module \texttt{regularization\_\allowbreak contract.py}) and \texttt{W2\_stage1\_\allowbreak basis\_variants/\allowbreak run\_d17\_\allowbreak basis\_variant\_pilot.py}; figures: \texttt{figs\_04\_threshold.py} in this report's directory. Artifacts (EXP-relative, under \texttt{analysis/\allowbreak scorecards/\allowbreak stage2\_diagnostic/}): \texttt{regularization\_\allowbreak contract\_v1/} (\texttt{d19\_anchor\_\allowbreak ifna\_l1\_entry\_check.csv}, \texttt{d19\_ifna\_\allowbreak pca40\_vs\_fa40\_by\_patient.csv}, \texttt{d19\_ifna\_\allowbreak arm\_summary.csv}); \texttt{basis\_variant\_\allowbreak pilot\_ifna\_v1/}; \texttt{feedback\_deep\_\allowbreak dive\_20260917/}; \texttt{factor\_patient\_\allowbreak matrix\_v1/} (Figure~\ref{fig:04c} from \texttt{factor\_patient\_\allowbreak matrix\_long.csv.gz}); \texttt{factor\_cards\_v1/}.
+\src{2026-10-08\_d19-regularization-contract (D19); 2026-10-08\_d17-basis-variant-pilot (D17); 2026-09-17\_team-feedback-f1-f7 (F3, F6); 2026-10-02\_f9-ifna-pc8-loadings (F9); 2026-10-08\_d18-factor-cards (D18); 2026-10-08\_d16-factor-patient-matrix (D16); 2026-10-08\_w7-atlas-strip-factor-explorer; H-S2-08 supported (descriptive), H-S2-07 retired}
+\par}

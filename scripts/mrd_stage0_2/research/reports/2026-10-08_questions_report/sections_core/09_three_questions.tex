@@ -1,0 +1,24 @@
+% Core page: the three scientific questions (Q1-Q3) and the claim boundary. Numbers: full report section 8.
+\coreq{The three scientific questions, and what we can claim}{core:q123}{Q1 is the signal shared or patient-specific? Q2 how strong is the evidence? Q3 what does DR add over direct genes? (team report)}
+
+\begin{coreanswer}
+\textbf{Q1.} Shared transfer is seen, but not yet separated from prevalence. \textbf{Q2.} Effect sizes are well defined; there is no inferential framework yet. \textbf{Q3.} It depends on the estimand and on how the winning DR representation is chosen; large gains are confined to a few programs. Everything is descriptive, on a transductive Stage~1 basis, over seven supported patients.
+\end{coreanswer}
+
+\evidence
+\begin{itemize}[leftmargin=1.3em]
+\item \emph{Q1, shared or patient-specific}: tested directly on IFN-$\alpha$ only, where one axis (PC8, or the related FA7) carries held-out lift in five of seven patients, including low-prevalence P07 and P09. Across the 640 biological DR atlas cells, lift above 0 reaches every supported patient, but lift above 5\pp{} occurs in 64--80\% of cells for P02, P03, P04 and in at most 23\% for the other four (figure).
+\item \emph{Q2, strength of evidence}: lift above the constant-score no-skill AP $=\pi$ is well defined, but there is no calibrated null, no patient-level interval on the atlas and no nested selection (the best representation is picked on the folds it is scored on).
+\item \emph{Q3, DR vs direct genes}: when the best DR cell is picked by pooled AP, it beats a probe on the panel's genes directly in 38/41 programs on pooled AP, 16/41 on median lift and 17/41 on P20 lift; picked by median lift, it wins on median lift in 28/41. Large gains: allograft rejection, apoptosis, IFN-$\alpha$; broad control bags favour direct genes.
+\item \emph{Claim boundary}: always quote pooled AP, median lift and P20 lift together. The study's claim list is THEME \S6; no result here is inferential or ready for publication.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\linewidth]{figures/fig08a_patient_concentration.pdf}
+\caption{Where the lift sits: for each supported patient (ordered by prevalence $\pi$), the share of the 640 biological DR atlas cells with held-out lift above 0 (light) and above 5\pp{} (dark).}
+\end{figure}
+
+\doesnot{inductive deployment (Stage~1 saw every patient; LOPO is label transfer), causal biology, recurrence risk (lift is a cell-level ranking), or significance; best-DR win counts will shrink under nested selection.}
+
+\fullref{section 8, \emph{The three scientific questions} (variance estimands, DR-vs-direct table and figure). \src{D1, D1e, D1f, D6, D9, D12--D19; 2026-09-11\_d1-atlas-783-d1e-d1f; 2026-08-31\_d6-d9-meeting-followup}}

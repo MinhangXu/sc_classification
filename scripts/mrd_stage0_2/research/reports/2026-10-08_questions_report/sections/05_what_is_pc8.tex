@@ -1,0 +1,244 @@
+\section{What is PC8, and how should we read a factor?}
+\label{sec:pc8}
+
+\begin{quote}
+``Two groups of genes in the PC8's loading with opposite signs: Positive: IFI27, PSME2, PSMA3, CNP, LAP3, USP18. Negative: TXNIP, IFITM2, TENT5A, NCOA7, TRIM5, ELF1.'' \ldots\ ``(expand beyond IFN-alpha; can we view these in the interactive app?): correlate factors with other modalities (cell types, surface protein); review interpretability frameworks from other fields (e.g.\ psychology's factor rotation); no causal claim without intervention.''
+\end{quote}
+
+{\small\color{inkmuted}\emph{Reading guide (v2).} What ``not identifiable'' means: the box ``What \emph{not identifiable} means'' and Figure~\ref{fig:05d}. What the 1,810 factor cards are: Table~\ref{tab:05cards}. How to read $\rho = +0.251$ and $+0.222$: the box ``How to read $\rho$'' and Figure~\ref{fig:05e}. Factor $\times$ cell type and surface protein for every card, not only PC8: ``Every card'' and Figure~\ref{fig:05f}.\par}
+
+\begin{answerbox}
+PC8 is a single axis that contrasts two groups of IFN-$\alpha$ genes. Once PC8 is oriented by its L1 coefficient, the team's ``negative'' list (TXNIP, IFITM2, TENT5A, NCOA7, TRIM5, ELF1) is the pole that malignant cells score toward. FA7 is a related axis (Tucker $\phi$ 0.691, below the 0.85 ``fair'' similarity band). Either factor alone gives 4.81--19.87\pp{} of held-out lift in the same five supported patients (P02, P03, P04, P07, P09) and under 1\pp{} in P01 and P06.
+
+\emph{Not identifiable} means the data pin down a small subspace (the span of PC8 and its near-tied neighbours, which every refit reproduces) but not which single direction inside it is ``factor 8'': PC8's variance is within 5.5\% of PC7's, and leaving P01 out of Stage~1 turns PC8 so far that its best single match falls to $|r|$ 0.58 while 98.8\% of it stays in the refit basis; FA7's scores are estimates (determinacy 0.649). So name the axis by its two poles, not ``factor 8''.
+
+\emph{Surface protein} (now for all 1,801 non-degenerate cards): PC8 tracks CD34 in normal cells inside every supported patient (median $\rho$ $+0.245$, 7/7) but not inside predicted cell types ($+0.019$), so it is a cell-identity association; its malignant-cell CD99 correlate (pooled $+0.222$) is $+0.159$ within patients (6/7) and fails the rule fixed in advance.
+
+Descriptive: one panel for the gene poles; transductive Stage~1; seven supported patients; ADT without dsb.
+\end{answerbox}
+
+\subsection*{What we did}
+We built a \emph{factor card} for every factor of 56 stored Stage 1 representations (1,810 cards, nothing refit): orientation, gene poles, per-patient held-out lift, matches across methods and K, identifiability, and cell-type and ADT associations. Table~\ref{tab:05cards} shows where the 1,810 come from. They are every factor of 56 of the atlas's 736 stored DR bases (13,540 factors in all), not every Stage~0 $\times$ Stage~1 combination: one basis per panel, plus the IFN-$\alpha$ and focus-panel bases the 2026-10-08 questions needed. How a card can be read depends on its basis's stored probe, which splits the 1,810 into two groups that do not overlap. In 10 of the 56 representations the probe is sparse (in the median supported fold at most half the factors are non-zero): their 330 cards are 119 \emph{selected drivers} (non-zero in at least one supported fold) and 211 never selected. In the other 46 the probe is dense (31 L2, 14 elastic net, 1 L1): their 1,480 cards are partial effects among many correlated factors and cannot be read factor by factor; 46 of them are never selected either. So $119 + 211 + 1{,}480 = 1{,}810$, and the never-selected cards, $211 + 46 = 257$, include the 9 degenerate ones. For IFN-$\alpha$ PCA40 and FA40 the stored probe is L1 at $C=10^{-4}$.
+
+\begin{table}[H]
+\centering
+\small
+\caption{\textbf{Where the 1,810 factor cards come from.} One card per factor of one stored Stage~1 basis (panel $\times$ method $\times$ $K$, seed 42, transductive). A basis with $K$ factors gives $K$ cards; \emph{non-degenerate} excludes factors with zero score variance (IFN-$\alpha$ FA40 factors 37--40 and MYC targets v2 FA40 factors 36--40), so it is the sum of the effective $K$.}
+\label{tab:05cards}
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{@{}Xrrr@{}}
+\toprule
+Source of the basis & Bases & Cards & Non-degenerate \\
+\midrule
+Atlas screen: for each of the 41 biological panels, the DR cell (method, $K$) with the highest patient-median lift (the bases of section \emph{Should we aggregate patients}) & 41 & 1,260 & 1,255 \\
+Atlas screen: the same choice for the 6 broad gene-bag controls (HVGs 500, 1,000, 3,000, 10,000; all Stage~0 gene sets; core-only programs) & 6 & 240 & 240 \\
+Focus panels: PCA40 and FA40 for allograft rejection, apoptosis and TNF-$\alpha$ via NF-kB & 6 & 240 & 240 \\
+IFN-$\alpha$ FA40, the pair of the screen's IFN-$\alpha$ PCA40 & 1 & 40 & 36 \\
+IFN-$\alpha$ FA10 and FA20, to follow FA7 across $K$ & 2 & 30 & 30 \\
+\midrule
+Total & 56 & 1,810 & 1,801 \\
+\bottomrule
+\multicolumn{4}{@{}p{\linewidth}@{}}{\footnotesize By method: FA 590 cards (19 bases), FactoSig 380 (11), FactoSig-promax 410 (13), PCA 430 (13). By $K$: 37 bases at $K = 40$, 14 at 20, 5 at 10. Orientation: 1,217 cards oriented by a consistent probe sign, 336 whose sign flips across folds, 257 never selected.} \\
+\end{tabularx}
+\end{table}
+
+\textbf{Lift} is held-out AUPRC minus the patient's malignant prevalence $\pi$ (constant-score no-skill AP $=\pi$). \textbf{Univariate lift} scores cells with one factor alone, its sign fixed on the training folds. Stage 1 is \textbf{transductive} (fit on all cells, held-out patient included, without labels), so LOPO lift is label transfer, not inductive deployment.
+
+\textbf{New in this version: factor $\times$ cell type and surface protein for every card (D27).} The cards held, for each factor, the pooled correlation with each surface protein over all cells of one label. D27 recomputes this for all 1,801 non-degenerate cards and adds the two views a pooled number cannot give: Spearman $\rho$ inside each supported patient (summarised as the median over the seven and the number that agree in sign), and inside each supported patient $\times$ predicted cell type ($\geq 30$ cells). The rule was fixed before computing: an association is \emph{robust} if the median within-patient $|\rho|$ is at least 0.20 and at least 5 of the 7 patients agree in sign. The 9 isotype antibodies (no specific target) are the noise reference. Nothing is refit, so there is no $C$ policy.
+
+\begin{explainbox}{How to read a factor}
+\small
+\begin{enumerate}[leftmargin=*,itemsep=0pt,topsep=0pt]
+\item \textbf{The sign is arbitrary, so orient by $\beta$.} The oriented loading is $\mathrm{sign}(\beta)\times$loading, so positive means toward malignant. PC8's $\beta$ is $-0.040$ to $-0.064$ in all five active supported folds.
+\item \textbf{Numbers are labels.} Match by score correlation (Hungarian) and many-to-one $R^2$; one factor can split over two.
+\item \textbf{L1 keeps one of several correlated directions.} A factor enters only if its standardized class-mean gap exceeds about $4/(C\cdot n_{\text{train}})$ (0.68--0.93\,SD across folds here); gap over threshold is the \emph{entry margin}. $\beta=0$ means below threshold, not no signal.
+\item \textbf{FA loadings are generative} (how expression moves with the factor), not score weights.
+\item \textbf{Check identifiability, and read ablation as attribution.}
+  \begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+  \item A relative eigengap of 10\% or less means the component can rotate.
+  \item FA determinacy $\rho<0.707$ means equally valid scores may correlate only $2\rho^2-1$.
+  \item Tucker $\phi$ (loading cosine) $\geq 0.95$ means the same factor; 0.85--0.94 is fair.
+  \item Ablation is attribution inside the model, not causation.
+  \end{itemize}
+  The box ``What \emph{not identifiable} means'' below works these through for PC8 and FA7.
+\item \textbf{Read a protein correlate inside patients and inside cell types} before naming a factor by it (box ``How to read $\rho$'').
+\end{enumerate}
+\end{explainbox}
+
+\subsection*{What we found}
+\textbf{The two lists are the two poles of one axis} (Figure~\ref{fig:05a}). The malignant pole runs from TXNIP ($+0.269$) to ELF1 ($+0.176$). The normal pole runs from IFI27 ($-0.315$) to USP18 ($-0.161$). Interferon-stimulated genes sit on both poles, so the axis contrasts two parts of the response rather than measuring ``more interferon''. FA7 agrees in sign on 19 of the 20 genes shown; IL7 is the exception. The two factors are related, not identical: PC8 has $R^2$ 0.920 on the FA40 scores, yet its score $r$ with FA7 is only $-0.685$, and their loading cosine (Tucker $\phi$) is 0.691, below the 0.85 ``fair'' band. By psychometric convention these are different factors that share a subspace: one subspace, cut two ways. PC8 recurs as factor 8 of PCA $K = 20$ ($r$ $+0.942$) and FA7 as factor 7 of FA $K = 10$ ($r$ $+0.932$); no $K = 5$ basis spans either.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig05a_pc8_poles.pdf}
+\caption{\textbf{PC8's poles, oriented so positive points toward malignant} (top 10 per pole; bold = genes from the team report). Bars: PC8 weights (orientation $-1$, so the malignant-leaning pole has negative raw PC8 loadings). Dots: FA7 loadings for the same genes (orientation $+1$). The scales differ, so compare signs and order. Orientation is from L1 at $C=10^{-4}$.}
+\label{fig:05a}
+\end{figure}
+
+\begin{explainbox}{What \emph{not identifiable} means, and why we name the axis by its poles}
+\emph{In plain words.} A factor is \emph{identifiable} when the data pin its direction down uniquely: refit the same method on slightly different cells and the same factor comes back. When they do not, the data still fix a \emph{subspace}, the span of a few neighbouring factors (for PC8, itself and the components whose variances nearly tie with it), but not where one factor points inside it. Every rotation inside that subspace fits about equally well, and which one a fit returns depends on noise, the seed or a few cells. ``Factor 8'' is then a name for one arbitrary cut through the subspace. ``Neither is identifiable alone'' means this holds for PC8 and for FA7, each for its own reason; the two are related cuts through overlapping subspaces (PC8 has $R^2$ 0.920 on the FA40 scores), not the same factor.
+
+\emph{PCA: a small eigengap.} PCA orders components by the variance they explain. PC8 explains 1.40\% of the panel's variance, PC7 1.48\% and PC9 1.26\%: PC7 is 5.5\% above it and PC9 10.0\% below (Figure~\ref{fig:05d}a; relative eigengap 0.055). When two variances are nearly tied, a small change in the data can mix the two components; the Davis--Kahan theorem bounds how far a component turns by the size of the change divided by the gap, so a small gap allows a large turn. Past PC3 this is the rule in this basis: 37 of the 40 IFN-$\alpha$ components have a neighbour within 10\%.
+
+\emph{FA: low determinacy.} FA scores are not observed; they are estimated from the genes. Determinacy $\rho$ is the correlation between the factor and its best estimate. FA7 has 0.649, and 30 of the 36 non-degenerate FA40 factors are below 0.707 (Figure~\ref{fig:05d}b). Below 0.707, two equally valid sets of scores can correlate as little as $2\rho^2-1$; for FA7 that is $-0.16$.
+
+\emph{What it looks like when Stage~1 is refitted} (Figure~\ref{fig:05d}c; the refits of sections \emph{Do the highest-prevalence patients shape the factors?} and \emph{Option 2}). Two numbers per refit: the best single matching factor ($|r|$) and the share of the stored axis that the whole refit basis reproduces ($R^2$). Leaving out P02, P03, P04 or all three barely moves PC8 ($|r| \geq 0.995$). Leaving out P01 drops PC8's best single match to 0.58, although $R^2$ is 0.988; patient-equal weights give 0.90 ($R^2$ 0.990). FA7 turns when P09 is left out (0.76; $R^2$ 0.981). Across all these refits $R^2 \geq 0.977$: the subspace survives, the single factor need not.
+
+\emph{What to do.} Name the axis by both poles (the genes on each end), with its orientation and the Stage~2 penalty; compare bases by subspace ($R^2$, principal angles), not by factor number; and read ``PC8'' as shorthand for the direction, not as a unique program.
+\end{explainbox}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig05d_identifiability.pdf}
+\caption{\textbf{Why PC8 and FA7 are not identifiable on their own.} (a) Share of the 92-gene panel's variance explained by each of the first 16 IFN-$\alpha$ PCA40 components; PC8 filled, its neighbours PC7 and PC9 ringed; gray band: $\pm 10\%$ of PC8's value. (b) Factor-score determinacy of the 36 non-degenerate IFN-$\alpha$ FA40 factors; dashed line at 0.707 ($\rho^2 = 0.5$). (c) Stored transductive axis against Stage~1 refits (D17; $K = 40$; every refit uses fewer cells or different cell weights). Filled dot: $|r|$ with the single best-matching refit factor (one-to-one matching). Open dot: many-to-one $R^2$, the share of the stored axis that all refit factors together reproduce. Blue PC8, orange FA7. Look at the P01 row: the open blue dot stays near 1 while the filled one falls to 0.58.}
+\label{fig:05d}
+\end{figure}
+
+\textbf{The axis carries signal beyond P03 and P04} (Figure~\ref{fig:05b}). Alone, PC8 gives 15.94, 13.40 and 16.27\pp{} in the highest-prevalence patients P02, P03 and P04. It gives 11.08\pp{} in P07 and 5.47\pp{} in P09. FA7 gives 18.06, 14.37, 19.87, 6.97 and 4.81\pp{} in the same five patients. The FA40 probe uses FA7 only in P03 and P04. In P02 and P07, FA7's entry margins are 0.967 and 0.981. With a 5\% larger $C$ it enters and gives those same lifts. $\eta^2$ is the share of score variance explained by patient within a label. For PC8 it is 0.010 in normal cells and 0.031 in malignant cells. A Stage 1 fit on normal cells alone recovers the axis (matched $|r|$ 0.9936). So normal cells already vary along PC8, and malignant cells sit toward one end.
+
+\textbf{The axis is a combination, not its best gene.} A gene's $|$loading$|$ tracks its own held-out lift only weakly (Spearman $\rho$ 0.30, 92 genes). The best single gene, BST2, reaches only 4.06\pp{}, even with its sign picked on the held-out patient (an optimistic choice); PC8's median is 11.08\pp.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig05b_axis_lift.pdf}
+\caption{\textbf{Alone, each factor gives 4.81--19.87\pp{} of held-out lift in five supported patients (P02, P03, P04, P07, P09) and under 1\pp{} in P01 and P06.} Univariate lift uses the training-fold sign. The strip shows whether the stored L1 probe ($C=10^{-4}$) kept the factor in that patient's fold. Open squares mark all-zero probes, whose fitted lift is 0 by construction.}
+\label{fig:05b}
+\end{figure}
+
+\textbf{Cell type and surface protein for PC8 and FA7} (Figure~\ref{fig:05c}, Table~\ref{tab:05adt}). In normal cells, cell type explains part of the score: $\eta^2$ 0.081 pooled and 0.105 within patients (median), against 0.0047 expected with no association and 0.010 for patient. The score is highest in EBM, MEP-MkP and HSC/MPP1. Within cell types, though, malignant cells score higher in 8 of 10. Held out, PC8 keeps its lift inside HSC/MPP2 alone: $+21.8$\pp{} in P02, $+12.7$ in P03, $+10.3$ in P07 and $+27.1$ in P09. An oracle that scores each held-out cell by its own patient's malignant fraction within the cell's predicted type (it uses held-out labels, so it is a ceiling, not a competitor) beats PC8 in P02 (57.33 vs 15.94\pp) and P03 (38.04 vs 13.40\pp) but not in P07 (8.17 vs 11.08\pp): in the highest-prevalence patients, which cell types are malignant carries more ranking signal than the axis. Table~\ref{tab:05adt} gives the surface-protein correlates pooled, within patient and within patient $\times$ cell type; the next box explains how to read them.
+
+\begin{figure}[H]
+\centering
+\begin{minipage}[t]{0.47\linewidth}\vspace{0pt}
+\includegraphics[width=\linewidth]{figures/fig05c_celltype.pdf}
+\captionof{figure}{\textbf{Within most cell types, malignant cells sit further along the axis.} Mean oriented PC8 score (cohort z) per predicted type, pooled over patients. (n) is the number of malignant cells.}
+\label{fig:05c}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.505\linewidth}\vspace{0pt}
+\captionof{table}{\textbf{Strongest within-patient ADT correlates of PC8 and FA7.} Spearman $\rho$ of the oriented score with CLR ADT, within label: pooled over all cells; median over the 7 supported patients (number with the same sign); median inside patient $\times$ cell type.}
+\label{tab:05adt}
+\footnotesize
+\setlength{\tabcolsep}{2.6pt}
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+ & & pooled & within (k/7) & in type \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{PC8, normal cells (58,549)}} \\
+ & CD34 & $+0.251$ & $+0.245$ (7) & $+0.019$ \\
+ & CD22 & $-0.221$ & $-0.246$ (6) & $-0.046$ \\
+\multicolumn{5}{@{}l}{\emph{PC8, malignant cells (1,569)}} \\
+ & CD99 & $+0.222$ & $+0.159$ (6) & $+0.150$ \\
+ & CD48 & $-0.192$ & $-0.308$ (6) & $-0.011$ \\
+\multicolumn{5}{@{}l}{\emph{FA7, normal cells}} \\
+ & CD22 & $-0.354$ & $-0.312$ (7) & $-0.085$ \\
+ & CD34 & $+0.260$ & $+0.298$ (7) & $-0.004$ \\
+\multicolumn{5}{@{}l}{\emph{FA7, malignant cells}} \\
+ & CD116 & $-0.108$ & $-0.316$ (6) & $-0.035$ \\
+ & CLEC12A & $-0.158$ & $-0.291$ (7) & $-0.041$ \\
+\midrule
+\multicolumn{2}{@{}l}{Isotype ref., PC8} & \multicolumn{3}{r@{}}{0.109 normal / 0.227 malignant} \\
+\multicolumn{2}{@{}l}{Isotype ref., FA7} & \multicolumn{3}{r@{}}{0.071 normal / 0.257 malignant} \\
+\bottomrule
+\end{tabular}
+
+{\footnotesize Isotype ref.: the card's largest $|$median within-patient $\rho|$ over the 9 isotype antibodies.\par}
+\end{minipage}
+\end{figure}
+
+\begin{explainbox}{How to read $\rho$: the PC8 $\times$ CD34 $+0.251$ and PC8 $\times$ CD99 $+0.222$ of report v1}
+\emph{Which cells.} One label at a time, every patient together. $+0.251$ ranks the 58,549 normal cells of all 13 patients by PC8 score and by CD34 level and correlates the two rankings (Spearman). $+0.222$ does the same over the 1,569 malignant cells. Neither is a malignant-vs-normal contrast.
+
+\emph{Which score and which protein.} PC8 is oriented (multiplied by $-1$), so $\rho>0$ means cells with more of the protein sit toward the malignant-leaning pole. The protein value is the CLR of raw ADT counts: $\log(1+\text{count})$ minus the cell's mean of that quantity over all 170 antibodies, with no dsb background correction. Spearman uses ranks, so only the per-cell centring matters.
+
+\emph{How big is $+0.25$?} Pick two normal cells at random: the one with more CD34 has the higher PC8 score about 58\% of the time instead of 50\%, and about 6\% of the rank variance is shared ($\rho^2$). That is a population tendency, not a marker that identifies the axis in a single cell. With 58,549 cells the sampling SE is about 0.004, so a p-value carries no information; inside P07's 22 malignant cells it is about 0.23.
+
+\emph{Noise reference.} Isotype antibodies bind nothing specific, yet the same calculation gives them up to 0.109 (normal) and 0.227 (malignant) on this card, from non-specific binding and the CLR centring. A value near 0.2 must be read against that.
+
+\emph{Pooled vs within patient.} A pooled $\rho$ mixes how cells vary inside each patient with how the patients' averages differ, in score and in staining (patients are nested in processing batches, so the two cannot be told apart). Ranking inside one patient removes the between-patient part; we report the median over the seven supported patients and how many agree in sign. Ranking inside patient $\times$ predicted cell type also removes cell identity.
+
+\emph{Why a pooled value holds or shrinks within patients.} In normal cells every patient contributes thousands of cells over the same cell types, and the patients' score distributions overlap (section \emph{Should we aggregate patients}). Pooled and within-patient $\rho$ then agree: median ratio 0.89 over the 23,133 card $\times$ marker pairs with $|$pooled$| \geq 0.20$, and only 2 reverse sign (with a within-patient $|\rho| \geq 0.10$). In malignant cells P03 holds 758 of the 1,569 cells and patients differ in both score and staining, so a pooled $\rho$ can come from patient averages alone. There the median ratio is 0.24 over 16,190 pairs, and 707 reverse sign. D27's pooled values reproduce the cards' (D18) values to $5\times10^{-11}$ (all 10 regression checks pass), so what changes between the two numbers is the stratification, not the computation.
+
+\emph{Confounds that remain.} Patient and batch; recipient origin (every malignant cell is recipient-derived, so recipient genotype, e.g.\ HLA-binding antibodies, is not separated from malignancy); predicted cell type (a label transferred from a healthy reference); and correlated factors across bases, so counts of robust pairs overstate independent findings.
+\end{explainbox}
+
+\textbf{The two numbers taken apart} (Figure~\ref{fig:05e}). \emph{PC8 $\times$ CD34, normal cells}: every supported patient agrees ($+0.14$ to $+0.38$; median $+0.245$, 7/7), so this is a within-patient association, well above the card's isotype reference (0.109). Inside patient $\times$ predicted cell type it is $+0.019$ (71 strata): it is carried by which cell types sit at the malignant-leaning end (EBM highest, $+0.79$ in cohort z; ncMono lowest, $-0.73$), not by variation inside a cell type. In normal cells PC8's CD34 correlate is a cell-identity axis. \emph{PC8 $\times$ CD99, malignant cells}: $+0.159$ within patients, 6 of 7 positive (P07, 22 cells, $-0.12$), so it fails the 0.20 rule and sits inside this card's malignant isotype reference (0.227). What there is persists inside cell types ($+0.150$; 11 strata from P02, P03, P04 and P09). \emph{PC8 $\times$ CD48, malignant cells} shows the opposite case: $-0.308$ within patients (6/7) but only $-0.192$ pooled, because P03, with half the malignant cells, sits at $+0.03$. PC8's other strong malignant correlates (CD116 $-0.287$, CD33 $-0.272$, CD146 $+0.270$) share this pattern: P03 sits near 0 on all of them.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig05e_rho_anchors.pdf}
+\caption{\textbf{One pooled $\rho$, taken apart.} Spearman $\rho$ of the oriented PC8 score with CLR surface protein. Each panel title gives the verdict of the robust rule and, below it, both of its conditions with this pair's values: (b) has 6 of 7 patients of one sign, which passes, but fails on size. Top rows: inside each supported patient (number of cells of that label in brackets; large dark dot: P03, which holds 758 of the 1,569 malignant cells). Bottom rows: the median of the seven (filled circle; ``robust'' needs $|$median$| \geq 0.20$, dotted lines, and $\geq 5$ of 7 with the same sign), the pooled value over all cells of the label (diamond; the number in report v1) and the median inside supported patient $\times$ predicted cell type strata with $\geq 30$ cells (square). Gray band: the card's isotype reference for that label. Look at (a): every patient sits near $+0.25$, but the square is near 0. Then (c): the patients sit near $-0.3$, but P03 sits at 0 and drags the diamond toward it.}
+\label{fig:05e}
+\end{figure}
+
+\textbf{Every card: factor $\times$ surface protein and cell type} (Figure~\ref{fig:05f}). \emph{Normal cells.} 20,274 of 289,961 card $\times$ marker pairs (7.0\%, on 843 of the 1,801 cards) meet the robust rule, against 2.3\% of isotype rows under the same rule. Pooled and within-patient $\rho$ agree (Figure~\ref{fig:05f}c). The strongest are myeloid, erythroid and progenitor markers (CD11a, CD18, CD33, CD200, CLEC12A, CD123, CD151, CD71; Figure~\ref{fig:05f}a), up to $+0.809$ within patients (HVGs (500) FA40 factor 3 $\times$ CD11a, 7/7). Inside patient $\times$ cell type most of them shrink: only 729 of the 20,274 keep at least half their size (median retention 0.15). In 1,665 of 1,801 cards, predicted cell type explains more of the score within patients than patient identity explains across patients (Figure~\ref{fig:05f}d). So in normal cells a factor's surface-protein correlates mostly say which cell types the factor separates. \emph{Malignant cells.} 8,474 pairs (2.9\%, on 954 cards) meet the rule, against 1.7\% of isotype rows. Pooled values are a poor guide here: some of the strongest within-patient associations are weak when pooled (CD133 on HVGs (3000) FA40 factor 16: $+0.598$ within, 7/7, $+0.181$ pooled; Figure~\ref{fig:05f}b). Of the 8,474, 1,797 keep at least half their size inside cell types (median retention 0.26), but the malignant cell-type strata come from four patients (P02, P03, P04, P09) only. Of the 119 selected drivers, 61 have at least one robust marker in normal cells and 75 in malignant cells. Every number here is a screen over correlated factors and 161 markers, not a test.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig05f_modality_all.pdf}
+\caption{\textbf{Factor $\times$ surface protein and cell type over all 1,801 non-degenerate cards (D27).} (a, b) For each of the ten markers with the strongest robust association on an oriented card, that card (panel $\cdot$ method $K$ factor; promax = FactoSig-promax) and its $|\rho|$: median within patient (dot, coloured by Stage~1 method: orange FA, aqua FactoSig or FactoSig-promax), pooled (diamond) and inside patient $\times$ cell type (square); the sign of the within-patient median is in brackets, the number of patients sharing it on the right. Gray band: the 99th percentile of the isotype rows ($|$median within$|$ 0.231 normal, 0.225 malignant). Broad gene-bag controls supply 3 of the 10 cards in (a) and 7 of the 10 in (b). (c) For every card $\times$ marker pair with $|$pooled $\rho| \geq 0.20$ (23,133 normal, 16,190 malignant), the within-patient median divided by the pooled value: 1 means it holds within patients, 0 that it is all between patients, below 0 that it reverses. (d, e) Per card: $\eta^2$ of predicted cell type within patients (median over supported patients) against $\eta^2$ of patient (from the cards); above the dashed diagonal, cell type explains more. Malignant within-patient $\eta^2$ uses P02, P03, P04 and P09 only.}
+\label{fig:05f}
+\end{figure}
+
+\textbf{Beyond IFN-$\alpha$: which factors a probe uses.} 46 of the 56 representations have a dense selected probe that cannot be read factor by factor. Only 119 cards in 10 representations qualify as selected drivers; besides IFN-$\alpha$ they include TNF-$\alpha$ via NF-kB PCA40, inflammatory interferon FA40 and TGF-$\beta$ FA40. An L1 zero is not absence of signal. 101 of the 248 never-selected non-degenerate cards still reach $\geq 5$\pp{} in some patient; IFN-$\alpha$ PCA40 factor 4, for example, reaches 25.40\pp{} in P02.
+
+% Keep the heading with the start of its list: a new page only when fewer than six lines are left. Unlike
+% \needspace or a negative \penalty, this adds no break point, so it cannot end a page early
+% (report.tex defines the same macro; \providecommand keeps the standalone compile working).
+\makeatletter
+\providecommand{\softneedspace}[1]{\par\begingroup\dimen@ii\pagegoal\advance\dimen@ii-\pagetotal
+  \ifdim #1>\dimen@ii\ifdim\dimen@ii>\z@\newpage\fi\fi\endgroup}
+\makeatother
+\softneedspace{6\baselineskip}
+\subsection*{Frameworks from other fields}
+The factor-interpretability literature review suggests five practices worth adopting:
+\begin{enumerate}[leftmargin=*,itemsep=0pt,topsep=0pt]
+\item From psychometrics: name a factor only after reporting its eigengap (Davis \& Kahan 1970), determinacy (Guttman 1955; Grice 2001) and Tucker $\phi$ against the 0.85/0.95 bands (Lorenzo-Seva \& ten Berge 2006). The cards already report all three.
+\item From neuroimaging decoders: read each probe's forward pattern $\mathrm{cov}(X,s)/\mathrm{var}(s)$, which is rotation-invariant, instead of its weights (Haufe et~al.\ 2014).
+\item Report selection frequency across patient resamples and seeds (Meinshausen \& B\"uhlmann 2010; Kotliar et~al.\ 2019).
+\item Test ``shared'' as measurement invariance with per-patient refits (Meredith 1993); iterate with domain knowledge by target rotation to sub-signatures fixed in advance (Browne 1972).
+\item Rotation itself, the team's psychology example. Varimax can make single factors identifiable when factor scores are heavy-tailed (Rohe \& Zeng 2023); the review proposes varimax-rotated PCA40 and FA as Stage~1 variants. FactoSig-promax is already an oblique rotation, but its stored loadings are the pattern matrix, and pattern and structure can rank genes differently, so the promax gene poles (allograft, apoptosis) should report both.
+\end{enumerate}
+
+{\sloppy \textbf{In the app.} The read-only factor explorer (\texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak apps/\allowbreak old34\_factor\_\allowbreak explorer.py}, port 8051) shows every card: the fold strip, lift, poles, ADT, cell type and matches. Each atlas cell links to it. It is a separate page because the atlas is a representation-by-patient heatmap, while cards are per factor and carry caveats that do not fit in a cell. The within-patient and within-cell-type ADT views of D27 are not in the app yet (proposed W7.4). Until then, any card's D27 summary is one row of \texttt{factor\_modality\_assoc\_v1/\allowbreak d27\_card\_summary.csv} (EXP-relative under \texttt{analysis/\allowbreak scorecards/\allowbreak stage2\_diagnostic/}; one row per non-degenerate card, normal and malignant columns side by side), and every robust pair is in \texttt{d27\_adt\_robust.csv} next to it.\par}
+
+\begin{caveatbox}
+\begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+\item Transductive Stage 1; one panel for the gene poles, one seed, seven patients, no intervals (P07: 22 malignant cells).
+\item Poles are not differential expression: TXNIP up or IFI27 down in malignant cells is not shown.
+\item Identifiability is shown for PC8 and FA7 on IFN-$\alpha$; the refits in Figure~\ref{fig:05d}c are PCA and FA at $K = 40$ only.
+\item Surface protein: CLR of raw counts, no dsb; isotype controls reach $|\rho|$ about 0.23 (99th percentile); patient is nested in batch; every malignant cell is recipient-origin. The robust rule is a screen over correlated factors and 161 markers, not a test, and the malignant cell-type strata come from four patients.
+\item Predicted cell types are labels transferred from a healthy reference; for malignant cells they name the nearest healthy state.
+\item No causal reading. Name the axis by both poles, with orientation and penalty (L1, $C=10^{-4}$).
+\end{itemize}
+\end{caveatbox}
+
+\begin{teambox}
+``PC8 contrasts two groups of interferon-stimulated genes. Malignant cells score toward TXNIP, IFITM2 and TENT5A and away from IFI27, PSME2 and PSMA3. FA7 is a related axis, and either one alone gives 4.8 to 19.9\pp{} of held-out lift in five of seven patients, not only P03 and P04.''
+
+\textbf{Likely question:} ``So TXNIP is up in malignant cells?''\\
+\textbf{Answer:} Not shown yet. A pole says which genes push the score, not each gene's own shift (see Next step).
+
+\textbf{Likely question:} ``Isn't PC8 just cell type?''\\
+\textbf{Answer:} In normal cells, partly: its CD34 correlate holds in every patient ($+0.245$) but vanishes inside predicted cell types ($+0.019$). Yet malignant cells score higher within 8 of 10 types, and PC8 keeps its lift inside HSC/MPP2 alone (P02 $+21.8$, P03 $+12.7$, P07 $+10.3$, P09 $+27.1$\pp).
+
+\textbf{Likely question:} ``Is CD99 a surface marker of the malignant pole?''\\
+\textbf{Answer:} Not on this evidence: within patients it is $+0.159$ (6 of 7), below the rule fixed in advance and inside the isotype noise level for malignant cells.
+\end{teambox}
+
+\subsection*{Next step}
+\begin{itemize}[itemsep=0pt,topsep=0pt]
+\item W5.2: per-patient oriented gene directions and Haufe patterns for PC8 and FA7.
+\item W5.5: a census of program break-up across all 56 representations, reading the D27 card summary to flag sub-axes that are cell-identity axes.
+\item W5.3: advanced by D27 (all cards). To close: fix the F7b column label (it holds raw counts, not log1p). dsb-normalized ADT needs your decision on the background source.
+\item Proposed W5.7: held-out lift inside predicted cell types for the 119 selected drivers, plus composition-matched comparisons, reusing the D27 strata.
+\item Proposed W7.4: show the within-patient and within-cell-type views in the factor explorer.
+\item W9.3: CD99 is a literature lead to verify before any text uses it; it stays out of the claims.
+\end{itemize}
+
+\subsection*{How this was computed}
+{\small\raggedright
+\textbf{Data and method.} The factor-card bundle \texttt{analysis/\allowbreak scorecards/\allowbreak stage2\_diagnostic/\allowbreak factor\_cards\_v1/} (EXP-relative) and the F9 tables in \texttt{feedback\_deep\_dive\_20260917/}. FA7 loadings for PC8's genes: stored FA40 \texttt{loadings.npy}, oriented by the card sign. Orientation is $\mathrm{sign}(\beta)$ of the stored, globally selected LOPO probe (L1, $C=10^{-4}$, not retuned). Entry margins come from the regularization-contract analysis. Univariate lift uses the training-fold sign. The card count is read from \texttt{factor\_cards\_index.csv} and \texttt{factor\_cards\_shortlist.csv}; the atlas totals from \texttt{old34\_d1\_atlas\_representation\_table.csv}. Identifiability: PCA explained variance from the stored IFN-$\alpha$ PCA40 \texttt{diagnostics.json} (the relative eigengap reproduces the card's), determinacy from the card index, refits from \texttt{basis\_variant\_pilot\_ifna\_v1/\allowbreak d17\_alignment.csv} (\texttt{matched\_abs\_r\_fit}, \texttt{many\_to\_one\_r2\_fit}). \emph{D27:} 1,801 non-degenerate cards $\times$ 2 labels $\times$ 170 ADT features (612,340 rows); per-cell CLR of raw counts over all 170 features; Spearman within label, pooled, within each patient ($\geq 20$ cells; median over the 7 supported patients), within supported patient $\times$ predicted cell type ($\geq 30$ cells; 71 normal and 11 malignant strata); cell-type $\eta^2$ pooled and within patient; robust rule fixed before computing; nothing refit, no $C$ policy. Artifacts \texttt{analysis/\allowbreak scorecards/\allowbreak stage2\_diagnostic/\allowbreak factor\_modality\_assoc\_v1/} (\texttt{d27\_*.csv}, \texttt{d27\_adt\_assoc\_full.parquet}, findings with a ``How to read rho here'' section).
+
+\textbf{Code.} \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak workstreams/\allowbreak W5\_factor\_\allowbreak interpretation/\allowbreak run\_d18\_\allowbreak factor\_cards.py}; \texttt{\ldots/\allowbreak W5\_factor\_\allowbreak interpretation/\allowbreak run\_d27\_\allowbreak factor\_\allowbreak modality\_\allowbreak assoc.py} with \texttt{factor\_\allowbreak modality\_\allowbreak assoc.py}; \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak notebooks/\allowbreak stage0\_2/\allowbreak stage2\_old34\_\allowbreak feedback\_\allowbreak deep\_dives\_\allowbreak 20260917.ipynb} (section 9); \texttt{figs\_05\_pc8.py} (this report; it prints every number above); review: \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak workstreams/\allowbreak W9\_literature/\allowbreak 2026-10-08\_factor\_\allowbreak interpretability\_\allowbreak review.md}.
+
+\src{2026-10-08\_d18-factor-cards; 2026-10-09\_d27-factor-modality-assoc; 2026-10-02\_f9-ifna-pc8-loadings; 2026-10-08\_d19-regularization-contract; 2026-10-08\_d17-basis-variant-pilot; 2026-10-08\_d17-composition-matched-controls; 2026-10-08\_literature-reviews; 2026-10-08\_w7-atlas-strip-factor-explorer}\par}

@@ -1,0 +1,59 @@
+% Shared preamble for the 2026-10-08 questions report. Section files use only these macros.
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{parskip}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{inkmuted}{HTML}{52514E}
+\definecolor{boxtake}{HTML}{EAF2FC}
+\definecolor{boxtakeedge}{HTML}{2A78D6}
+\definecolor{boxcaveat}{HTML}{F4F3EF}
+\definecolor{boxcaveatedge}{HTML}{898781}
+\definecolor{boxteam}{HTML}{FDF0EA}
+\definecolor{boxteamedge}{HTML}{EB6834}
+
+\setlist{itemsep=2pt,topsep=3pt,parsep=0pt}
+\captionsetup{font=small,labelfont=bf,margin=0pt,skip=4pt}
+\setlength{\parskip}{5pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{inkmuted}MRD Stage 0--2: answers to the 2026-10-08 questions}
+\fancyhead[R]{\small\color{inkmuted}\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+
+\titleformat{\section}{\Large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+
+% The short answer to the section's question (one per section, at the top).
+\newtcolorbox{answerbox}{colback=boxtake,colframe=boxtakeedge,boxrule=0.6pt,arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt,fonttitle=\bfseries\small,title=Short answer}
+% What this result does NOT show (claim boundary).
+\newtcolorbox{caveatbox}{colback=boxcaveat,colframe=boxcaveatedge,boxrule=0.6pt,arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt,fonttitle=\bfseries\small,coltitle=black,title=What this does not show}
+% A sentence the user can say to the team, and the likely follow-up question.
+\newtcolorbox{teambox}{colback=boxteam,colframe=boxteamedge,boxrule=0.6pt,arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt,fonttitle=\bfseries\small,title=For the team}
+% A concept explainer (intuition first, then the formula). Drawn as a left rule with a plain title, so it
+% cannot be mistaken for the framed gray "What this does not show" box.
+\newtcolorbox{explainbox}[1]{colback=white,colframe=inkmuted!55,colbacktitle=white,coltitle=black,boxrule=0pt,leftrule=2.5pt,titlerule=0pt,arc=0pt,left=8pt,right=6pt,top=3pt,bottom=4pt,toptitle=2pt,bottomtitle=0pt,before upper={\setlength{\parskip}{3pt}},fonttitle=\bfseries\small,title={#1}}
+
+% Source pointer: devlog id / analysis id, set small and muted.
+\newcommand{\src}[1]{{\small\color{inkmuted}[Source: #1]}}
+\newcommand{\pp}{\,pp}
+\newcommand{\lift}{\mathrm{lift}}

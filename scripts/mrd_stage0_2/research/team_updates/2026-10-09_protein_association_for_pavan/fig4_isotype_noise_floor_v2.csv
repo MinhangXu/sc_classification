@@ -1,0 +1,21 @@
+cells,antibody,is_isotype,rho_within_median,floor,sets_floor,n_proteins_outside,n_proteins,floor_without_setter
+healthy,Isotype-MOPC.173,True,0.0692,0.109,False,,,
+healthy,Isotype-G0114F7,True,0.0015,0.109,False,,,
+healthy,Isotype-MOPC.21,True,0.0962,0.109,False,,,
+healthy,Isotype-MPC.11,True,0.0698,0.109,False,,,
+healthy,Isotype-RTK4174,True,0.074,0.109,False,,,
+healthy,Isotype-RTK4530,True,0.109,0.109,True,,,
+healthy,Isotype-HTK888,True,0.0397,0.109,False,,,
+healthy,Isotype-RTK2071,True,0.0512,0.109,False,,,
+healthy,Isotype-RTK2758,True,0.0277,0.109,False,,,
+healthy,proteins outside the floor,False,,0.109,False,33.0,161.0,0.0962
+malignant,Isotype-MOPC.173,True,0.1375,0.2268,False,,,
+malignant,Isotype-G0114F7,True,0.0943,0.2268,False,,,
+malignant,Isotype-MOPC.21,True,0.1584,0.2268,False,,,
+malignant,Isotype-MPC.11,True,0.0477,0.2268,False,,,
+malignant,Isotype-RTK4174,True,0.0943,0.2268,False,,,
+malignant,Isotype-RTK4530,True,0.1567,0.2268,False,,,
+malignant,Isotype-HTK888,True,0.0609,0.2268,False,,,
+malignant,Isotype-RTK2071,True,0.2268,0.2268,True,,,
+malignant,Isotype-RTK2758,True,0.0721,0.2268,False,,,
+malignant,proteins outside the floor,False,,0.2268,False,9.0,161.0,0.1584

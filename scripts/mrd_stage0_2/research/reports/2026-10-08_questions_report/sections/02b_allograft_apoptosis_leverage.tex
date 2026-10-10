@@ -1,0 +1,124 @@
+\section{What did we do with allograft rejection and apoptosis?}
+\label{sec:d26}
+
+\begin{quote}
+``What did we do with allograft and apoptosis? Please update all that as a new section in the report.'' (2026-10-10)\\[2pt]
+``Why would it be open until allograft and apoptosis are tested? How about other stage 0 panels? Test what? Should we test them too?'' \ldots\ ``I like the next step, let's start them.'' (reading notes on version~1, A-20261009-02 and -15)
+\end{quote}
+
+\begin{answerbox}
+\textbf{We ran the IFN-$\alpha$ leverage test on both panels; by the rule fixed before the run, the highest-prevalence patients do not shape these factors more than other patients do.}
+\par\smallskip\noindent \emph{What we did} (D26, your screen \texttt{W2\_d26}, 10 October): refit the allograft-rejection and apoptosis Stage~1 bases without P02+P03+P04, without each of them, and without four contrast sets (P01, P06, P09, P01+P09), and compared how far the malignant--normal axis moves with 20 random drops of the same number of cells \emph{and} malignant cells. PCA and FA at $K$ = 10, 20, 40; 2,364 refits.
+\par\smallskip\noindent \emph{What we found:} leaving P02+P03+P04 out moves the axis more than all 20 of those drops in 5 of 6 method $\times$ $K$ cells (allograft) and 6 of 6 (apoptosis), at 1.3--4.1$\times$ and 2.0--4.0$\times$ their mean, mostly through P03. The axis stays matched ($|r| \geq 0.945$ and $\geq 0.994$). Leaving P01 out moves the same axes 21--141$\times$ and 48--128$\times$ its own controls, and in no primary-axis cell on any of the three tested panels does the group's excess beat every contrast set's (0 of 6 each; 1 of 6 on the apoptosis probe axis). Hypothesis H-S1-05 is therefore not supported for PCA and FA.
+\par\smallskip\noindent \emph{What it means:} the imbalance specific to P02--P04 sits mainly in the Stage~2 labels (68.3\% of the malignant cells), which fits your decision that re-weighting targets the Stage~2 labels. The largest Stage~1 leverage belongs to P01, the supported patient with the most healthy cells per malignant cell. \emph{Not tested:} FactoSig and FactoSig-promax (the atlas winners on both panels) and the other 38 panels. Descriptive.
+\end{answerbox}
+
+\subsection*{Why these two panels}
+
+Allograft rejection and apoptosis are the two programs where DR gains most over direct genes: median lift 12.56 vs 0.23\pp{} (allograft) and 11.52 vs 0.005\pp{} (apoptosis). For allograft that gain sits in the highest-prevalence patients: selected DR minus direct genes is $+46.37$\pp{} in P03 and $+0.09$\pp{} in P01 (section \emph{The three scientific questions}). Their largest-gap factor also separates mostly those patients' cells: allograft FA8 at $K = 40$ has univariate held-out lift 39.04\pp{} in P03 and 22.68\pp{} in P04, but under 1\pp{} in P01, P06 and P07 (labels, not loadings). If P02--P04 shaped these factors, the DR advantage could be their fingerprint. On IFN-$\alpha$ the same test had found no leverage beyond malignant composition (section~\ref{glance:02}), so these two panels decided H-S1-05. \src{F2/F4, D1DD5; 2026-09-17\_team-feedback-f1-f7; 2026-09-10\_d1a-descriptive-deep-dives; 2026-10-08\_d17-composition-matched-controls}
+
+\subsection*{What we did}
+
+The design is D17's, unchanged (box ``The leverage test, step by step'' in section~\ref{glance:02}):
+\begin{enumerate}[label=\arabic*.,leftmargin=1.4em]
+\item \emph{Reference axis} on the stored transductive basis. Primary: the factor with the largest standardized malignant--normal gap over all cells (PC8 and FA8 for allograft rejection, PC6 and FA6 for apoptosis, at every $K$). Two secondary axes: the factor with the best median univariate held-out lift (a different factor from the primary in 8 of the 12 method $\times$ $K$ cells), and the atlas-selected Stage~2 probe refit on all cells, a direction made of 8--40 factors.
+\item \emph{Perturb.} Refit Stage~1 without one set: P02, P03, P04 or P02+P03+P04, or one of the contrast sets P01, P06, P09 and P01+P09 (genes re-standardized on the retained cells; same solver and seed).
+\item \emph{Measure} over the retained cells: \emph{axis loss} $= 1 - R^2$, the share of the reference axis's variance that all $K$ refit factors together can no longer reproduce, and \emph{matched $|r|$}, its correlation with the single best refit factor.
+\item \emph{Compare} with 3 size-matched drops (as many random cells) and 20 composition-matched drops (as many random cells \emph{and} as many malignant cells, seeds 101--120). The ratio is the axis loss divided by the mean of the 20; rank $p$ 0.048 means above all 20.
+\item \emph{Sanity floor}: a refit on all cells reproduces the stored basis (36 of 36 checks pass); a refit without all 1,569 malignant cells shows how much of the axis normal cells carry on their own.
+\end{enumerate}
+PCA and FA at $K$ = 10, 20 and 40; 2,364 refits in 8 minutes on 12 CPU workers. FactoSig and FactoSig-promax, the atlas winners on both panels, could not be refit: the runner is CPU-only and their refit needs the GPU code (W2.2). \src{2026-10-09\_d26-leverage-allograft-apoptosis; 2026-10-10\_d26-leverage-allograft-apoptosis-done}
+
+\begin{explainbox}{The decision rule, fixed before the run}
+Written into the run entry on 2026-10-09, before the screen started; ``cells'' are the 6 method $\times$ $K$ combinations of one panel and axis.
+\begin{enumerate}[label=(\arabic*),leftmargin=1.6em]
+\item \emph{Leverage beyond composition}: P02+P03+P04 lose more of the axis than all 20 composition-matched drops in at least 4 of 6 cells.
+\item \emph{Support for H-S1-05} (``they shape the factors'') also needs their ratio to exceed that of every contrast set (P01, P06, P09, P01+P09) in at least 4 of 6 cells. Without this condition any real patient would ``shape'' the factors: on IFN-$\alpha$, P01 and P09 cleared their controls in 6 of 6 cells.
+\item A verdict change needs the primary and the probe axis to agree.
+\item Absolute size is reported regardless: matched $|r| \geq 0.98$ reads as ``beyond controls but small''.
+\end{enumerate}
+On IFN-$\alpha$ the same rule is a post-hoc reading (it was written after those results); here it is pre-specified.
+\end{explainbox}
+
+\subsection*{What we found}
+
+\begin{table}[H]
+\centering
+\small
+\caption{The decision rule per panel and axis (6 method $\times$ $K$ cells each). Ratio: axis loss of P02+P03+P04 divided by the mean of its 20 composition-matched drops. IFN-$\alpha$ is the D17 refit, primary axis only.}
+\label{tab:d26rule}
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{l l c c c c}
+\toprule
+Panel & Axis & (1) above all 20 & (2) above every contrast & Ratio & P01's ratio \\
+\midrule
+IFN-$\alpha$ (D17) & primary & 3/6 & 0/6 & 0.36--1.94 & 3.7--23.8 \\
+\addlinespace
+Allograft rejection & primary & 5/6 & 0/6 & 1.31--4.15 & 21.2--140.6 \\
+ & best held-out & 5/6 & 0/6 & 0.82--3.99 & 16.0--188.1 \\
+ & probe & 5/6 & 0/6 & 1.22--3.24 & 7.5--35.1 \\
+\addlinespace
+Apoptosis & primary & 6/6 & 0/6 & 2.01--3.98 & 48.1--127.7 \\
+ & best held-out & 6/6 & 0/6 & 1.76--3.98 & 30.7--126.2 \\
+ & probe & 6/6 & 1/6 & 1.54--4.37 & 0.57--91.9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Beyond composition, yes, and mostly P03} (Figure~\ref{fig:02b_d26a}a--c). Without P02+P03+P04 the primary axis moves more than all 20 composition-matched drops in 5 of 6 cells for allograft and 6 of 6 for apoptosis (IFN-$\alpha$: 3 of 6), at 1.31--4.15$\times$ and 2.01--3.98$\times$ the controls' mean; the held-out-lift and probe axes agree (Table~\ref{tab:d26rule}). P03 alone accounts for 74--93\% (allograft) and 72--88\% (apoptosis) of what the three together lose, against 45--69\% on IFN-$\alpha$, and clears its own controls in 5 of 6 and 6 of 6 cells; P02 alone in 4 of 6 and 6 of 6, P04 in 3 of 6 and 1 of 6. A union can show a smaller ratio than one of its members (allograft PCA40: P03 10.4$\times$, the three together 4.15$\times$) because its controls remove more malignant cells (1,071, against P03's 758), which makes its yardstick stricter; P02 and P04 do not cancel P03. The per-cell ratios behind these counts are printed by \texttt{figs\_02b\_d26.py} and tabulated in the run's findings file.
+
+\textbf{Small in absolute terms} (Figure~\ref{fig:02b_d26a}d--f). Allograft PCA loses 0.9--2.8\% of its PC8's variance (the allograft panel's own largest-gap factor, not the IFN-$\alpha$ PC8 of section~\ref{glance:05}), with matched $|r|$ 0.945--0.970: by rule (4) that is not ``small''. Yet the 20 random drops of 4,917 cells, 1,071 of them malignant, also rotate PC8 to $|r|$ 0.90--0.97, so on matched $|r|$ the group sits inside its controls' range at $K$ 10 and 40 and just above it at $K$ 20 (0.9704 against a control maximum of 0.9696, i.e.\ it rotates PC8 slightly less than every control); and a refit without any malignant cells keeps PC8 at only $|r|$ 0.88--0.92 (IFN-$\alpha$ 0.99). The allograft PCA axis is partly made by the malignant cells themselves, whoever they belong to. Allograft FA loses 0.4--0.7\% (matched $|r|$ 0.988--0.991), apoptosis 0.07--0.18\% (0.994--0.995): ``beyond controls but small''.
+
+\textbf{Not more than other patients: P01 dominates.} Clearing composition-matched drops is common to every real patient set, as on IFN-$\alpha$: P01 and P01+P09 do it in 6 of 6 cells on both panels, P09 and P06 in 4 of 6 (allograft) and 6 of 6 (apoptosis). On the primary axis P01 has the largest ratio of all eight sets in every allograft and apoptosis cell, and in 17 of the 18 cells of the three panels (the exception is IFN-$\alpha$ FA40, where P06 leads): 21.2--140.6$\times$ its controls on allograft and 48.1--127.7$\times$ on apoptosis, an axis loss of 1.1--9.0\% and 1.1--3.7\%. So the group's ratio beats every contrast set's in 0 of 6 primary-axis cells on each panel (1 of 6 on the apoptosis probe axis): condition (2) fails on both axes the rule names. The verdict does not hinge on P01: against P06 and P09 alone, the group's ratio is higher only in the three allograft PCA cells. Without P01 the apoptosis PCA axis stays in the refit span (1.6--2.6\% lost) but no single refit factor matches PC6 (matched $|r| \leq 0.043$): it is spread over several factors, as PC8 was on IFN-$\alpha$ (FA6 keeps 0.735--0.756; allograft PC8 0.667--0.874).
+
+\textbf{The probe direction moves under any drop.} The dense $K = 40$ probes (up to 40 factors) lose a lot whoever is removed: allograft FA40 11.7\% without P02+P03+P04 and 9.6\% on average over its 20 random drops; apoptosis FA40 18.4\% against a control mean of 4.2\% (maximum 16.8\%).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig02b_d26a_ratio_by_set.pdf}
+\caption{Leave-out refits, primary axis, three panels (IFN-$\alpha$ from D17). (a--c) Each column is one patient set left out of the Stage~1 fit (02 = P02; 02+03+04 = P02+P03+P04); each marker is one method $\times$ $K$ (blue PCA, orange FA; triangle, square, circle = $K$ 10, 20, 40): its axis loss divided by the mean of its 20 composition-matched random drops (log). Filled: above all 20 (rank $p$ 0.048); open: inside their range. Above each column: cells above all 20, out of 6. Bold ranges: the P02+P03+P04 ratio (bottom) and P01's (shaded column, top). (d--f) Absolute size: matched $|r|$ of the primary axis after leaving P02+P03+P04 out (dot), the range over its 20 random drops (gray bar) and after leaving P01 out (diamond), on a log scale of $1 - |r|$ with $|r| = 1$ at the top; dashed: $|r| = 0.98$, the rule's ``small''. Look at the shaded P01 column against the P02+P03+P04 column in (a--c), and at the diamonds in (f).}
+\label{fig:02b_d26a}
+\end{figure}
+
+\subsection*{What it means}
+
+\textbf{For re-weighting.} You decided on 2026-10-10 that re-weighting should target the Stage~2 labels, for the runs with the new patient data (A-20261010-08). D26 is consistent with that choice: the Stage~1 leverage specific to P02--P04 is beyond composition on two of three panels but never beyond what removing other patients does, while the Stage~2 labels are 68.3\% theirs and lift ranks with prevalence (median within-representation Spearman $\rho = 0.821$ over 643 representations). As recorded, the re-weighting gives each training patient's malignant cells the same total weight in the logistic loss, and likewise its normal cells; it runs as the Stage-2-only sample-weight scheme of the healthy-cell downsampling design, with $C$ retuned per condition, since the effective training data change. No patient-reweighted Stage~1 refit is planned; the IFN-$\alpha$ pilot (section~\ref{glance:02}) stays the record of what Stage~1 re-weighting does. Re-weighting the labels leaves the basis as it is, including P01's leverage. \src{D6 in 2026-08-31\_d6-d9-meeting-followup; 2026-10-10\_d26-leverage-allograft-apoptosis-done; 2026-10-10\_decisions-new-run-inclusion-reweighting-lfs}
+
+\textbf{For healthy-cell downsampling} (plan \texttt{healthy\_downsampling\_plan.md}, section \emph{Remaining TODOs}). Two points carry over, both predictions, not results:
+\begin{itemize}[leftmargin=1.4em]
+\item \emph{P01 is where Stage~1 thinning would bite.} P01 is the supported patient with the most healthy cells per malignant cell (about 263; 11,860 cells, 45 malignant) and the largest leverage on the primary axis of all three tested panels. The plan's patient-capped scheme thins P01 and P09 most, so in Stage~1 it should move the basis more than random thinning of the same number of cells. (Under your 100-cell rule P01 is not in new full runs at all; this applies to the current cohort's bases and to any new patient like it.) Whether that is P01's cell count, its ratio or its cell types (it holds 93\% of the cohort's ncMono cells, the highest-energy type) is untested (W2.9).
+\item \emph{The Stage~1 channel is panel-specific.} On apoptosis and on IFN-$\alpha$ the axis survives without any malignant cells (matched $|r| \geq 0.99$, except IFN-$\alpha$ FA20 at 0.95), so changing the healthy-to-malignant mix of the fit set should change little there. On allograft it does not: PCA $|r|$ 0.88--0.92, FA 0.97--0.98, both under the rule's 0.98. Allograft is the panel where the plan's Stage~1 geometry channel has the most room, PCA most of all. These are axis movements, not held-out lift (D26 refits no Stage~2 probe).
+\end{itemize}
+
+\begin{caveatbox}
+\begin{itemize}
+\item \textbf{PCA and FA only}, on 3 of 41 panels. FactoSig and FactoSig-promax, the atlas winners on both panels, are untested; they are the only remaining route to a different H-S1-05 reading here (W2.2).
+\item \textbf{Axis movement is not lift.} No Stage~2 probe was refit, so D26 says how far a patient set moves the factors, not how that changes held-out AUPRC.
+\item \textbf{No significance}: 20 controls (rank-$p$ floor 0.048), 48 uncorrected contrasts per panel and axis, 7 supported patients. A leave-out refit is an in-silico perturbation: it shows how much a set's cells move an axis, not why.
+\item \textbf{The group's controls are not free of the group}: they remove 1,071 random malignant cells, about two thirds of them from P02--P04 themselves. The test isolates what is specific to their cells beyond the label count.
+\item \textbf{Which axis.} The primary axis is the largest-gap factor; the best held-out factor is a different one in 8 of 12 cells, and the dense probe direction moves under any drop. The verdict holds on all three axes, but the absolute sizes are those of the primary axis.
+\item \textbf{Transductive, 13-patient bases.} The test refits variants of the stored bases, in which the four zero-malignant patients are 17.7\% of the fit. Under the new-run rule (no zero-malignant patients) the bases and their controls change; the test on that 9-patient fit set has not been run.
+\end{itemize}
+\end{caveatbox}
+
+\begin{teambox}
+``On allograft rejection and apoptosis, the two programs where DR helps most, removing P02, P03 and P04 from the factor fit moves the malignant axis 1.3 to 4 times as much as removing the same number of random cells and malignant cells, mostly because of P03, but the axis stays matched (under 3\% of its variance), and removing P01 moves it 21 to 141 times as much. So they do not shape the factors more than other patients do; where they dominate is the labels.''
+
+\textbf{Likely question:} ``Then why does P01 move the axes so much?''\\
+\textbf{Answer:} We don't know yet. It is the second-largest patient (19.7\% of the cells) and holds 93\% of the cohort's ncMono cells, the cell type with the most factor-score energy per cell; a leave-out control matched on cell type would test that (W2.9). Its malignant cells cannot be the reason: it has 45.
+\end{teambox}
+
+\subsection*{Next step}
+\begin{itemize}
+\item Proposed: the same test on all biological panels (W2.8; about 3 hours in screen; needs a campaigns row and your go-ahead). Its condition, leverage beyond composition, is met; condition (2) against the contrast sets is the informative read-out, since every real patient set clears composition-matched drops.
+\item Proposed: a cell-type-matched leave-out control for P01 (W2.9), now the main open leverage question.
+\item FactoSig and FactoSig-promax refits (W2.2, GPU), the only route to a different verdict on these panels.
+\item Re-weighting (W2.3, closed by your decision): the Stage~2 sample-weight scheme runs with the new-patient runs (W8.6 runner, W8.7 run), with $C$ retuned per condition.
+\end{itemize}
+
+\subsection*{How this was computed}
+{\small\raggedright
+Stored transductive Stage~1 bases (60,118 cells, 13 patients, seed 42) of hallmark allograft rejection (147 genes) and hallmark apoptosis; refits with the stored scikit-learn solvers, genes standardized on the fit cells; size-matched controls seeds 1--3, composition-matched seeds 101--120 (the D17 seeds); all 13 patients kept, as in D17, so the panels compare directly. Alignment only: no Stage~2 probe refit or scored, so no $C$ policy; training $n$ unchanged. \par\smallskip Run, from the repository root:\\
+{\footnotesize\hspace*{1em}\texttt{screen -S W2\_d26}\\
+\hspace*{1em}\mbox{\texttt{bash scripts/mrd\_stage0\_2/workstreams/W2\_stage1\_basis\_variants/run\_d26\_leverage\_panels.sh}}\\}
+(defaults \texttt{\mbox{-{}-ks 10,20,40} \mbox{-{}-resume} \mbox{-{}-n-jobs 12}}, single-thread BLAS); finished 2026-10-10.\par\smallskip Code: \texttt{\ldots/\allowbreak W2\_stage1\_basis\_variants/\allowbreak run\_d26\_leverage\_panels.py}; figures, the decision-rule counts (recomputed from \texttt{d26\_leverage\_contrast.csv} and asserted equal to \texttt{d26\_decision\_summary.csv}) and every quoted ratio from this report's \texttt{figs\_02b\_d26.py}. Artifacts (EXP-relative): \texttt{analysis/\allowbreak scorecards/\allowbreak stage2\_diagnostic/\allowbreak leverage\_allograft\_apoptosis\_v1/} (\texttt{d26\_leverage\_contrast.csv}, \texttt{d26\_decision\_summary.csv}, \texttt{d26\_reference\_axes.csv}, findings), with the run's own figures under \texttt{analysis/\allowbreak figures/\allowbreak stage2\_diagnostic/\allowbreak leverage\_allograft\_apoptosis\_v1/}; IFN-$\alpha$ rows from \texttt{basis\_variant\_pilot\_ifna\_v1/\allowbreak d17\_leverage\_contrast.csv}. \src{2026-10-09\_d26-leverage-allograft-apoptosis (run entry, decision rule); 2026-10-10\_d26-leverage-allograft-apoptosis-done (results, verdict); 2026-10-10\_core-report-v3 (the ranges this section derives); 2026-10-08\_d17-composition-matched-controls; 2026-10-09\_d28-celltype-score-shares}\par}

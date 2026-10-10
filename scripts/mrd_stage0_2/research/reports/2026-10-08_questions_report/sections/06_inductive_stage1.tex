@@ -1,0 +1,92 @@
+% Section 06: option 2, an inductive Stage 1 (D17 basis-variant pilot, IFN-$\alpha$).
+% Figures: figs_06_inductive.py (fig06a_inductive_lift, fig06b_paired_change).
+\section{Option 2: does lift survive when Stage 1 never sees the held-out patient?}
+
+\begin{quote}
+``Options to address: [\ldots] 2. Exclude held-out patient from Stage 1 entirely, then project their cells onto learned factors.''
+\end{quote}
+
+\begin{answerbox}
+Yes, on the one panel tested (IFN-$\alpha$; PCA and FA at $K$ = 10, 20 and 40). With Stage 1 fit without the held-out patient and that patient's cells projected onto the frozen factors, held-out lift stays positive in all 7 supported patients under per-fold tuned C or L2 (126 of 126 patient $\times$ setting pairs). Against the transductive basis, the median per-patient change is between $-1.29$ and $-0.05$\pp{} across the 18 tuned/L2 settings: always negative, so transductive LOPO numbers are slightly optimistic, but by little next to median lifts of 2.5--10.6\pp. Pooled AP is more sensitive: FA40 under tuned L2 falls from 0.1325 to 0.0794. The discriminative axis (PC8, FA7) survives the refit, and a basis fit on normal cells only carries it too. Descriptive: one panel, seven supported patients, no significance test.
+\end{answerbox}
+
+\subsection*{What we did}
+
+Every lift in the atlas, the interactive heatmap and the factor analyses so far comes from a Stage 1 basis fit on all 60,118 cells of all 13 patients. (Lift = held-out AUPRC minus the patient's malignant prevalence $\pi$, in pp; a constant score gets AP $= \pi$, so lift 0 means no skill.) Stage 1 never sees labels, but it does see the held-out patient's cells; option 2 asks how much of the transfer depends on that.
+
+\begin{explainbox}{Transductive vs inductive: who sees whose cells}
+Take one leave-one-patient-out (LOPO) fold, P03 held out (2,327 cells, 758 malignant).
+
+\smallskip
+\begin{tabularx}{\linewidth}{@{}p{2.3cm}XXl@{}}
+\toprule
+Arm & Stage 1 (PCA or FA, no labels) is fit on & Stage 2 probe is trained on & Scored on \\
+\midrule
+Transductive (atlas) & all 60,118 cells of all 13 patients, P03 included & labelled cells of the other 12 patients & P03 \\
+Inductive & the 57,791 cells of the other 12 patients; P03 is projected afterwards & same & P03 \\
+Normal-only & the 56,980 normal cells of the other 12 patients & same & P03 \\
+\bottomrule
+\end{tabularx}
+
+\smallskip
+Transductively, P03's labels are never used, but its cells help decide where the factors point: if P03 had a distinctive malignant population, Stage 1 could spend a factor on it and hand the probe a ready-made axis. The inductive arm closes that route by fitting the basis, gene means and SDs included, without P03 and freezing it, as for a new patient. We report $\lift_h^{\text{ind}} - \lift_h^{\text{trans}}$ per patient $h$; negative means the transductive number was optimistic.
+\end{explainbox}
+
+The pilot refit IFN-$\alpha$ (92 covered genes) with PCA and FA at $K$ = 10, 20 and 40: one inductive and one normal-only basis per supported held-out patient, plus a transductive refit with the same code as the reference. Stage 2 used the standard LOPO folds (training $n$ unchanged), with L1 and L2 at the stored atlas C ($10^{-4}$) and at a C tuned per outer fold by inner LOPO. ``The 18 tuned/L2 settings'' are tuned L1, fixed L2 and tuned L2 for each method $\times$ K; fixed-C L1 is treated last.
+
+\subsection*{What we found}
+
+\textbf{Lift survives in every patient.} Figure~\ref{fig:06a} shows each supported patient at $K$ = 40 under tuned L1. Summaries (pooled AP / median lift / P20 lift), inductive versus transductive refit: PCA40 0.1164 / 10.55 / 1.29\pp{} versus 0.1153 / 8.91 / 1.42\pp; FA40 0.0869 / 6.69 / 1.42 versus 0.0894 / 7.03 / 1.25. Under tuned L2 the picture is the same (PCA40 median change $-0.30$\pp, FA40 $-0.44$\pp; 7 of 7 positive), though FA40's pooled AP falls more (0.1325 to 0.0794). Read paired per-patient changes rather than differences of medians: PCA40 inductive has the higher median lift (10.55 vs 8.91\pp) only because P07, the median patient, gains 1.64\pp, while 5 of 7 patients lose (median change $-0.67$\pp). P01 and P06, near zero in the figure, stay positive in all three arms (0.19--0.52 and 0.05--0.37\pp).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig06a_inductive_lift.pdf}
+\caption{Held-out lift per supported patient at $K$ = 40, C tuned per fold, L1, on three Stage 1 bases: transductive refit (open circle), inductive (filled circle) and normal-only (diamond). Each gray line joins one patient's three values. Look at how little the line moves next to the lift itself, and that no filled marker reaches zero. Labels mark inductive changes of at least 1.5\pp. Tick labels give each patient's malignant prevalence; P02, P03 and P04 are the highest-prevalence patients.}
+\label{fig:06a}
+\end{figure}
+
+\textbf{The optimism is small and consistent in sign.} Across all 18 tuned/L2 settings (Figure~\ref{fig:06b}, top) the median per-patient change runs from $-1.29$\pp{} (FA20, tuned L1) to $-0.05$\pp{} (FA40, fixed L2) and is negative in every setting. Single patients move more, in both directions: $-3.83$\pp{} (FA40 P03, tuned L1) to $+6.13$\pp{} (PCA10 P04, tuned L1). With seven patients and C picked from a discrete grid, single-patient differences are not identifiable effects.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{figures/fig06b_paired_change.pdf}
+\caption{Change in held-out lift versus the transductive refit for each supported patient (gray dots) in each of the 18 tuned/L2 settings; bars are the median over the seven patients. Top: inductive bases. Bottom: normal-only bases. Look at where the bars sit relative to zero (just below it everywhere in the top row) and at the spread of the dots, which is single-patient noise.}
+\label{fig:06b}
+\end{figure}
+
+\textbf{The axis survives without the held-out patient.} The reference axis is the factor with the largest standardized malignant-vs-normal gap (PC8, FA7 at every K; malignant cells score lower on PC8, higher on FA7). \emph{Matched $|r|$}: Hungarian matching of refit factors to it on $|$correlation$|$ of cell scores; \emph{many-to-one $R^2$}: the share of it explained by all K refit factors. At $K$ = 40 the inductive PC8 has matched $|r|$ 0.97--0.9995 in 6 of 7 bases, and FA7 0.97--0.9997 in 6 of 7. The exceptions keep the direction but spread it over neighbouring factors: P01-out PCA ($|r|$ 0.59, $R^2$ 0.986) and P09-out FA ($|r|$ 0.75, $R^2$ 0.981); in that P09 fold the tuned L1 probe gives the matched factor zero weight and still reaches 6.69\pp{} through its neighbours.
+
+\textbf{Normal cells alone carry the axis.} A basis fit on the normal cells of all patients reproduces PC8 at $|r|$ 0.9937 and FA7 at 0.9937 ($K$ = 40). The per-fold normal-only bases, which also leave out the held-out patient, keep lift positive in 126 of 126 patient $\times$ setting pairs, with median changes from $-1.00$ to $+0.25$\pp{} (Figure~\ref{fig:06b}, bottom); at $K$ = 40 under tuned L1, PCA 0.0983 / 6.98 / 1.36\pp{} and FA 0.1126 / 7.57 / 1.17\pp. The direction that separates malignant from normal cells is one along which normal cells already vary; malignant cells differ in where they sit on it.
+
+\textbf{At the fixed atlas C, inductive bases look worse; that is the L1 entry threshold.} Under balanced L1 at fixed C, a standardized factor can enter only if its training malignant-vs-normal mean gap exceeds $4/(C\,n_{\text{train}})$ SD (0.678\,SD at $C = 10^{-4}$ with P04 held out); the \emph{entry margin} is the gap divided by that threshold. All margins below 1 means an all-zero probe, AP $= \pi$, lift 0 by construction (not ``no signal''). At $C = 10^{-4}$ the inductive PCA40 median lift falls from 11.10 to 0.05\pp{} (positive in 4 of 7 patients instead of 5). One fold moves the median: P07's largest margin drops from 1.075 (transductive refit) to 0.928, so its lift goes from 11.10\pp{} to 0; with C tuned in that fold ($10^{-3}$) it is 10.55\pp. Normal-only bases have lower margins in 13 of 14 PCA40/FA40 folds and are all-zero at the fixed C in 5 of 7 (PCA40) and 7 of 7 (FA40) folds, yet positive in 7 of 7 once C is tuned. An inductive atlas rerun must retune C per fold.
+
+\textbf{Related arm: patient-balanced Stage~1 (option 1.2).} Weighting each patient equally in the Stage 1 fit (all cells, so still transductive) rotates PC8 more than FA7 (matched $|r|$ 0.90 vs 0.98 at $K$ = 40), with no clear loss under tuned L1: PCA40 0.1213 / 9.25 / 2.69\pp{} (median change $+1.35$\pp, no patient lower), FA40 0.0863 / 6.85 / 1.20\pp{} (median paired change $+0.07$\pp, though all three summaries are slightly below the refit's 0.0894 / 7.03 / 1.25). Under tuned L2, FA40 loses a median 1.13\pp{} (5 of 7 patients lower). Single patients swing more ($-11.74$ to $+12.77$\pp{} across the 18 settings): read it as ``no clear loss on IFN-$\alpha$'', not a gain.
+
+\begin{caveatbox}
+\begin{itemize}
+\item One panel (IFN-$\alpha$, 92 genes), PCA and FA only, $K$ = 10, 20, 40, seed 42. The 47 atlas-selected representations, FactoSig included, are untested; that needs a GPU or CPU screen job.
+\item Seven supported patients, no significance test; single-patient changes (FA40 P03 $-3.83$\pp, PCA10 P04 $+6.13$\pp) are not identifiable effects.
+\item C tuning is not fully inductive: the inner LOPO folds reuse the outer fold's inductive basis, whose fit included the inner held-out patients.
+\item Same cohort and processing: no evidence yet for new data such as Yu-Hsiang's patients; cell-level lift is not recurrence-risk improvement.
+\item The reference is the transductive refit (exact projection). Stored PCA scores use a slightly different convention, so stored-basis PCA40 lifts differ from it by up to 1.23\pp{} (tuned L1; 0.32\pp{} at the atlas's fixed-C L1); FA is identical.
+\item Nothing here says whether P02, P03 and P04 shape the loadings; that is the leave-patients-out analysis.
+\end{itemize}
+\end{caveatbox}
+
+\begin{teambox}
+``On IFN-$\alpha$, refitting Stage 1 without the held-out patient keeps lift positive in all 7 patients and costs 0.05 to 1.29\pp{} at the median across 18 settings, so our LOPO numbers are slightly optimistic, not an artifact of the held-out patient's cells.''
+
+\textbf{Likely question:} ``So should every atlas number be rerun inductively?''\\
+\textbf{Answer:} For anything presented as transfer to new patients, yes, with C retuned per fold: at the fixed atlas C one small margin shift zeroes a fold (PCA40 P07, 11.10\pp{} to 0). Until that run covers all 47 representations, call atlas numbers label transfer on a transductive basis; on IFN-$\alpha$, with tuned C or L2, that overstates median per-patient lift by at most about 1.3\pp.
+\end{teambox}
+
+\subsection*{Next step}
+\begin{itemize}
+\item W2.6: inductive Stage~1 for the 47 atlas-selected representations, with fold-specific storage, per-fold tuned C and L2 alongside (GPU or CPU, in a user screen session).
+\item W1.3: rerun the patient factor-overlap analysis (D14) on the inductive and normal-only bases.
+\item W2.7: audit stored PCA scores against the exact projection across the atlas before projecting new patients onto stored bases.
+\end{itemize}
+
+\subsection*{How this was computed}
+{\small\raggedright
+Data: IFN-$\alpha$ hallmark panel (92 covered genes, z-scored), 60,118 MRD cells, 13 patients; 7 supported held-out patients. Stage 1: scikit-learn PCA and FactorAnalysis (randomized, seed 42), $K$ = 10/20/40, gene standardization on the fit cells, held-out cells projected with the fitted transform. Stage 2: balanced logistic probes on train-fold standardized scores (L1 proximal Newton, L2 L-BFGS); C fixed at $10^{-4}$ or tuned per outer fold by inner LOPO over the six supported training patients (median inner lift; 17-value grid $10^{-4}$--$10^{4}$). Estimand: per-patient lift, variant minus transductive refit, median over seven patients; pooled AP, median and P20 lift quoted together. Anchor: the stored-basis arm reproduces 84 of 84 stored per-patient atlas lifts within 0.1\pp{} with the same nonzero support. Code: \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak workstreams/\allowbreak W2\_stage1\_\allowbreak basis\_variants/\allowbreak run\_d17\_\allowbreak basis\_variant\_\allowbreak pilot.py} (with \texttt{stage1\_refit.py}); C policy from \texttt{scripts/\allowbreak mrd\_stage0\_2/\allowbreak workstreams/\allowbreak W3\_dr\_\allowbreak value\_\allowbreak regularization/\allowbreak regularization\_\allowbreak contract.py}; figures from \texttt{figs\_06\_inductive.py} in this report's directory. Artifacts (EXP-relative): \texttt{analysis/\allowbreak scorecards/\allowbreak stage2\_\allowbreak diagnostic/\allowbreak basis\_variant\_\allowbreak pilot\_ifna\_v1/} (\texttt{d17\_stage2\_\allowbreak by\_patient.csv}, \texttt{d17\_stage2\_\allowbreak summary.csv}, \texttt{d17\_alignment.csv}). \src{2026-10-08\_d17-basis-variant-pilot (D17); entry rule from 2026-10-08\_d19-regularization-contract (D19)}\par}

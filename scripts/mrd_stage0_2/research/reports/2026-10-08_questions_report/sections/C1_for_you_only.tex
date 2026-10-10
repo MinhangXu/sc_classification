@@ -1,0 +1,18 @@
+% Appendix C: repository decisions for the project lead only. report.tex leaves this file out of the
+% team build (bash build.sh --team), so the shared PDF never carries it.
+\section*{Appendix C: For you only (repository decisions)}
+\phantomsection
+\addcontentsline{toc}{section}{Appendix C: For you only (repository decisions)}
+\label{app:foryou}
+
+These repository decisions are yours and do not concern the team's questions. The team build of this report (\texttt{bash build.sh -{}-team}) leaves this appendix out. Status as of 2026-10-10, from git and the lab env; the first two items are now done.
+
+\textbf{1. The Git LFS lines (done, 2026-10-10).} After your ``Let's change the git LFS thing'' (A-20261010-10), all five \texttt{filter=lfs} lines in \texttt{.gitattributes} (\texttt{*.ipynb}, \texttt{*.png}, \texttt{*.pdf}, \texttt{*.pkl}, \texttt{*.h5ad}) were removed; the file now says why in a comment. What that means in practice: nothing in history changes, because git-lfs was never installed here and none of the 341 tracked files is an LFS pointer; the 59 tracked notebooks stay plain JSON and versioned as before; and a collaborator who has git-lfs no longer gets ``should have been pointers'' warnings or turns a notebook into a pointer on their next commit. The change is uncommitted, like the rest of this round. One related choice is new (W0.15): \texttt{*.png} and \texttt{*.pdf} are also listed in \texttt{.gitignore}, so this report's PDF and figures and the team-update figures are not in a clone; decide which of them the repository should carry. \src{2026-10-10\_decisions-new-run-inclusion-reweighting-lfs}
+
+\textbf{2. pytest in the lab env (done, 2026-10-09).} You installed pytest in the lab env, the conda env \texttt{sc-classification-\allowbreak rapids-py311} (Python 3.11.15) that runs every Stage~0--2 runner, the analyses and both apps; this closes W0.4. Tests now run there: \texttt{CONDA\_PREFIX=...\allowbreak/sc-classification-rapids-py311 python -m pytest -q tests} with that env's python (the exact line is in \texttt{AGENTS.md} \S8). The full suite on 2026-10-10, after your \texttt{W2\_d26} run, gave 296 passed and none skipped.
+
+\textbf{3. Pushing.} \texttt{sc\_classification\_gpu} is 3 commits ahead of \texttt{origin}: b60a6ee, the d387eda work-in-progress checkpoint (squash it if you prefer) and f5a8f4d. Decision 1 no longer blocks it: commit this round, then push (W0.3); this unlocks the CI workflow and clean-tree reruns for anything meant for publication, and lets a collaborator clone a repository that starts from \texttt{AGENTS.md} (for agents) and \texttt{README.md} (for people). The umbrella repository already records f5a8f4d locally and has no remote. This report's directory is untracked.
+
+\textbf{4. Updating the repository gradually} (W0.14, your 2026-10-09 note). Each ask gets the smallest change that answers it, as one reviewable diff named in that round's devlog entry; nothing is reorganized wholesale.
+
+\textbf{Next step.} Commit this round (a proposed message comes with each round), push (W0.3), and decide which figures and PDFs to track (W0.15).

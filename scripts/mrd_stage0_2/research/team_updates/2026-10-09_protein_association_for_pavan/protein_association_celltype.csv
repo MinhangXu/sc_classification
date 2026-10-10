@@ -1,0 +1,11 @@
+cell_type,n_cells_normal,n_cells_malignant,mean_pc8_score_normal,mean_pc8_score_malignant,malignant_higher_pooled,n_patients_compared,n_patients_malignant_higher
+HSC/MPP2,5984,643,0.21,0.855,True,4,4
+NP1,4363,286,0.051,0.405,True,2,1
+LMPP,3036,176,0.327,0.951,True,2,2
+HSC/MPP1,1657,175,0.577,1.115,True,4,4
+cDC,5321,82,-0.3,-0.044,True,3,3
+MEP-MkP,792,77,0.676,1.065,True,3,3
+NP2,4646,44,-0.163,-0.181,False,1,1
+MEP-EP,10512,21,-0.01,0.989,True,1,1
+EBM,1346,20,0.793,0.595,False,0,0
+pDC1,3051,20,-0.093,0.035,True,0,0

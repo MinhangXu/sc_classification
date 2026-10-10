@@ -1,0 +1,150 @@
+\section*{Appendix A: Glossary}
+\phantomsection
+\addcontentsline{toc}{section}{Appendix A: Glossary}
+\label{app:glossary}
+
+Terms used anywhere in this report, in alphabetical order. Each entry gives the intuition first and then the exact quantity. The examples refer to the IFN-$\alpha$ panel unless stated otherwise.
+
+\begin{description}[leftmargin=0pt,itemsep=3pt,font=\normalfont\bfseries]
+
+\item[ADT (CLR).] Antibody-derived tags: the CITE-seq surface-protein counts, 161 markers plus 9 isotype controls. Here they are raw counts transformed by a per-cell centred log-ratio (CLR) over all 170 features, without dsb normalization.
+
+\item[Aggregation calls (aggregate, location shift, separate-subtype candidate).] The pre-set verdicts of the patient factor-overlap test for one representation. \emph{Aggregate}: normal weighted overlap $\geq 0.75$, every patient's normal patient-vs-rest overlap $\geq 0.60$, malignant weighted overlap $\geq 0.45$ and malignant gap to the null $<0.15$. \emph{Separate-subtype candidate}: a normal patient-vs-rest overlap below 0.40, or a malignant weighted overlap below 0.35 with a gap of at least 0.15. \emph{Location shift}: everything in between. The subtype gates are checked first, and the malignant cells have no per-patient gate. The gates are magnitude rules; they are not calibrated against a null.
+
+\item[All-zero probe.] An L1 or elastic-net probe whose coefficients are all zero at the chosen $C$. Every held-out cell then gets the same score, so AP $=\pi$ and lift $=0$ \emph{by construction}. It means no factor cleared the entry threshold. It does not mean the representation carries no signal.
+
+\item[AP (average precision).] scikit-learn's step-wise area under the precision--recall curve, $\mathrm{AP}=\sum_n (R_n-R_{n-1})\,P_n$ over the distinct score thresholds. This is the number the report calls AUPRC.
+
+\item[Atlas cell.] One stored panel $\times$ Stage~1 configuration (method and $K$), evaluated on the seven supported patients at a single regularization setting. That setting was chosen per cell by pooled LOPO AP, on the same folds, so the choice is not nested.
+
+\item[AUPRC.] Area under the precision--recall curve. In this report it is always the AP of one held-out patient's cells.
+
+\item[AUROC.] Area under the ROC curve: the probability that a random malignant cell outscores a random normal cell. Its floor is 0.5 whatever the prevalence. It is not the headline metric here; it is planned as a companion column.
+
+\item[Axis loss.] How much of a reference axis (for example PC8 or FA7 of the stored basis) disappears when Stage~1 is refit on a variant, such as one that leaves patients out. It equals $1-R^2$, where $R^2$ is the many-to-one $R^2$ of the reference scores on all factors of the refit basis, computed on the cells both fits share. A value of 0 means the axis is fully recoverable from the refit.
+
+\item[$C$.] scikit-learn's inverse regularization strength. The objective is $C\sum_i s_i\,\mathrm{logloss}_i+\mathrm{penalty}(w)$ with class-balancing weights $s_i$, so a larger $C$ means a weaker penalty. The loss is a \emph{sum} over cells, so the same $C$ acts as a stronger penalty when $n_{\text{train}}$ shrinks. $C$ must therefore be retuned whenever the training size changes.
+
+\item[Cell-type-adjusted ratio.] A patient's score-energy over-representation ratio divided by the ratio its predicted cell-type mix alone would give, if every one of its cells carried its cell type's average score energy. This is an indirect standardization, like a standardized mortality ratio: 1 means the cell-type mix fully accounts for the patient's ratio. ``Accounts for'' is arithmetic on predicted labels, not a cause: batch, collection time and biology still differ between patients of the same mix. The reference (all cells, or only the other patients' cells) matters when one patient holds most of a cell type.
+
+\item[Claim levels (descriptive, inferential, publication).] How far a result may be carried beyond these data (THEME \S6; AGENTS R6). \emph{Descriptive}: an effect size measured on these patients and bases, with no calibrated null, no patient-level interval and no outside cohort, so it describes them and claims nothing beyond them. \emph{Inferential} adds a calibrated null, patient-level uncertainty and nested selection. \emph{Publication} also needs every reviewer alternative addressed, every blocking task done and evidence from committed code. Every result in this report is descriptive.
+
+\item[Composition-matched control.] A random drop of cells that removes the same number of cells \emph{and} the same number of malignant cells as the leave-out set being tested; the leave-out analysis used 20 per set. It separates ``these patients'' from ``this many malignant cells''. Compare size-matched control.
+
+\item[Constant-score no-skill AP.] The AP of a score that is the same for every cell. It equals the prevalence $\pi$ exactly, because all cells form one tie group at recall 1 and precision $\pi$.
+
+\item[Degenerate factor.] A factor with zero score variance (and so no usable scores), which some FA fits produce at large $K$. Degenerate factors are excluded from effective $K$ and from the variance weights.
+
+\item[Determinacy (factor-score determinacy, $\rho$).] For an FA factor: the correlation between the latent factor and its best linear estimate from the genes, $\rho_k=\sqrt{[\Lambda^{\top}\Sigma^{-1}\Lambda]_{kk}}$. Below 0.707 ($\rho^2<0.5$), equally valid score sets can be uncorrelated with each other, so the factor should not be named as a unique program. FA7 has 0.649.
+
+\item[Direct-gene representation (direct-gene probe).] No Stage~1: the Stage~2 probe is fit directly on the panel's standardized genes. This is the no-DR baseline against which DR is compared.
+
+\item[Effective $K$.] The number of non-degenerate factors in a Stage~1 fit; a degenerate factor has zero score variance. IFN-$\alpha$ FA40 has an effective $K$ of 36.
+
+\item[Eigengap (relative).] For a factor with variance $v_k$ (explained variance for PCA, $\Psi$-whitened loading norm for FA): $\min(|v_k-v_{k-1}|,|v_k-v_{k+1}|)/v_k$. At 0.10 or less, the factor is nearly tied with a neighbour and any rotation within that pair fits about equally well, so the individual axis is not identifiable. PC8 has 0.055.
+
+\item[Elastic net (EN).] A penalty that mixes L1 and L2, with \texttt{l1\_ratio} setting the L1 share.
+
+\item[Entry threshold, entry margin.] With balanced class weights $s_i$, the gradient of the data term $C\sum_i s_i\ell_i$ at $w=0$ for a standardized feature $j$ is $C\,(n_{\text{train}}/4)$ times its training class-mean gap. The feature can therefore become nonzero only if $|\text{gap}_j|>4\alpha/(C\,n_{\text{train}})$, with $\alpha=1$ for L1 and $\alpha=$ \texttt{l1\_ratio} for EN. The \emph{entry margin} is $|\text{gap}_j|$ divided by that threshold. If every margin is at most 1, the probe is all-zero. At $C=10^{-4}$ the threshold runs from 0.678 SD (P04 held out) to 0.930 SD (P09 held out).
+
+\item[Eta-squared ($\eta^2$).] The fraction of a factor's score variance explained by patient identity, computed within one label (normal cells only, or malignant cells only). Near 0, the patients look alike on that factor; near 1, the factor mostly separates patients. It is computed over patients with at least 200 normal or at least 20 malignant cells. These are analysis strata, not the support rule.
+
+\item[Factor card.] A one-page record per factor (from the factor-card analysis). It lists the top genes on both loading poles, the orientation, whether the probe selects the factor, the univariate held-out lift per patient, matches in other bases (matched $|r|$, many-to-one $R^2$, Tucker $\phi$), determinacy, eigengap, $\eta^2$ and surface-protein correlations. The cards can be browsed in the factor explorer app.
+
+\item[Factor names (PC8, FA7).] Factor 8 of the PCA $K=40$ basis and factor 7 of the FA $K=40$ basis. The numbers are indices within one fit, so the same number in two fits does not mean the same factor.
+
+\item[Grid floor.] The smallest $C$ on the stored grid, $10^{-4}$, i.e.\ the strongest penalty. Many atlas cells select it, and an L1 probe at the floor is the most likely to be all-zero.
+
+\item[Haufe pattern (activation pattern).] How each input moves with a linear probe's score $s$: the forward pattern $\mathrm{cov}(X,s)/\mathrm{var}(s)$. Unlike the weights, it does not depend on how the inputs are rotated, so probes on different bases can be compared in gene space.
+
+\item[Healthy-to-malignant ratio.] For one patient, (cells $-$ malignant cells)/malignant cells: healthy cells per malignant cell. Prevalence is $\pi = 1/(1+\text{ratio})$. Among the supported patients it runs from about 2 (P03) to about 263 (P01).
+
+\item[Highest-prevalence patients.] P03, P02 and P04 (32.6\%, 14.4\% and 9.0\% malignant). They are not the patients with the most malignant cells (P09 has more than P02 or P04) and not the largest patients.
+
+\item[Identifiable (a single factor).] The data pin the factor's direction down uniquely, so a refit on slightly different cells returns the same factor. A small relative eigengap (PCA) or a determinacy below 0.707 (FA) means it does not: the span of the nearly tied factors is stable, but how that span is cut into single factors is not. Such a factor is named by its two poles and its subspace, not as a unique program.
+
+\item[Inductive (Stage~1).] A basis fit without the held-out patient's cells; those cells are then projected onto it. This is what deployment to a new patient would look like. Compare transductive.
+
+\item[Isotype reference.] For one factor card and label: the largest $|$median within-patient $\rho|$ between the factor and any of the 9 isotype-control antibodies, which bind nothing specific. A marker association at or below this level cannot be told apart from non-specific binding and CLR centring.
+
+\item[$K$.] The number of factors requested from Stage~1: 5, 10, 20 or 40.
+
+\item[Knife-edge.] A fold whose largest entry margin is within $\pm$10\% of 1. A small change in $C$ flips the probe between all-zero and active, and its lift can jump. The regularization analysis counted 136 knife-edge folds in 49 atlas cells.
+
+\item[L1, L2.] The lasso penalty ($\sum_j|w_j|$) and the ridge penalty ($\tfrac12\sum_j w_j^2$). L1 gives sparse probes, and which factor it keeps depends on the basis. L2 keeps every factor with shrunken weights, so a dense L2 probe cannot be read factor by factor.
+
+\item[Leverage test.] An in-silico perturbation of Stage~1: refit the basis without a set of patients, measure how far a reference axis moves (axis loss, matched $|r|$), and rank that against random drops of the same number of cells (size-matched controls) and of the same number of cells \emph{and} malignant cells (composition-matched controls). The decision rule calls it leverage beyond composition when the set's axis loss exceeds all 20 composition-matched controls in at least 4 of the 6 method $\times$ $K$ cells; support for H-S1-05 (the highest-prevalence patients shape the factors) also needs the set's ratio to its controls to exceed every contrast set's (P01, P06, P09, P01+P09) in at least 4 cells. The rule was written after the IFN-$\alpha$ results were known, so it is post hoc there and pre-specified for allograft rejection and apoptosis (D26, section 2b).
+
+\item[Lift.] $\mathrm{AP}-\pi$ for one held-out patient, in percentage points. A lift of 0 is no better than a constant score; the ceiling is $1-\pi$.
+
+\item[LOPO.] Leave-one-patient-out: hold out one patient, train the Stage~2 probe on the cells of the other 12, and rank the held-out patient's cells. On a transductive basis this is label transfer, not deployment.
+
+\item[Many-to-one $R^2$.] The $R^2$ of regressing one reference factor's scores on \emph{all} factors of another basis. A value of 1 means the direction lies in the other basis's span, even if it is split across several factors. PC8 has 0.920 on the FA40 basis.
+
+\item[Matched $|r|$.] The absolute score correlation between a reference factor and its one-to-one (Hungarian) match in another basis. A low matched $|r|$ together with a high many-to-one $R^2$ means the axis was rotated into several factors, not lost.
+
+\item[Nested selection.] Choosing the method, $K$, penalty or $C$ inside the training folds only, so that the held-out patient never influences the choice. The stored atlas is \emph{not} nested: its $C$ and its best-DR cells were picked on the same LOPO folds they are scored on, which inflates the winner's score (the winner's curse).
+
+\item[Normalized lift.] $(\mathrm{AP}-\pi)/(1-\pi)$: the share of the available headroom the probe uses. It is secondary to lift.
+
+\item[Option B.] The 2026-07-03 decision to summarize per-patient lifts with every supported patient weighted equally, using the median and the P20.
+
+\item[Orientation.] The sign that makes a factor point toward malignant cells: the sign of its Stage~2 coefficient, provided that sign is the same in every supported fold where the factor is active ($+1$: malignant cells score higher). Loading signs are arbitrary. PC8's orientation is $-1$, so its malignant-leaning pole is the negative-loading gene group.
+
+\item[Over-representation ratio.] A patient's share of a basis's score energy divided by the patient's share of cells (see score energy share). A value of 1 means the patient contributes to the factor spread exactly in proportion to its size. The section on the highest-prevalence patients uses this name; the factor-by-patient matrix artifacts call it enrichment.
+
+\item[Overlap coefficient.] How much two patients' score distributions on one factor coincide, within one label. With $p_b$ and $q_b$ the two normalized histograms over 32 shared bins (edges at the 1st and 99th percentiles of that label's, i.e.\ that stratum's, scores), the overlap is $\sum_b\min(p_b,q_b)$. A value of 1 means identical distributions and 0 means disjoint ones. The aggregation test summarizes a basis by the variance-weighted mean, over factors, of the median pairwise overlap.
+
+\item[P20 lift.] The 20th percentile of lift over the seven supported patients (pandas linear interpolation). It falls between the second- and third-lowest patient, close to the second-lowest, so it summarizes the lower tail.
+
+\item[Paired gain.] Used in the patient-count learning curve. For each held-out patient, its lift in its LOPO fold ($k = 6$ supported training patients) minus its mean lift over the 15 two-patient training subsets, with the same tuning protocol at both ends.
+
+\item[Patient-cluster bootstrap.] Intervals from resampling held-out \emph{patients}, not cells, with replacement: 2,000 draws, percentile 95\% interval.
+
+\item[Patient-vs-rest overlap.] The overlap coefficient between one patient's score histogram and the pooled histogram of all other patients, within one label. The minimum over patients flags the most distinct patient.
+
+\item[Pooled LOPO AP.] AP computed once over the concatenated held-out predictions of all folds. It is cell-weighted, so the large patients dominate it, and it also depends on how comparable the scores of different fold models are. The stored atlas used it to choose $C$.
+
+\item[pp.] Percentage points: lift $\times$ 100.
+
+\item[Pre-registration.] Writing down the estimand, the comparison and the decision rule before the data that test them are seen. It matters most for the new patients, which are the only external test of the shared axes.
+
+\item[Prevalence ($\pi$).] The fraction of a patient's cells that are malignant. It is also the constant-score no-skill AP.
+
+\item[Principal angle.] The angles between two subspaces, here the spans of two loading matrices; $0^\circ$ means the same subspace. The leave-out analysis reports the largest of the top-8 angles.
+
+\item[Rank $p$.] The one-sided empirical rank of an observed statistic among $n$ random controls: $(1+\#\{\text{controls}\geq\text{observed}\})/(1+n)$. With 20 controls its floor is $1/21\approx0.048$. It is descriptive and not corrected for multiple comparisons.
+
+\item[Robust association.] The rule fixed before computing for factor $\times$ surface-protein correlations: a non-isotype marker whose $|$median within-patient $\rho|$ over the seven supported patients is at least 0.20, with at least 5 of the 7 of the same sign.
+
+\item[Score energy share, enrichment.] How much of a factor's spread comes from one patient. For factor $f$ and patient $p$,
+\[\mathrm{SS}_{pf}=\textstyle\sum_{\text{cells of }p}(\text{score}-\text{cohort mean})^2 .\]
+The share is $\mathrm{SS}_{pf}/\sum_{p'}\mathrm{SS}_{p'f}$, and the enrichment is that share divided by the patient's share of cells (1 means proportional). Enrichment splits exactly into a location part (squared standardized mean shift) and a spread part (squared SD ratio). At the representation level, SS is pooled over the non-degenerate factors.
+
+\item[Size-matched control.] A random drop of the same number of cells as the leave-out set, ignoring labels; the leave-out analysis used 3 per set. The composition-matched control is the stricter comparator.
+
+\item[Stage~0.] The prior: restrict the genes to one panel (41 curated biological programs or 6 broad control bags) and z-score them within the panel.
+
+\item[Stage~1.] Label-blind dimensionality reduction of the panel: PCA, FA, FactoSig or FactoSig-promax at $K=5,10,20,40$, seed 42, or no reduction (direct genes). The stored bases are transductive.
+
+\item[Stage~2.] A regularized logistic probe (L1, L2 or EN; balanced class weights) on standardized Stage~1 scores, evaluated by LOPO. The discovery and patient-specific views are in-sample.
+
+\item[Supported patient.] A patient with at least 10 malignant cells and both classes: P01, P02, P03, P04, P06, P07 and P09. The other six patients stay in every training fold but are never summarized as held-out patients.
+
+\item[Top patient (a patient ``tops'' a factor).] The patient with the largest over-representation ratio on that factor, among all 13 patients. On IFN-$\alpha$ $K = 40$, P02 tops 31 of 40 PCA factors and 27 of 36 FA factors, P03 none.
+
+\item[Transductive (Stage~1).] A basis fit on all 60,118 cells, including the held-out patient's; labels are never used. LOPO on such a basis is label transfer on a shared atlas.
+
+\item[Transductive optimism.] Lift on a transductive basis minus lift on the matching inductive basis.
+
+\item[Tucker $\phi$ (congruence coefficient).] The uncentered cosine between two loading vectors, $\phi=\sum_g a_g b_g/\sqrt{\sum_g a_g^2\sum_g b_g^2}$, after orienting signs. Literature bands: 0.85--0.94 is fair similarity and 0.95 or above means equal. PC8 and FA7 have $|\phi|=0.691$.
+
+\item[Tuned $C$ (per-fold tuned).] $C$, and in some arms the penalty, chosen separately for each outer LOPO fold by an inner LOPO over the supported training patients, with median inner lift as the criterion. Unlike the stored atlas $C$, this choice never sees the held-out patient.
+
+\item[Univariate held-out lift.] The lift of one factor used alone as the score on the held-out patient, with its sign fixed on the training folds. It measures what that factor carries, whether or not the L1 probe keeps it.
+
+\item[Within-patient $\rho$.] The Spearman $\rho$ between a factor score and a marker, computed inside one patient's cells of one label, so that differences between patients (and their batches) cannot create it. It is summarized as the median over the supported patients together with the number of patients of the same sign. The pooled $\rho$ over all cells of a label mixes within- and between-patient variation.
+
+\end{description}
+
+\src{THEME.md \S1 and \S8; AGENTS.md R5--R7; devlog 2026-10-02\_d14-patient-factor-overlap, 2026-10-08\_d15b-patient-count-curve, 2026-10-08\_d16-factor-patient-matrix, 2026-10-08\_d17-basis-variant-pilot, 2026-10-08\_d17-composition-matched-controls, 2026-10-08\_d18-factor-cards, 2026-10-08\_d19-regularization-contract, 2026-10-09\_d26-leverage-allograft-apoptosis, 2026-10-09\_d27-factor-modality-assoc, 2026-10-09\_d28-celltype-score-shares; workstreams/W9\_literature/2026-10-08\_factor\_interpretability\_review.md}

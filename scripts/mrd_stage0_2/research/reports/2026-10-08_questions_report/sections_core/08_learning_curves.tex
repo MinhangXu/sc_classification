@@ -1,0 +1,24 @@
+% Core page: learning curves (D15, D15b). Numbers: full report section 7 and its figures.
+\coreq{Learning curves: AUPRC against cells and patients}{core:curves}{plot AUPRC against the number of cells or patients; is it useful for the grant? (team report)}
+
+\begin{coreanswer}
+\textbf{We can draw them, but they do not yet justify sequencing more patients.} With $C$ retuned for every training set, one supported training patient already gives positive lift (median 4.45--8.79\pp; the six unsupported patients, with fewer than 10 malignant cells (P05, P08, P10--P13), are always in training). Going from two to six supported training patients adds a median 0.30--2.34\pp{} per held-out patient, with a 95\% interval that includes 0 for three of four representations.
+\end{coreanswer}
+
+\evidence
+\begin{itemize}[leftmargin=1.3em]
+\item \emph{Why $C$ is retuned}: at fixed $C$ the L1 entry bar $4/(C\,n_{\text{train}})$ rises as cells are removed, so a small training set is a stronger penalty; at the atlas $C$ the IFN-$\alpha$ curve is 0 up to 25,000 training cells.
+\item \emph{Cells} (same 12 training patients, $C$ fixed): median apoptosis lift rises from 7.65\pp{} at 500 training cells to 11.52\pp{} on the full fold.
+\item \emph{Patients} (all 63 training subsets per held-out patient; 1,764 units over the four representations): median gain from two to six patients, with 95\% patient-bootstrap interval: IFN-$\alpha$ PCA40 $+1.67$ [$-0.44$, 2.89], FA40 $+0.30$ [$-0.53$, 4.18], apoptosis $+1.14$ [$-0.53$, 2.38], allograft $+2.34$ [0.14, 2.73]. The PCA40 value replaces the 2.16 [0.20, 2.48] of the 2026-10-08 team update.
+\item \emph{For the grant}: as feasibility, yes (transfer works with one supported training patient); as evidence that more patients raise AUPRC, not yet: seven patients are too few to measure scaling.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{figures/fig07b_patient_count.pdf}
+\caption{Patient-count curve: median held-out lift over the seven held-out patients by the number $k$ of supported training patients, $C$ and penalty retuned per training set (coloured), with its 95\% patient-bootstrap interval (band); gray = fixed atlas $C$.}
+\end{figure}
+
+\doesnot{that sequencing more patients raises AUPRC (nothing is extrapolated); an inductive curve (the basis saw every patient); patients apart from their malignant cells (adding a patient adds its malignant cells).}
+
+\fullref{section 7, \emph{Learning curves} (cell-depth curve, per-patient gains). \src{2026-10-02\_d15-cell-count-learning-curve; 2026-10-08\_d15b-full-design}}

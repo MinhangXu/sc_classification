@@ -1,0 +1,36 @@
+% Core page: decisions taken (2026-10-09/10) and what runs next with the new patient data. Numbers: full
+% report section 9 (Table "What each inclusion threshold implies") and sections 2/2b; decisions recorded in
+% devlog 2026-10-10_decisions-new-run-inclusion-reweighting-lfs (asks A-20261010-07..10).
+\coreq{Decisions taken, and what runs next with the new data}{core:next}{``Let's do the $>$=100 malignant cells. Reweight should target stage 2 label \ldots{} These all sounds like decisions relevant for runs when we have the extra patient data.'' (MX, 2026-10-10)}
+
+\begin{coreanswer}
+All four items below apply to the runs on Yu-Hsiang's new patients; existing results keep the seven supported patients. Nothing new has been computed for them yet.
+\end{coreanswer}
+
+{\small
+\renewcommand{\arraystretch}{1.2}
+\noindent\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.2cm} >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Decision or plan} & \textbf{What it means} \\
+\midrule
+\textbf{Only patients with $\geq$100 malignant cells} (decided 2026-10-10; W8.5) &
+On the current cohort: P02, P03, P04 and P09 (any cut from 46 to 102 gives the same four). Patients below 100 are left out of every step (Stage~1 fit, Stage~2 training, summaries); that is our reading of MX's note, to confirm when the plan is locked (W8.2). Patients without malignant cells (P08, P10, P11, P12) are out too. \emph{Consequence}: three of the four are the highest-prevalence patients, so the same probe reads better without being better: median lift over the four is 1.8--2.7$\times$ today's seven-patient median (IFN-$\alpha$ PCA40 15.52 vs 8.71\pp; P20 lift 11.54 vs 1.37\pp). $C$ is tuned on 3 inner folds instead of 6, and the smallest exact sign-test $p$ is 1/16, so it cannot reach 0.05. Summaries must name their patient set. \\
+\addlinespace
+\textbf{Re-weighting targets the Stage~2 labels} (decided 2026-10-10; W2.3) &
+Each training patient's malignant cells get the same total weight in the logistic loss, and likewise its normal cells; $C$ is retuned per condition. It runs as the Stage-2-only sample-weight scheme of the downsampling design. No re-weighted Stage~1 refit is planned (pages~\pageref{core:shape}--\pageref{core:d26}). \\
+\addlinespace
+\textbf{Healthy-cell downsampling} (plan drafted, not locked; H-S2-09) &
+Tests whether the healthy-to-malignant \emph{ratio} (about 2 healthy cells per malignant cell in P03, about 263 in P01), not only the malignant count, makes classification hard. Schemes compared at equal kept cells (random, proportional within patient $\times$ cell type $\times$ pseudotime, type-equalizing, patient-capped); malignant retention $\{1, \frac12, \frac14\}$ $\times$ healthy $\{1, \frac12, \frac14, \frac18\}$; $C$ retuned; success and failure fixed in advance. The earlier donor downsampling (D10, Stage~2 only, $C$ fixed) gave no gain under L2. Cost about 100--150 CPU-hours at seven held-out patients (it scales with their number: 4 plus the new patients under the 100-cell rule); the runner (W8.6) is not written. \\
+\addlinespace
+\textbf{Yu-Hsiang's new patients} (W8.1) &
+The only external test: patients that took no part in choosing panel, basis, probe or $C$. The email and a pre-registered integration plan are drafted; the email is not sent. FactoSig bases cannot yet project new cells, so each FactoSig-promax choice has a PCA/FA fallback. \\
+\bottomrule
+\end{tabularx}\par}
+
+\vspace{4pt}
+\noindent\textbf{Open decisions for the study lead (MX)}: send the Yu-Hsiang email (W8.1); at the plan lock, confirm that patients below 100 malignant cells are left out rather than kept in training (W8.2); a go-ahead for the leverage test on all biological panels (W2.8, about 3 hours in a screen session).
+\textbf{Repository}: the Git LFS lines are removed (2026-10-10, W0.2). This core PDF ships with the repository (a \texttt{.gitignore} exception; it reaches a clone with the push, W0.3); the full and team PDFs and all figures are gitignored and rebuilt with \texttt{build.sh}, which needs the experiment data (\texttt{README.md} in this directory; W0.15).
+
+\doesnot{any result on the new patients, or that downsampling helps; the plans are drafts, and their channels and predictions are arguments, not results.}
+
+\fullref{section 9, \emph{Remaining TODOs and decisions} (inclusion table, downsampling design, timing); plans \texttt{integration\_plan.md} and \texttt{healthy\_downsampling\_plan.md} in \texttt{workstreams/\allowbreak W8\_new\_cohort/}. \src{2026-10-10\_decisions-new-run-inclusion-reweighting-lfs; 2026-10-09\_w8-healthy-downsampling-plan}}

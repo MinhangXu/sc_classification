@@ -1,0 +1,28 @@
+% Core page: do the highest-prevalence patients shape the factors? IFN-alpha part. Numbers: full report
+% section 2 (D16, D17, D28). Figure: fig02a panels (a) and (c), cropped by trim (fig02a is 449 x 383 bp:
+% panel a spans the top 145 bp, panel c the bottom 93 bp; recheck if figs_02_shape.py changes the layout).
+\coreq{Do P02, P03 and P04 shape the factors? (IFN-\texorpdfstring{$\alpha$}{alpha})}{core:shape}{``patients with more malignant cells (P02, P03, P04) disproportionally shape the factors''; re-weight each patient equally in Stage~1? (team report)}
+
+\begin{coreanswer}
+\textbf{Not more than other patients do, on the panels tested.} Refitting the IFN-$\alpha$ Stage~1 basis without them leaves the malignant axis almost unchanged, and on all 41 panels they hold about their cell share of the factor variance. Where they dominate is Stage~2: 68.3\% of the malignant labels. MX chose to re-weight the Stage~2 labels (2026-10-10), in the runs with the new patients.
+\end{coreanswer}
+
+\evidence
+\begin{itemize}[leftmargin=1.3em]
+\item \emph{Two different imbalances} (panel a): P02+P03+P04 are 8.2\% of the cells, which is what the label-blind Stage~1 sees, but 68.3\% of the malignant cells, which is what Stage~2 learns from. The cell-heavy patients are P09 (28.5\%) and P01 (19.7\%).
+\item \emph{Score energy} (how much of the factor-score variance sits in a patient's cells, divided by its share of cells; 1 = proportional): over all 320 stored PCA/FA bases the group's median ratio is 0.96 (range 0.58--1.14), 1.04 after adjusting for cell type. IFN-$\alpha$ PCA40 is near the top at 1.11 (panel c).
+\item \emph{Leverage test} (refit Stage~1 without them and measure how far the malignant axis moves, against 20 random drops of as many cells \emph{and} as many malignant cells): on IFN-$\alpha$ under 1\% of the axis's variance is lost (matched $|r| \geq 0.988$, the correlation with the best refit factor), above all 20 drops in 3 of 6 method $\times$ $K$ cells. The rule needs 4; on this panel it is applied post hoc.
+\item \emph{Patient-equal Stage~1 weights} (pilot): P02--P04 go from 8.2\% to 23.1\% of the fit weight; PC8 rotates (matched $|r|$ 0.90); median per-patient change $+1.35$ (PCA40) and $+0.07$\pp{} (FA40) under tuned L1, but FA40 loses a median 1.13\pp{} under L2.
+\item \emph{P01 has the most leverage} of any set (IFN-$\alpha$ PCA40: 15$\times$ its controls). Its extra score energy is mostly its cell-type mix (ratio 1.24, 1.03 adjusted); its leverage is not explained.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.80\linewidth,trim=0 238 0 0,clip]{figures/fig02a_who_dominates.pdf}\\[2pt]
+\includegraphics[width=0.80\linewidth,trim=0 0 0 290,clip]{figures/fig02a_who_dominates.pdf}
+\caption{(a) Each patient's share of all cells (light; its weight in the unweighted Stage~1 fit) and of the malignant cells (dark; its share of the Stage~2 positive labels). (c) The P02+P03+P04 score-energy ratio on each of the 320 stored PCA and FA bases (41 panels $\times$ $K$ 5/10/20/40); IFN-$\alpha$ PCA40 and FA40 circled. Panel (b) of the full report's figure (per patient) is left out here.}
+\end{figure}
+
+\doesnot{why a set moves an axis (a leave-out refit is an in-silico perturbation), FactoSig bases, or leverage on the other 38 panels; bases are transductive.}
+
+\fullref{section 2, \emph{Do the highest-prevalence patients shape the factors?} (boxes ``Score energy'', ``The leverage test, step by step'', ``How patient-equal re-weighting works''). \src{2026-10-08\_d16-factor-patient-matrix; 2026-10-08\_d17-composition-matched-controls; 2026-10-09\_d28-celltype-score-shares}}

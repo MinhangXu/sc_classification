@@ -1,0 +1,205 @@
+% MRD Stage 0--2: what we now know about the questions from 2026-10-08.
+% Build: bash build.sh --full (figures + pdflatex) writes report_full.pdf; plain bash build.sh builds the short
+% core report (report_core.tex -> report_core.pdf). See README.md.
+%
+% FILTERING SECTIONS: every section is one \input line below. Comment a line out (prefix %) to drop
+% that section; numbering, the table of contents and the "Answers at a glance" table update on the
+% next build (a dropped section shows as "not included" there; delete its row if you prefer).
+% Sections refer to each other by name, not number, so any subset compiles.
+\documentclass[11pt]{article}
+\input{preamble.tex}
+
+% Long code paths: let lines stretch rather than overflow the margin.
+\setlength{\emergencystretch}{3em}
+
+% Let the answer/caveat/team/explainer boxes split across pages, so a tall box no longer leaves a
+% half-empty page before it (the box definitions in preamble.tex are unchanged).
+\tcbuselibrary{breakable}
+\tcbset{breakable, lines before break=4}
+% ... except the short answer and the team box, which are short and read as one unit: they never split
+% (a box that does not fit moves to the next page whole). A caveat box does not start in the last six
+% lines of a page. (\AtBeginEnvironment and \BeforeBeginEnvironment are from etoolbox, which tcolorbox
+% loads; \AtBeginEnvironment runs inside the environment's group, so the setting stays local to that box.)
+% \softneedspace{len} starts a new page only when less than len is left. Unlike \needspace, it adds no
+% \penalty-100 break point, which on a ragged-bottom page could end the page early and leave it half
+% empty (version 2 lost about half of a page before a caveat box this way).
+\makeatletter
+\newcommand{\softneedspace}[1]{\par\begingroup\dimen@ii\pagegoal\advance\dimen@ii-\pagetotal
+  \ifdim #1>\dimen@ii\ifdim\dimen@ii>\z@\newpage\fi\fi\endgroup}
+\makeatother
+% Unique link targets for tables. Every longtable steps the table counter, and the uncaptioned ones
+% (revision list, glance table, section 8's list) step it back, so two tables could share the PDF
+% link target "table.N" (pdfTeX warned "duplicate ignored" and a link could jump to the wrong table).
+% Counting longtables in the hyperref name keeps each target unique; printed numbers are unchanged.
+\newcounter{reportlongtables}
+\renewcommand{\theHtable}{\arabic{table}.\arabic{reportlongtables}}
+\AtEndEnvironment{longtable}{\stepcounter{reportlongtables}}
+\AtBeginEnvironment{answerbox}{\tcbset{unbreakable}}
+\AtBeginEnvironment{teambox}{\tcbset{unbreakable}}
+\BeforeBeginEnvironment{caveatbox}{\softneedspace{6\baselineskip}}
+% No single stranded line at the top or bottom of a page, inside the boxes too.
+\widowpenalty=10000
+\clubpenalty=10000
+
+% Float placement for the assembled report. The section files ask for [H] (fixed position), which
+% is right for a standalone section but leaves half-empty pages when a tall figure misses the end
+% of a page. Here every figure and table floats (!htbp) instead, and \FloatBarrier at each section
+% start (see \labelnextsection) keeps a section's floats inside that section.
+\usepackage{placeins}
+\usepackage{needspace}
+\let\reportorigfigure\figure \let\endreportorigfigure\endfigure
+\renewenvironment{figure}[1][]{\reportorigfigure[!htbp]}{\endreportorigfigure}
+\let\reportorigtable\table \let\endreportorigtable\endtable
+\renewenvironment{table}[1][]{\reportorigtable[!htbp]}{\endreportorigtable}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.6}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.75}
+\setcounter{topnumber}{3}
+\setcounter{totalnumber}{4}
+
+% \labelnextsection{key}: label the NEXT \section with key, so the glance table can cite each section
+% without depending on the section files' own labels. Kept on the same line as the section's \input.
+% It also flushes the previous section's floats and starts a new page when less than about a third
+% of the page is left, so a section heading and its question never sit alone at the bottom of a page.
+\makeatletter
+\newcommand{\labelnextsection}[1]{%
+  \FloatBarrier
+  \needspace{0.33\textheight}%
+  \begingroup
+  \phantomsection
+  \edef\@currentlabel{\the\numexpr\value{section}+1\relax}%
+  \label{#1}%
+  \endgroup}
+% \labelnextsectionb{key}: the same for a companion section numbered after the previous one with a
+% "b" (section 2b follows section 2), so the numbers of the later sections stay those of version 2.
+% \plainsectionnumbers restores plain numbering after it.
+\newcommand{\labelnextsectionb}[1]{%
+  \FloatBarrier
+  \needspace{0.33\textheight}%
+  \addtocounter{section}{-1}%
+  \renewcommand{\thesection}{\arabic{section}b}%
+  \renewcommand{\theHsection}{\arabic{section}b}%
+  \begingroup
+  \phantomsection
+  \edef\@currentlabel{\the\numexpr\value{section}+1\relax b}%
+  \label{#1}%
+  \endgroup}
+\newcommand{\plainsectionnumbers}{%
+  \renewcommand{\thesection}{\arabic{section}}%
+  \renewcommand{\theHsection}{\arabic{section}}}
+% \glanceref{key}: the section number if that section is included, otherwise a dash.
+\newcommand{\glanceref}[1]{\@ifundefined{r@#1}{\textcolor{inkmuted}{--}}{\ref{#1}}}
+\makeatother
+
+\newcommand{\swatch}[2]{\fcolorbox{#2}{#1}{\rule{0pt}{5pt}\rule{5pt}{0pt}}}
+\newcommand{\barswatch}{{\color{inkmuted!55}\rule[-1pt]{2.5pt}{9pt}}\hspace{6.8pt}}
+
+% Team build: `bash build.sh --team` defines \TEAMBUILD and writes report_full_team.pdf without Appendix C.
+
+\hypersetup{
+  pdftitle={MRD Stage 0--2: what we now know about the questions from 2026-10-08},
+  pdfsubject={Working report for the project lead; descriptive results, seven supported patients},
+}
+
+\begin{document}
+
+% ---------------------------------------------------------------- title block
+\thispagestyle{plain}
+\begin{flushleft}
+{\LARGE\bfseries MRD Stage 0--2: what we now know about the questions from 2026-10-08\par}
+\vspace{6pt}
+{\large\color{inkmuted} A working report for the project lead; descriptive results, seven supported patients\par}
+\vspace{10pt}
+{\small
+\begin{tabular}{@{}l@{\hspace{1em}}p{0.78\linewidth}@{}}
+\textbf{Date} & Version 3, 10 October 2026 (results through the D26 leverage run of 2026-10-10, now its own section 2b, and your decisions of that day); version 2 of 9--10 October changed the report in answer to your reading notes; version 1 of 8--9 October is kept as \texttt{report\_v1\_2026-10-08.pdf} \\
+\textbf{Data} & Experiment \nolinkurl{20260525_060508_stage0_mrd_old34_broad_screen_82db5093} (EXP; 60,118 MRD CITE-seq cells, 13 patients) \\
+\textbf{Code} & Repository \texttt{sc\_classification}, branch \texttt{sc\_classification\_gpu}, commit \texttt{f5a8f4d}, plus uncommitted changes: the full-design patient-count curve entry (D15b) with its registry rows, the 2026-10-09 and 2026-10-10 analyses (D26, D27, D28) and this report \\
+\textbf{Length} & This is the long companion (\texttt{report\_full.pdf}): every section in full, for checking and for reference. The short read is \texttt{report\_core.pdf} (one page per question, at most 12 pages); its pointers use this report's section numbers. Each section here stands alone \\
+\textbf{Status} & Draft for your review; filter sections before sharing (see \texttt{README.md}). Appendix C is for you only: \texttt{bash build.sh -{}-team} writes \texttt{report\_full\_team.pdf} without it \\
+\end{tabular}\par}
+\end{flushleft}
+\vspace{4pt}
+
+\subsection*{How to read this report}
+
+Each numbered section answers one question from the 2026-10-08 team report, quoted at its top, and stands alone: you can drop any section without breaking the others. The primer section, \emph{The cohort and the yardstick}, fixes the cohort facts and the effect size (\emph{lift}: held-out AUPRC minus that patient's malignant prevalence $\pi$, in percentage points, pp); Appendix~A defines every other term. Inside a section the coloured boxes always mean the same thing:
+
+\begin{itemize}[leftmargin=1.4em]
+\item[\swatch{boxtake}{boxtakeedge}] \textbf{Short answer}: the answer, its key numbers, and how sure we are.
+\item[\barswatch] \textbf{Explainer}: a concept introduced in that section, intuition first, then the exact quantity.
+\item[\swatch{boxcaveat}{boxcaveatedge}] \textbf{What this does not show}: the claim boundary; read it before quoting the answer.
+\item[\swatch{boxteam}{boxteamedge}] \textbf{For the team}: one sentence you can say, the question it will likely draw, and a crisp answer.
+\end{itemize}
+
+All numbers are \emph{descriptive}: effect sizes measured on these data, with no calibrated test, no patient-level interval and no outside cohort behind them, so they describe these patients and bases and claim nothing beyond them. They come from seven supported patients (at least 10 malignant cells and both classes), mostly on a Stage~1 basis fit transductively on all cells. The study's claim rules (THEME \S6, with the claim levels of the devlog rules) name two higher levels that no result here reaches: \emph{inferential} (a calibrated null, patient-level uncertainty and nested selection) and \emph{publication} (every reviewer alternative addressed, every blocking task done, evidence from committed code). When a section compares classifiers it quotes pooled AP, median lift and P20 lift together, because they can rank methods differently. Grey bracketed pointers such as \src{2026-10-08\_d19-regularization-contract} name the devlog entry that holds each number; Appendix~B maps sections to code and artifacts.
+
+\subsection*{Revision 2026-10-10 (version 3)}
+
+\begin{itemize}[leftmargin=1.4em]
+\item \textbf{New section 2b}, \emph{What did we do with allograft rejection and apoptosis?}: why these two panels, the leverage test (D26) as run, the rule fixed before the run, what it found, and what it means for re-weighting and for healthy-cell downsampling. Section~2 keeps IFN-$\alpha$ and points there; sections 3--9 keep their version-2 numbers.
+\item \textbf{Your decisions of 2026-10-10 are recorded where they apply}: new full runs keep only patients with at least 100 malignant cells (section \emph{Remaining TODOs}, \emph{Proposed for the new data}, with what that does to the summaries; A-20261010-07); re-weighting targets the Stage~2 labels (sections 2 and 2b; A-20261010-08); the Git LFS lines are gone (Appendix~C; A-20261010-10). Devlog 2026-10-10\_decisions-new-run-inclusion-reweighting-lfs records all three.
+\item \textbf{Fixes from two agent reviews of version 2}: one account of where a downsampling gain could come from (section~2 and \emph{Remaining TODOs} now agree, and the latter summarizes your earlier donor downsampling, D10 and D11); section~8 brought up to date with D26; claims trimmed where they outran their devlog gates; a prevalence mix-up in section~2; figure labels that collided; glossary entries.
+\end{itemize}
+
+\subsection*{Revision 2026-10-09 (version 2): where your reading notes are taken up}
+
+Your reading notes on version 1 (asks A-20261009-01 to -16) are not answered here; this list says where version 2 changed so that the report answers them. Figure and table numbers have shifted: the sections on shaping the factors, on aggregating patients and on PC8 gained figures, so the figure numbers in your notes refer to version 1.
+
+{\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.33\linewidth} >{\raggedright\arraybackslash}p{0.635\linewidth}@{}}
+\toprule
+\textbf{Note (ask)} & \textbf{Where to look in version 2} \\
+\midrule
+\endhead
+01 What ``descriptive'' means & This page (``How to read'') and the paragraph above the Answers-at-a-glance table, which also names the two higher levels; Appendix~A, entry ``Claim levels''. \\
+02 The leverage test; why it stays open; other panels & Glance-table term (a). Section \emph{Do the highest-prevalence patients shape the factors?}: box ``The leverage test, step by step''. The run you started (D26) settles the question for PCA and FA: section 2b, \emph{What did we do with allograft rejection and apoptosis?} (version 3). Other panels: section 2b, Next step (W2.8). \\
+03 How re-weighting works; its percentages; Stage~1 or Stage~2 & Glance-table term (b). Same section: box ``How patient-equal re-weighting works, and what its percentages mean'' and the list of Stage~1 and Stage~2 options. You chose the Stage~2 labels on 2026-10-10 (sections 2 and 2b). \\
+04 ``Aggregate'' in numbers & Glance row for section \emph{Should we aggregate patients?} and term (c); that section's short answer and box ``The quantities, exactly''. \\
+05 The L1 entry rule & Section \emph{IFN-$\alpha$: why does FA40 reach only P03 and P04?}, box ``The L1 entry rule, and why one $C$ is a different penalty in every fold'', which now ends with one fold in numbers, and the fold-by-fold margins after it. The same fold worked through with numbers (P02 held out: the bar, PC8's and FA7's gaps and margins, and what $C \times n$ would let FA7 in): section \emph{Learning curves}, paragraph ``One fold worked through''. \\
+06 ``Neither is identifiable alone'' & Glance-table term (d). Section \emph{What is PC8}: box ``What \emph{not identifiable} means'' and a new figure. \\
+07 What the 1,810 factor cards are & Glance-table term (e) and the row on the interactive app. Section \emph{What is PC8}: a new table of where the cards come from (by source, method and $K$), and the first paragraph of ``What we did'', which splits them by how the stored probe lets them be read. \\
+08 Factor $\times$ cell type and surface protein for all factors; $\rho$ $+0.251$ and $+0.222$ & New analysis D27 (all 1,801 non-degenerate cards). Section \emph{What is PC8}: box ``How to read $\rho$'', a figure that takes the two numbers apart, and a figure over all cards. \\
+09 Transductive vs inductive on IFN-$\alpha$ & Section \emph{Option 2} (unchanged). \\
+10 Why $C$ is retuned & Section \emph{Learning curves}: the first paragraph of ``What we did''. \\
+11 The 100-malignant-cell rule; P01, P06, P07 & Where the 100 comes from: the glance-table row on your 2026-10-09 proposals and section \emph{Remaining TODOs}, \emph{Options 1.1 and 3}, where the cut first appeared. Same section, subsection \emph{Proposed for the new data}: the inclusion threshold (W8.5), with a table of what 10, 20 or 100 malignant cells keep; you chose 100 on 2026-10-10 (version 3 adds what that does to the median and P20 lift). Section \emph{The cohort and the yardstick} points there (Next step). Right after that table, a list of the figures that already show P01, P06 and P07 (including P07's IFN-$\alpha$ lift); the integration plan (\texttt{workstreams/\allowbreak W8\_new\_cohort/\allowbreak integration\_plan.md}, \S4.1) has the same pointers with devlog ids. \\
+12 Healthy-to-malignant ratio; healthy-cell downsampling; the paper & Section \emph{Remaining TODOs}, subsection \emph{Proposed for the new data}: the plan in brief and box ``Why fewer healthy cells could help, and why it might not''. Paragraphs on downsampling in sections \emph{Do the highest-prevalence patients shape the factors?}, 2b and \emph{Should we aggregate patients?}; your earlier donor downsampling (D10, D11) is summarized in \emph{Remaining TODOs} (version 3) and in \emph{Should we aggregate patients?}. The full draft pre-registration is \texttt{workstreams/\allowbreak W8\_new\_cohort/\allowbreak healthy\_downsampling\_plan.md}. As you decided, the run waits for the new cohort. The paper context lives in \texttt{research/paper/} (Appendix~B; task W0.13); the gradual repository update you asked for is task W0.14 (\texttt{workstreams/\allowbreak W0\_context\_provenance/\allowbreak README.md}) and is not covered here. \\
+13 The two shaping tests and their metrics & Section \emph{Do the highest-prevalence patients shape the factors?}: boxes ``Score energy, intuitively'' and ``The leverage test, step by step''; section 2b, box ``The decision rule, fixed before the run''. \\
+14 Figure 3 (score energy, 1.11), Figure 4 (axis loss); which patients new runs use & Same section: both figures redrawn (1.11 labelled; axis loss in percent with a second scale), plus a cell-type-adjusted figure (D28). New runs leave out patients without malignant cells (recorded in section \emph{Remaining TODOs}, subsection \emph{Proposed for the new data}). The allograft and apoptosis leverage run (D26) refits variants of the stored bases and ran as built, on all 13 patients, so it compares directly with the IFN-$\alpha$ test (section 2b, caveats). \\
+15 Start the next steps & D28 done (shaping section), D27 done (section \emph{What is PC8}), D26 done after you ran it (section 2b, version 3). \\
+16 The aggregation plots; normal vs malignant & Section \emph{Should we aggregate patients?}: three new figures that work one factor through the test, separately for normal and malignant cells, then show the three call types. \\
+\bottomrule
+\end{longtable}
+\addtocounter{table}{-1}
+}
+
+\tableofcontents
+
+% ---------------------------------------------------------------- sections
+% One line per section: comment it out to drop the section.
+\input{sections/00_answers_at_a_glance}                                            % Answers at a glance (unnumbered)
+\labelnextsection{glance:01}\input{sections/01_cohort_and_metric}                      % 1. Cohort and yardstick (primer)
+\labelnextsection{glance:02}\input{sections/02_do_high_prevalence_patients_shape_factors} % 2. Do P02/P03/P04 shape the factors? (D16, D17, D28)
+\labelnextsectionb{glance:02b}\input{sections/02b_allograft_apoptosis_leverage}\plainsectionnumbers % 2b. Allograft rejection and apoptosis: the leverage test (D26)
+\labelnextsection{glance:03}\input{sections/03_should_we_aggregate_patients}           % 3. Should we aggregate patients? (D14)
+\labelnextsection{glance:04}\input{sections/04_ifna_pca_vs_fa}                         % 4. IFN-alpha PCA40 vs FA40 (D19, D17)
+\labelnextsection{glance:05}\input{sections/05_what_is_pc8}                            % 5. What is PC8? (D18, F9)
+\labelnextsection{glance:06}\input{sections/06_inductive_stage1}                       % 6. Option 2: inductive Stage 1 (D17)
+\labelnextsection{glance:07}\input{sections/07_learning_curves}                        % 7. Learning curves (D15, D15b)
+\labelnextsection{glance:08}\input{sections/08_three_scientific_questions}             % 8. The three scientific questions (Q1-Q3)
+\labelnextsection{glance:09}\input{sections/09_remaining_todos}                        % 9. Remaining TODOs and decisions
+
+% ---------------------------------------------------------------- appendices (unnumbered)
+\FloatBarrier
+\appendix
+\input{sections/A1_glossary}                                                       % Appendix A: glossary
+\input{sections/A2_where_things_live}                                              % Appendix B: where everything lives
+\ifdefined\TEAMBUILD\else
+\clearpage
+\input{sections/C1_for_you_only}                                                   % Appendix C: for you only (left out of the team build)
+\fi
+
+\end{document}

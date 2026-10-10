@@ -1,0 +1,182 @@
+% Section 00: answers at a glance (assembler). One row per question; the Section column resolves
+% through \glanceref (report.tex) and shows a dash when that section is commented out.
+% Delete a row here if you drop its section and do not want the row in the shared version.
+\makeatletter
+\providecommand{\glanceref}[1]{\@ifundefined{r@#1}{--}{\ref{#1}}}
+\makeatother
+% A sub-question row: the question cell is indented as a block.
+\providecommand{\subq}{\leftskip=1em\relax}
+
+\section*{Answers at a glance}
+\phantomsection
+\addcontentsline{toc}{section}{Answers at a glance}
+\label{sec:glance}
+
+One row per question from the 2026-10-08 team report, in the order of the sections that answer them. Lift is held-out AUPRC minus the patient's malignant prevalence, in percentage points (pp). Terms marked with a superscript letter are defined just below, before the table.
+
+\textbf{What ``descriptive'' means in the ``How sure'' column.} The study's claim rules (THEME \S6, with the claim levels of the devlog rules) have three levels. \emph{Descriptive}, the level of every result in this table (rows marked \emph{Plan}, \emph{Status} or \emph{Built and checked} report work, not results, and the literature row names its own limit): an effect size measured on these data (seven supported patients, mostly a Stage~1 basis fit transductively on all cells), with no calibrated test, no patient-level interval and no outside cohort behind it, so it says what happened in these patients and bases and claims nothing beyond them. \emph{Inferential} would add a calibrated null, patient-level uncertainty and nested selection; none exists yet (section \emph{The three scientific questions}, Q2). \emph{Publication} is a claim whose reviewer alternatives are all addressed, whose blocking tasks are done and whose evidence comes from committed code. After the word ``Descriptive'' the column says what the evidence covers and what it does not.
+
+{\footnotesize
+\textbf{Terms in the table.}\par\nobreak
+\begin{itemize}[leftmargin=1.6em,itemsep=1pt]
+\item[a] \emph{Leverage test}: an in-silico perturbation. Refit Stage~1 without a set of patients, measure how far the malignant axis moves (axis loss: the share of the axis's variance the refit basis can no longer reproduce; matched $|r|$: correlation with the best single refit factor), and compare with 20 random drops of the same number of cells and of malignant cells (composition-matched controls). The decision rule, written for the allograft and apoptosis run after the IFN-$\alpha$ results were known (so post hoc on IFN-$\alpha$), calls it leverage beyond composition when the axis moves more than all 20 controls in at least 4 of the 6 method $\times$ $K$ cells, and asks, before calling it the patients' own leverage, that it also exceed that of every contrast patient set in at least 4. Section \emph{Do the highest-prevalence patients shape the factors?}, box ``The leverage test, step by step''; section 2b, box ``The decision rule, fixed before the run''.
+\item[b] \emph{Fit-weight percentages}: each patient's share of the total weight in the Stage~1 fit. Unweighted, that is its share of the cells; patient-equal weighting gives each of the 13 patients $1/13 = 7.7\%$. Same section, box ``How patient-equal re-weighting works''.
+\item[c] \emph{Overlap}: the shared area of two patients' histograms of one factor's scores (1 = identical, 0 = disjoint), computed separately for normal and malignant cells. Section \emph{Should we aggregate patients?}, worked example on one factor.
+\item[d] \emph{Identifiable}: the data pin the factor's direction down uniquely, so a refit on slightly different cells returns the same factor. A small eigengap (PCA: neighbouring components explain nearly the same variance, so they can rotate into each other) or a determinacy below 0.707 (FA: the scores are uncertain estimates) means they do not, although the subspace spanned by the related factors can still be stable. Section \emph{What is PC8}, box ``What \emph{not identifiable} means''.
+\item[e] \emph{Factor card}: a one-page record per factor of one stored Stage~1 basis (panel $\times$ method $\times$ $K$): gene poles, orientation, per-patient lift, matches in other bases, identifiability, cell-type and surface-protein associations. Section \emph{What is PC8}, table of where the 1,810 come from.
+\item[f] \emph{Robust association}: a factor--protein correlation whose median within-patient $|\rho|$ over the seven supported patients is at least 0.20, with at least 5 of 7 patients of the same sign (fixed before computing). Section \emph{What is PC8}, box ``How to read $\rho$''.
+\end{itemize}
+\par}
+
+
+{\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{>{\raggedright\arraybackslash}p{3.45cm} >{\raggedright\arraybackslash}p{7.55cm} >{\raggedright\arraybackslash}p{3.35cm} >{\centering\arraybackslash}p{0.75cm}}
+\toprule
+\textbf{Question (team wording, short)} & \textbf{Short answer} & \textbf{How sure} & \textbf{Sec.} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Question (team wording, short)} & \textbf{Short answer} & \textbf{How sure} & \textbf{Sec.} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r}{\emph{continued on the next page}} \\
+\endfoot
+\bottomrule
+\endlastfoot
+% --- section 2
+Do P02, P03, P04 disproportionately shape the factors? &
+Not more than other patients do, on the three panels tested. They hold about their 8.2\% cell share of factor score variance on all 41 panels (median ratio 0.96; 1.04 after adjusting for cell type). In the leverage test\textsuperscript{a}, refitting Stage~1 without them barely moves the IFN-$\alpha$ malignant axis (matched $|r| \geq 0.988$; above all 20 composition-matched controls in 3 of 6 method $\times$ $K$ cells, the rule needs 4); on allograft rejection and apoptosis see the next row. They dominate the Stage~2 labels (68.3\% of malignant cells). &
+Descriptive; PCA/FA, no FactoSig; rule post hoc on IFN-$\alpha$; transductive bases &
+\glanceref{glance:02} \\
+\addlinespace
+\subq Option 1.2: re-weight so each patient counts equally &
+Patient-equal weights give every patient 1/13 of the Stage~1 fit, so P02--P04 go from 8.2\% to 23.1\% of the fit weight\textsuperscript{b} (P09 from 28.5\% to 7.7\%); Stage~2 labels are untouched. Piloted on IFN-$\alpha$: PC8 rotates (matched $|r|$ 0.90); no clear loss under tuned L1 (median per-patient change PCA40 $+1.35$, FA40 $+0.07$\pp), but FA40 loses a median 1.13\pp{} under L2. You chose the target on 2026-10-10: the Stage~2 labels (per-patient, per-class sample weights in the logistic loss), in the runs with the new patient data (W2.3). &
+Descriptive; one panel, transductive pilot &
+\glanceref{glance:02} \\
+\addlinespace
+\subq Why is P01 the most over-represented and most leveraged patient? &
+Its score-energy excess is mostly matched by its cell-type mix (median ratio 1.24, 1.03 after adjustment; ncMono, pDC2 and cDC cells carry more energy per cell); this is arithmetic, not cause. Its leverage, the largest of any set on the primary axis in 17 of 18 method $\times$ $K$ cells of the three tested panels (IFN-$\alpha$ PCA40 15$\times$ its controls; allograft 21--141$\times$, apoptosis 48--128$\times$), is not explained. The IFN-$\alpha$ 1.11 of P02+P03+P04 is not cell-type mix (1.11 after adjustment). &
+Descriptive; predicted cell types; reference-dependent for P01 (1.03 or 1.08) &
+\glanceref{glance:02} \\
+\addlinespace
+% --- section 2b
+What did we do with allograft rejection and apoptosis? (2026-10-10) &
+Ran the leverage test\textsuperscript{a} on both (D26, your screen run; PCA and FA, $K$ 10/20/40). Leaving P02+P03+P04 out moves the malignant axis more than all 20 composition-matched drops in 5 of 6 (allograft) and 6 of 6 (apoptosis) cells, 1.3--4.1$\times$ and 2.0--4.0$\times$ their mean, mostly through P03; the axis stays matched ($|r| \geq 0.945$ and $\geq 0.994$). Leaving P01 out moves it 21--141$\times$ and 48--128$\times$, and the group never beats every contrast set on the primary axis (0 of 6 cells on each panel; 1 of 6 on the apoptosis probe axis), so by the rule fixed before the run H-S1-05 is not supported. For re-weighting this points to the Stage~2 labels (your choice); for downsampling, to P01. &
+Descriptive; PCA/FA on two panels, no FactoSig; rule fixed before the run; transductive 13-patient bases &
+\glanceref{glance:02b} \\
+\addlinespace
+% --- section 3
+Should we aggregate patients? (per-patient factor distributions) &
+Yes, on the current bases. ``Aggregate'' means that, averaged over factors with variance weights, the median pair of patients shares at least 75\% of its normal-cell and at least 45\% of its malignant-cell factor-score histogram (overlap\textsuperscript{c}), no patient's normal cells share less than 60\% with the rest, and the malignant overlap is less than 0.15 below that of label-shuffled patients. 45 of 47 representations pass, 2 are location shifts, none is a subtype candidate. The test measures where each patient's cells land, not how much each patient contributes to a factor. P03's only private axis is in broad gene bags, in none of the 41 biological representations tested (one per panel). &
+Descriptive; transductive basis; uncalibrated gates, permutation $p$ at its floor &
+\glanceref{glance:03} \\
+\addlinespace
+% --- section 4
+IFN-$\alpha$: why does PCA40 reach four patients but FA40 only P03 and P04? &
+A Stage~2 L1 entry threshold, not missing FA structure: a factor enters the L1 probe only if its standardized class-mean gap exceeds $4/(C\,n_{\text{train}})$, and FA7 misses that bar by 1.4--3.3\% in P02, P06, P07. With $C$ tuned per fold, FA40 has positive lift in 7/7 patients. &
+Descriptive; one panel; the rule reproduces 2,772/2,772 audited atlas folds &
+\glanceref{glance:04} \\
+\addlinespace
+\subq Hypothesis (a): FA keeps allocating factors to the highest-prevalence patient &
+Retired. FA40 does not favour the highest-prevalence patients more than PCA40: P02--P04 hold 8.4\% of FA40's and 9.1\% of PCA40's score energy against 8.2\% of cells, and P03 tops none of either basis's factors. P02 tops most factors in both (27/36 FA40, 31/40 PCA40), through excess spread on low-variance trailing factors, so it does not separate FA from PCA. &
+Descriptive; one panel &
+\glanceref{glance:04} \\
+\addlinespace
+% --- section 5
+PC8: two opposite-sign gene groups. What is it? &
+One oriented axis: malignant cells score toward TXNIP, IFITM2, TENT5A (the team's ``negative'' group). FA7 is related, not identical (loading cosine 0.69). Neither is identifiable\textsuperscript{d} alone: the data pin down a small subspace around each (every Stage~1 refit still reproduces the stored axis, $R^2 \geq 0.977$), but not which single direction in it a fit calls ``PC8'' or ``FA7'' (PC8's variance is within 5.5\% of PC7's; FA7's scores have determinacy 0.649, below 0.707). So name the axis by its two poles. &
+Descriptive; one panel; stored L1 probe &
+\glanceref{glance:05} \\
+\addlinespace
+\subq Can we view factors in the interactive app? &
+Yes, as a separate page: the read-only factor explorer shows all 1,810 factor cards\textsuperscript{e} and is linked from every atlas cell. The 1,810 are every factor of 56 of the atlas's 736 stored DR bases (one basis per panel, chosen by patient-median lift, plus 9 IFN-$\alpha$ and focus-panel bases), not of every Stage~0 $\times$ Stage~1 combination. &
+Built and checked &
+\glanceref{glance:05} \\
+\addlinespace
+\subq Correlate factors with cell types and surface protein &
+Done for all 1,801 non-degenerate cards, now also within patients and within predicted cell types. PC8 (oriented toward malignant) tracks CD34 in normal cells in every patient (median $\rho$ $+0.245$, 7/7; pooled $+0.251$) but not inside cell types ($+0.019$): a cell-identity association. Its malignant-cell CD99 correlate (pooled $+0.222$) is $+0.159$ within patients (6/7) and fails the robust rule\textsuperscript{f}. Across cards, normal-cell correlates hold within patients but mostly track cell type; pooled malignant correlates are mostly between-patient. &
+Descriptive; a screen over correlated factors; CLR ADT without dsb; patient nested in batch; recipient origin &
+\glanceref{glance:05} \\
+\addlinespace
+% --- section 6
+Option 2: exclude the held-out patient from Stage~1 &
+Done on IFN-$\alpha$: lift stays positive in 7/7 patients under tuned $C$ or L2; median per-patient change $-1.29$ to $-0.05$\pp{} over 18 settings, so transductive numbers are slightly optimistic per patient. Pooled AP can fall more (FA40, tuned L2: 0.1325 to 0.0794). &
+Descriptive; one panel, PCA/FA at K 10/20/40; no test &
+\glanceref{glance:06} \\
+\addlinespace
+% --- section 7
+AUPRC vs number of cells or patients (learning curve) &
+Drawn. $C$ is retuned for every training set, because a fixed $C$ is a stronger penalty with fewer cells (at fixed $C$ the IFN-$\alpha$ curve is 0 up to 25,000 training cells). With $C$ retuned, one supported training patient (the six low-malignancy patients are always in training) already gives positive lift (median 4.45--8.79\pp); going from two to six adds 0.30--2.34\pp, with CIs that include 0 for three of four representations. &
+Descriptive; frozen transductive basis; nothing extrapolated &
+\glanceref{glance:07} \\
+\addlinespace
+\subq Useful for the grant? &
+As feasibility, yes: transfer works with one supported training patient, on a label-free basis fit on all patients. As evidence that sequencing more patients raises AUPRC, not yet: seven patients are too few to measure scaling. &
+Descriptive &
+\glanceref{glance:07} \\
+\addlinespace
+% --- section 8
+Q1. Shared or patient-specific? &
+Tested directly on IFN-$\alpha$ only: one axis (PC8, or the related FA7) carries held-out lift in five of seven patients, including low-prevalence P07 and P09. Across the atlas, lift above 5\pp{} concentrates in P02, P03, P04 (64--80\% of the 640 biological DR cells vs at most 23\% for the others), so shared transfer and prevalence are not yet separated. &
+Descriptive; transductive; 7 patients &
+\glanceref{glance:08} \\
+\addlinespace
+Q2. How strong is the evidence? &
+Effect sizes are well defined (lift, $\eta^2$, overlap), but there is no calibrated null, no patient-level interval on the atlas and no nested selection yet. &
+Not yet inferential &
+\glanceref{glance:08} \\
+\addlinespace
+Q3. What does DR add over direct genes? &
+It depends on the estimand: the best DR cell (picked by pooled AP) beats direct genes in 38/41 programs on pooled AP, 16/41 on median lift and 17/41 on P20 lift; large gains in a few (allograft, apoptosis, IFN-$\alpha$). &
+Descriptive; best DR chosen in-sample (not nested) &
+\glanceref{glance:08} \\
+\addlinespace
+% --- section 9
+New MRD patients from Yu-Hsiang &
+The email and a pre-registered integration plan are drafted; the email is not sent. These patients are the external test for transfer and for the learning curve. &
+Status &
+\glanceref{glance:09} \\
+\addlinespace
+\subq Your 2026-10-09 proposals: healthy-cell downsampling; which patients new runs use &
+Not run, by your decision: the downsampling design is pre-registered (draft, not locked) to run with the new patients. New full runs leave out patients without malignant cells and, by your decision of 2026-10-10, keep only patients with at least 100 malignant cells (below it: left out of every step, our reading, to confirm at the plan lock). On the current cohort that keeps P02, P03, P04 and P09 (any cut from 46 to 102 does), three of them the highest-prevalence patients, so medians and P20 lift over them are not comparable with today's seven-patient summaries (on the four learning-curve representations the median lift is 1.8--2.7 times higher). The 100 started as an illustrative cut for the team's Option 1.1; the study's support rule stays at 10. &
+Plan &
+\glanceref{glance:09} \\
+\addlinespace
+\subq Options 1.1 and 3: focus on P02, P03, P04 &
+No new pipeline needed yet: training on two of them plus the unsupported patients and scoring the third differs from full LOPO by a median $+0.13$\pp{} over 12 folds, but single folds range from $-8.18$ to $+10.09$\pp{} and follow the held-out patient (P02 lower in all four representations, P04 higher in all four). &
+Descriptive; 12 folds, 4 representations &
+\glanceref{glance:09} \\
+\addlinespace
+\subq Days since transplant and before relapse &
+Plotted. With seven patients, timing cannot be separated from patient: median lift tracks prevalence ($\rho$ 0.89) more closely than days since transplant ($\rho$ 0.57) or before relapse ($\rho$ 0.18), but at $n = 7$ these correlations cannot be told apart. &
+Descriptive; $n = 7$ &
+\glanceref{glance:09} \\
+\addlinespace
+\subq Ankit: factors learned jointly with the labels &
+Deferred until the new patients arrive. Baseline to beat (inductive IFN-$\alpha$ PCA40, tuned L1): pooled AP 0.1164, median lift 10.55\pp, P20 lift 1.29\pp. &
+Plan &
+\glanceref{glance:09} \\
+\addlinespace
+\subq Review single-cell ML literature &
+Done: two reviews (159 sources) with 32 recommended actions, each routed to a task. &
+Agent-run reviews; their numbers count only once reproduced &
+\glanceref{glance:09} \\
+\end{longtable}
+}
+% The table above has no caption, but longtable still steps the table counter: undo it so the first
+% captioned table is Table 1.
+\addtocounter{table}{-1}
+
+\subsection*{What changed in our understanding since the team report}
+
+\begin{itemize}
+\item \textbf{On the three panels tested, the imbalance specific to P02--P04 sits mainly in Stage~2.} P02, P03 and P04 hold about their cell share of factor score variance on 41 panels. On IFN-$\alpha$ their leverage on the discriminative axis is mostly what removing that many malignant cells does; on allograft rejection and apoptosis it goes beyond that, mostly through P03, but never beyond what leaving out other patients does (D26, rule fixed before the run). The patient with the most leverage is P01, a low-prevalence patient with 19.7\% of the cells (15--24$\times$ its composition-matched control under PCA); its excess score energy is mostly matched by its cell-type mix (1.24, 1.03 after adjustment; arithmetic on predicted labels, not cause), but its leverage is not explained. Re-weighting Stage~1 is therefore no longer the obvious fix; you chose to target the Stage~2 labels (2026-10-10). \src{2026-10-08\_d16-factor-patient-matrix; 2026-10-08\_d17-composition-matched-controls; 2026-10-09\_d28-celltype-score-shares; 2026-10-10\_d26-leverage-allograft-apoptosis-done}
+\item \textbf{A zero in the atlas is often a threshold, not an absence of signal.} The IFN-$\alpha$ PCA/FA gap is the L1 entry rule $4/(C\,n_{\text{train}})$, which reproduces every audited atlas fold. 528 of 783 atlas cells select the lowest $C$ on the grid, and 136 folds in 49 cells sit at the knife-edge of entry, so method comparisons at a fixed $C$ need tuned-$C$ checks. \src{2026-10-08\_d19-regularization-contract}
+\item \textbf{PC8's ``negative'' gene group is the malignant pole.} Once the axis is oriented by its probe coefficient, malignant cells score toward TXNIP, IFITM2 and TENT5A. The direction recurs across bases (PC8 has $R^2$ 0.920 on the FA40 scores) but is not identifiable as ``factor 8'': leaving P01 out of Stage~1 turns PC8's best single match to $|r|$ 0.58 while 98.8\% of it stays in the refit basis. So we name it by its poles. \src{2026-10-08\_d18-factor-cards; 2026-10-08\_d17-basis-variant-pilot}
+\item \textbf{A factor's surface-protein correlate has to be read inside patients and inside cell types.} Over all 1,801 non-degenerate cards, normal-cell correlates hold within patients (median within/pooled ratio 0.89) but only 729 of 20,274 robust pairs keep half their size inside predicted cell types; pooled malignant correlates are mostly between-patient (ratio 0.24). PC8's CD34 correlate is a cell-identity axis, and its CD99 correlate fails the within-patient rule. \src{2026-10-09\_d27-factor-modality-assoc}
+\item \textbf{Transductive optimism is small per patient on IFN-$\alpha$.} Fitting Stage~1 without the held-out patient costs a median 0.05--1.29\pp{} per patient; pooled AP can fall more (FA40, tuned L2: 0.1325 to 0.0794). The axis survives without the held-out patient, without P02--P04 and without malignant cells. This is one panel; the other representations are not yet tested. \src{2026-10-08\_d17-basis-variant-pilot}
+\item \textbf{The full patient-count curve replaces the reduced-design numbers in the 2026-10-08 team update.} The median PCA40 gain from two to six training patients is 1.67\pp{} [95\% CI $-0.44$, 2.89], not 2.16 [0.20, 2.48]; only allograft's CI now excludes 0. ``More patients help'' stays out of the claims. \src{2026-10-08\_d15b-full-design; 2026-10-08\_d15b-patient-count-curve}
+\end{itemize}
