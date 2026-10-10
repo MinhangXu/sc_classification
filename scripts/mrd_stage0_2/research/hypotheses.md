@@ -110,11 +110,11 @@ Alternative IDs are defined in alternatives.csv; analysis IDs in analyses.csv; t
 ## H-S1-05 — High-prevalence patients P02/P03/P04 shape the Stage 1 loadings, not only Stage 2 labels and selection.
 - stage: s1
 - questions: [Q1, Q2]
-- analyses: [D16, D17]
+- analyses: [D16, D17, D26, D28]
 - workstreams: [W1, W2]
 - alternatives: [ALT-PREV, ALT-TRANS]
 - blocking: [W1.1, W2.1, W2.4]
-- figures: [D16, D17]
+- figures: [D16, D17, D26, D28]
 - gate_supports: Would need loading-leverage evidence: leave-high-prevalence-out or patient-balanced refits that move the loadings (principal angles, matched factor correlation) more than dropping other patients does.
 - gate_not: Score overlap (D14) is not influence on the loadings; cell share is not prevalence, and these patients are a small share of the label-blind Stage 1 fit; axis movement beyond size-matched random drops is not leverage while those drops do not match malignant composition (D17); no claim before the composition-matched controls and W2.4.
 - origin: new 2026-10-08
@@ -240,6 +240,18 @@ Alternative IDs are defined in alternatives.csv; analysis IDs in analyses.csv; t
 - gate_supports: Descriptive and transductive: at the selected C the coverage gap tracks the L1 entry threshold on related directions (PC8, FA7), and L2 or per-fold tuned C on the same FA scores recovers the patients that L1 drops.
 - gate_not: Not that FA misses patients as a property of FA; not a Stage 1 structure difference; not that PC8 and FA7 are one identical axis (D18); not that PCA beats FA in P07: the tuned-C residual there is single-patient and penalty-dependent (D19); not an inductive statement.
 - origin: new 2026-10-08
+
+## H-S2-09 — In MRD single-cell data both the malignant training-cell count and the healthy-to-malignant ratio limit held-out transfer; downsampling healthy (donor) training cells, stratified by predicted cell type and trajectory position, with C retuned per condition, raises held-out lift through Stage 1 geometry or negative-class composition rather than through the n-dependent penalty.
+- stage: s2
+- questions: [Q2, Q3]
+- analyses: []
+- workstreams: [W8]
+- alternatives: [ALT-NREG, ALT-PEN, ALT-PREV, ALT-CT, ALT-TRANS, ALT-SEL]
+- blocking: [W8.5, W8.6, W8.7]
+- figures: []
+- gate_supports: Would need, on the cohort fixed by W8.5 and under the pre-registered plan (workstreams/W8_new_cohort/healthy_downsampling_plan.md): a nested downsampling recipe that beats the full-data probe on median and P20 lift under tuned L1 and L2 in the inductive scope, with pooled AP quoted beside them; a ratio effect at a fixed malignant count in the count-by-ratio grid; a mechanism read-out (Stage 1 geometry or healthy-cell composition) that tracks the gain; and the same direction on the new patients.
+- gate_not: Not supported by any fixed-C result (D10 is an all-zero L1 collapse, so AP returns to π by construction); not a gain that the full-data probe reaches somewhere on an extended C path (ALT-NREG), that appears only in the transductive scope or only in the highest-prevalence patients, or that rests on an in-sample choice of scheme and retention level; not a donor-shortcut statement (H-S2-04); not inductive deployment, causal biology or recurrence risk.
+- origin: new 2026-10-09
 
 # Interpretability
 

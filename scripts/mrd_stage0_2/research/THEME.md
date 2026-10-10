@@ -1,7 +1,7 @@
 ---
 study: mrd_stage0_2
-last_reviewed: 2026-10-08
-reviewed_through: 2026-10-08_w7-atlas-strip-factor-explorer
+last_reviewed: 2026-10-10
+reviewed_through: 2026-10-10_protein-association-for-pavan-v2
 canonical_experiment: 20260525_060508_stage0_mrd_old34_broad_screen_82db5093
 ---
 
@@ -32,16 +32,18 @@ QI (interpretability, the PI's third question) is the lens through which any sha
 
 ## §2 Q1 Shared vs patient-specific (PI-Q1 + PI-Q2)
 
-**Current answer.** On the transductive basis, supported patients' factor-score distributions overlap on nearly every biological program basis, so pooling them on one Stage 1 basis is reasonable and no biological program shows a patient-private subtype factor (D14, H-S1-04). Held-out lift above π reaches many supported patients for the immune and inflammatory programs, but it is concentrated in the highest-prevalence patients P02, P03 and P04 and ranks with prevalence across representations (D1, D1f, D1DD2, D6). Shared transfer and prevalence are therefore not yet separated, and H-S2-01 stays open. Patient-specific opportunity tags exist (D3) and the low-support patients carry within-patient DE (D13), but the patient-specific fits are in-sample and single-patient peaks are non-identifiable (H-S2-02, open). The only patient-private malignant axis is a P03 axis in broad control bags, not in any program; genotype, label provenance, batch and composition are not yet excluded (H-S1-07). For IFN-alpha, related directions in one shared subspace (PC8 for PCA, FA7 for FA) carry the signal in every patient where the probe is active (F9, D18, H-S2-08). On the IFN-alpha pilot, held-out transfer survives an inductive Stage 1 under per-fold tuned C and L2 in every supported patient, with small, sign-consistent transductive optimism (D17; H-S1-06, H-S1-03); W2.6 extends this beyond one panel. Whether the highest-prevalence patients shape the Stage 1 loadings, and not only the Stage 2 labels and selection, is tested only on IFN-alpha (D16, D17). There their share of score energy is near their cell share (slightly above it for PCA at the largest K), and leaving them out barely moves the discriminative axis; against random drops matched on malignant composition, the excess is gone for FA and small for PCA, while P01 (a low-prevalence, high-cell-count patient) has far more leverage (D17 composition-matched controls). On this panel the imbalance acts mainly through Stage 2 labels and selection. H-S1-05 stays open until W2.4 (allograft, apoptosis) repeats the test.
+**Current answer.** On the transductive basis, supported patients' factor-score distributions overlap on nearly every biological program basis, so pooling them on one Stage 1 basis is reasonable and no biological program shows a patient-private subtype factor (D14, H-S1-04). Held-out lift above π reaches many supported patients for the immune and inflammatory programs, but it is concentrated in the highest-prevalence patients P02, P03 and P04 and ranks with prevalence across representations (D1, D1f, D1DD2, D6). Shared transfer and prevalence are therefore not yet separated, and H-S2-01 stays open. Patient-specific opportunity tags exist (D3) and the low-support patients carry within-patient DE (D13), but the patient-specific fits are in-sample and single-patient peaks are non-identifiable (H-S2-02, open). The only patient-private malignant axis is a P03 axis in broad control bags, not in any program; genotype, label provenance, batch and composition are not yet excluded (H-S1-07). For IFN-alpha, related directions in one shared subspace (PC8 for PCA, FA7 for FA) carry the signal in every patient where the probe is active (F9, D18, H-S2-08). On the IFN-alpha pilot, held-out transfer survives an inductive Stage 1 under per-fold tuned C and L2 in every supported patient, with small, sign-consistent transductive optimism (D17; H-S1-06, H-S1-03); W2.6 extends this beyond one panel. Whether the highest-prevalence patients shape the Stage 1 loadings, and not only the Stage 2 labels and selection, is now tested on three panels with PCA and FA: IFN-alpha (D16, D17), allograft rejection and apoptosis (D26). Their share of score energy is near their cell share, and after a cell-type adjustment only slightly above what their predicted cell-type mix predicts, except on IFN-alpha at the largest K, where the mix does not explain their excess (D28). Leaving them out of the Stage 1 fit barely moves the IFN-alpha discriminative axis beyond random drops matched on malignant composition; on allograft rejection and apoptosis it moves the axis beyond such drops, mostly through P03. On all three panels it moves the axis less than leaving out the contrast patients does, and P01 (a low-prevalence, high-cell-count patient) has by far the most leverage (D17, D26). P01's excess score energy is mostly matched by its predicted cell-type mix (D28; arithmetic on transferred labels, not a cause), but whether its leverage is its cell-type mix is untested (W2.9). By the rule fixed before D26, H-S1-05 is not supported for PCA/FA on these panels (N14): the imbalance specific to the highest-prevalence patients acts through the Stage 2 labels and selection. FactoSig bases and the other panels are untested (W2.2, W2.8). Following this, the user chose the Stage 2 labels as the re-weighting target and, for new full runs on the new patient data, a higher minimum malignant-cell count than the support rule; the current atlas keeps the support rule (devlog 2026-10-10_decisions-new-run-inclusion-reweighting-lfs). Healthy-cell downsampling and Stage 2 re-weighting are pre-registered for the new data as the next test (H-S2-09, open; devlog 2026-10-09_w8-healthy-downsampling-plan).
 
 **What would change the answer.**
 - An inductive Stage 1 beyond IFN-alpha (W2.6) on which held-out transfer collapses would turn "shared on a transductive atlas" into "shared only because the held-out patient helped define the basis" (H-S1-06; the IFN-alpha pilot D17 did not collapse).
-- Leave-high-prevalence-out refits that move the loadings beyond composition-matched random drops and beyond the contrast patients (D17 controls, W2.4) would support H-S1-05.
+- Leave-high-prevalence-out refits that move the loadings beyond the contrast patients, on FactoSig bases (W2.2) or on further panels (W2.8), would reopen H-S1-05; on PCA/FA for IFN-alpha, allograft rejection and apoptosis they do not (D17, D26).
+- A cell-type-matched leave-out control (W2.9) would say whether P01's leverage is its cell-type mix.
+- In the new-data runs, a Stage 2 re-weighting or healthy-cell downsampling gain that survives retuned C (W8.7; H-S2-09) would show the label imbalance limiting transfer.
 - Support-matched lift (W1.5) that removes the patient ordering would favour a prevalence explanation of the patient pattern (ALT-PREV).
 - The D25 audit (W1.4) could reclassify the P03 axis as genotype or label provenance.
 - New patients (W8.1) are the only external test of the shared axes.
 
-**Blocking tasks:** W1.2, W1.3, W1.4, W1.5, W2.4, W2.6, W4.1, W8.1.
+**Blocking tasks:** W1.2, W1.3, W1.4, W1.5, W2.6, W2.8, W2.9, W4.1, W8.1.
 
 **Candidate figures:** see §9 (Fig2, Fig3).
 
@@ -54,6 +56,9 @@ QI (interpretability, the PI's third question) is the lens through which any sha
   - D15 is a cell-depth curve at a fixed patient mix with C not retuned; it says nothing about adding patients (H-S2-06; D15 v2).
   - D15b varies the number of training patients with C retuned on a frozen transductive basis: lift is already positive with one training patient, gains are small with wide patient-cluster intervals, and the curves are not monotone. Gains over one patient mix a tuning-protocol switch, the reduced design is unbalanced at two and five patients, and how a basis refit per training subset would change the curve is unknown (D15b; full design W6.1, inductive version W6.6).
   - The D10 loss of AP under donor downsampling is an L1-at-fixed-C collapse to an all-zero probe, so AP returns to π by construction; it is not a donor test (H-S2-04).
+  - Leave-out leverage tests (D17, D26) are in-silico perturbations of the transductive Stage 1 fit, ranked against size- and composition-matched random drops; the rank against the controls is descriptive and uncorrected, and axis movement is not an effect on held-out lift (no Stage 2 refit).
+  - Factor × surface-protein associations (D27) are a screen over related factors with a within-patient robustness rule and isotype-control rows as the noise reference; the reference is a design choice, not a significance test.
+  - For new full runs the user chose a higher malignant-cell minimum than the support rule (W8.5; devlog 2026-10-10_decisions-new-run-inclusion-reweighting-lfs). Until the new patients join, those runs have fewer held-out patients, so patient-level inference depends on the new cohort (W8.1, W8.4).
 - **Still missing:** patient-level uncertainty and an AUROC companion (D22), matched random gene-set nulls (D21), nested selection (D23), Stage 1 seed and resample stability, and a variance decomposition with the three estimands of §1 kept apart (W4.4).
 
 **Blocking tasks:** W4.1, W4.2, W4.3, W4.4, W4.5, W3.3, W6.1.
@@ -78,6 +83,11 @@ QI (interpretability, the PI's third question) is the lens through which any sha
   - The literature-review C sweep shows the gap is a knife-edge: a slightly larger C lets FA7 enter (devlog 2026-10-08_literature-reviews).
   - Under per-fold tuned C, FA reaches every supported patient; a residual PCA advantage remains only in P07, depends on the penalty and is a single-patient, non-identifiable difference (D19). The gap follows the L1 threshold on inductive bases too (D17).
   - The team's Stage 1 allocation hypothesis is retired (H-S2-07).
+- **Surface-protein and cell-type correlates are mostly cell identity** (D27, all factor cards; restated for collaborators in devlog 2026-10-10_protein-association-for-pavan-v2).
+  - In normal cells most factor × surface-protein associations are cell-identity axes. PC8's normal-cell CD34 correlate holds inside every supported patient but is carried by differences between predicted cell types: every cell passed a CD34 sort gate, and inside that gate the association runs mostly between cell types, with few within-type exceptions.
+  - In malignant cells pooled associations are mostly between-patient, and PC8's CD99 correlate does not meet the pre-declared within-patient rule.
+  - Within the same patient and predicted cell type, malignant cells mostly sit further along the oriented PC8 axis than healthy cells; PC8's sign was set by the malignant-versus-healthy probe, so only the within-type persistence is new.
+  - The protein data are not integrated into Stage 1 (RNA-only bases); ADT is CLR without dsb; patient is nested in batch and malignancy in recipient origin. No surface protein is a single-cell marker of a factor or of malignancy (H-S2-05 ALT-CT partial; H-S2-03).
 - **factosig_promax loadings are a pattern matrix** with unnormalized column scale. For oblique fits, report both pattern and structure top genes plus the factor correlations (W5.1, W5.4).
 - **Review gates for naming any factor:**
   - name a factor from both poles, with the sign orientation and the Stage 2 penalty (L1, L2 or elastic net) stated;
@@ -111,6 +121,9 @@ This list supersedes the "Current claim boundary" section of `notebooks/stage0_2
 - **S16** On a frozen transductive basis with C fixed, held-out AUPRC rises with Stage 2 training-cell depth at a fixed patient mix wherever the probe is not collapsed (D15; H-S2-06).
 - **S17** The IFN-alpha PCA40 versus FA40 patient-coverage gap is an L1-at-fixed-C effect on related directions (PC8, FA7) in one shared subspace: FA7 alone carries held-out lift in the patients the FA probe drops, L2 on the same FA scores recovers them, and under per-fold tuned C FA reaches every supported patient (F3, F6, F9, D19; H-S2-08).
 - **S18** For IFN-alpha PCA and FA, held-out lift above π survives an inductive Stage 1 under per-fold tuned C and L2 in every supported patient, with small, sign-consistent transductive optimism; one panel only (D17; H-S1-06, H-S1-03; W2.6).
+- **S19** On transductive PCA/FA bases of IFN-alpha, allograft rejection and apoptosis, leaving the highest-prevalence patients out of the Stage 1 fit moves the malignant-normal axis less than leaving out the contrast patients does; on allograft rejection and apoptosis the movement exceeds composition-matched random drops, mostly through P03, and P01 has the most leverage on all three panels. FactoSig bases and the other panels are untested (D17, D26; H-S1-05 not supported; W2.2, W2.8, W2.9).
+- **S20** After adjusting for predicted cell-type mix, most of P01's excess factor score energy is matched by its cell types, and the highest-prevalence patients hold only slightly more score energy than their mix predicts, except on IFN-alpha at the largest K. Score share is not leverage, and predicted labels are transferred calls (D28; H-S1-04, H-S1-05).
+- **S21** In normal cells most factor × surface-protein associations are cell-identity axes, and PC8's CD34 correlate is carried by predicted cell-type composition inside every supported patient; in malignant cells pooled associations are mostly between-patient (D27; H-S2-05, H-S2-03).
 
 ### Not supported as publication claims
 
@@ -127,8 +140,10 @@ This list supersedes the "Current claim boundary" section of `notebooks/stage0_2
 - **N11** The P03 broad-bag axis is a subtype (H-S1-07; D25).
 - **N12** Factor-score overlap is predictive sharedness (H-S1-04; D3, W1.6).
 - **N13** "FA misses patients" is a property of FA (H-S2-08).
-- **N14** The highest-prevalence patients disproportionately shape the Stage 1 loadings (H-S1-05; D16, D17, W2.4).
+- **N14** The highest-prevalence patients disproportionately shape the Stage 1 loadings (H-S1-05, not supported for PCA/FA; D16, D17, D26, D28).
 - **N15** PC8 or FA7 is a unique, individually identifiable IFN-alpha sub-program (H-I-03; D18).
+- **N16** A surface protein is a single-cell marker of a factor or of malignancy, or the protein data are integrated into the factors (H-S2-05, H-S2-03; D27).
+- **N17** Healthy-cell downsampling or Stage 2 re-weighting improves transfer (H-S2-09, open; not yet run; W8.7).
 
 Standard closing line: "Descriptive results on a transductive Stage 1 basis over seven supported patients; they do not establish inductive deployment, causal biology or recurrence risk."
 
@@ -225,9 +240,9 @@ A second six-item question set from 2026-08-03 produced the narrative guide; it 
 |---|---|---|---|---|
 | Fig1 design and metric | What is the probe, and why is lift above π the effect size? | H-I-01 | D6 | draft_exists |
 | Fig2 atlas | Which programs transfer to which supported patients? | H-S0-01, H-S1-01, H-S2-01 | D1, D1f, D1DD2 | needs_rework |
-| Fig3 aggregation | Can patients share one basis, and do high-prevalence patients dominate it? | H-S1-04, H-S1-05, H-S1-06, H-S1-07 | D14, D16, D20, D17 | needs_rework |
+| Fig3 aggregation | Can patients share one basis, and do high-prevalence patients dominate it? | H-S1-04, H-S1-05, H-S1-06, H-S1-07 | D14, D16, D20, D17, D26, D28 | needs_rework |
 | Fig4 DR vs direct | What does DR add once selection is nested and baselines are fair? | H-S1-02, H-S0-02 | D9, D1e, F4, D23, D24 | needs_rework |
-| Fig5 IFN-alpha | Is the PCA/FA gap structure or regularization, and what does the shared axis encode? | H-S2-03, H-S2-08, H-I-03 | D8, F3, F6, F9, D18, D19 | needs_rework |
+| Fig5 IFN-alpha | Is the PCA/FA gap structure or regularization, and what does the shared axis encode? | H-S2-03, H-S2-08, H-I-03 | D8, F3, F6, F9, D18, D19, D27 | needs_rework |
 | Fig6 strength | How strong is the evidence once nulls, uncertainty and C retuning are applied? | H-S2-04, H-S2-06, H-S0-01 | D21, D22, D10, D11, D15, D15b | planned |
 | Supplementary | Prior vs HVG, regularization pathology, error audits, low-support DE, K trends | H-S0-02, H-S2-05, H-S2-02, H-S1-01 | D12, D4, D1DD10, D1DD11, D1DD12, D13, F1 | draft_exists |
 
@@ -262,11 +277,11 @@ Sources: the outer repository audit's `open_decisions.md` (items 1-9 there) plus
 3. **Group sparsity** (audit decision on group-level sparsity): open.
 4. **preSCT and relapse** (audit decision on other timepoints): open. Tracked by H-A-02.
 5. **Pooled vs patient-equal headline** (audit decision on operating points): resolved, Option B (2026-07-03; devlog 2026-07-03_figure-catalog-option-b).
-6. **Support rule** (audit decision on supported patients): resolved as the `study_config.json` rule (minimum malignant-cell count and both classes). Revisit for the new cohort in W8.2.
+6. **Support rule** (audit decision on supported patients): resolved as the `study_config.json` rule (minimum malignant-cell count and both classes) for the current atlas and every re-analysis of it. New full runs on the new patient data use a higher malignant-cell minimum, decided by the user on 2026-10-10 (W8.5; devlog 2026-10-10_decisions-new-run-inclusion-reweighting-lfs); it is written into the new cohort's frozen configuration at the W8.2 lock.
 7. **Meaning of donor downsampling** (audit decision): open. Resolved through W4.6 with condition-specific C.
 8. **Operational "program"** (audit decision): open. Resolved through W5 (factor cards and the frameworks note).
 9. **The May shortlist cell-prediction matrices** (audit decision; campaign shortlist_20260526_lopo_gpu8): open.
-10. **Target of the equal-weighting option (A-20261008-14)**, new 2026-10-08: open. Decide which imbalance is targeted before refitting (W2.3).
+10. **Target of the equal-weighting option (A-20261008-14)**, new 2026-10-08: resolved 2026-10-10. Re-weighting targets the Stage 2 labels, not the Stage 1 geometry (A-20261010-08; W2.3 closed; devlog 2026-10-10_decisions-new-run-inclusion-reweighting-lfs); it runs with the new data in W8 Arm D.
 11. **Pooled Set C** (pooled_stage0_unions_v1), new 2026-10-08: open. Relaunch the unfinished shards and merge, or abandon (W0.6).
 
 ## §12 Related work

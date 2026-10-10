@@ -49,6 +49,7 @@ Done means: every headline effect carries a patient-level interval and an AUROC 
 - [W4.4] (P1) Variance decomposition with explicit estimands (label-free Stage 1 variance, per-factor patient eta2, Stage 2 attribution) for the shortlist. Write the estimand note into THEME §1 at the next milestone — done when: a table per factor exists. (depends: W1.1)
 - [W4.5] (P2) Stage 1 stability: seeds × patient-stratified bootstrap with component clustering, plus factor determinacy and effective_k, for the focus representations — done when: a recurrence table per factor exists.
 - [W4.6] (P2) Donor-shortcut rescue: re-run D10 with condition-specific C through the donor runner (--resume; user screen) — done when: a performance-level donor test is reported. (depends: W3.1)
+  - 2026-10-09: overlaps the Stage-2-only proportional-stratified arm of Arm D (W8.7; `../W8_new_cohort/healthy_downsampling_plan.md` §5). The user decided that downsampling runs wait for the new data (devlog 2026-10-09_report-reading-notes), so W4.6 folds into W8.7 unless the user chooses the plan's rehearsal on the current cohort (§12 item 1).
 - [W4.7] (later) Read the Set B 294-panel scorecard, after first porting the lift figure contract (H-S0-03). Run expanded_full Stage 2 only if the user asks.
 
 ## Code in this directory

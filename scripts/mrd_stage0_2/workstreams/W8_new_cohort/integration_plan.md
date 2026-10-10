@@ -9,6 +9,14 @@
 > - **Changes after the lock** need a new decision entry with `supersedes:`. Any analysis not listed here is labelled *exploratory (post hoc)* wherever it is reported.
 > - Asks: A-20261008-12, plus A-20261008-13 (Option 1.1) and A-20261008-27, which depend on this cohort. Literature basis: W9 Review B §1, §3 and §5 (external-validation protocol, routed to W8.2).
 > - Paths: `EXP` is the canonical experiment dir and `NEWEXP` is the new experiment dir (§5). Artifact paths are relative to the named dir; code paths are repo-relative.
+> - **Update 2026-10-09** (the user's reading notes on report v1, `research/asks/2026-10-09_report-reading-notes.md`; devlog 2026-10-09_report-reading-notes):
+>   - **Decided by the user:** new runs exclude patients with no malignant cells (A-20261009-14; §4.0).
+>   - **Open, for the user:** which patients are held out and summarized, and which only train (A-20261009-11; §4.1, §14 item 9). Decided on 2026-10-10, below.
+>   - **Added:** healthy-cell downsampling, pre-registered in `healthy_downsampling_plan.md` and run as Arm D (§8) when the new data arrive, as the user decided (A-20261009-12).
+> - **Update 2026-10-10** (`research/asks/2026-10-10_protein-and-decisions.md`; devlog 2026-10-10_decisions-new-run-inclusion-reweighting-lfs). The user framed both decisions as "decisions relevant for runs when we have the extra patient data":
+>   - **Decided by the user:** new full Stage 0-2 runs keep patients with at least 100 malignant cells and both classes (A-20261010-07; §4.1). The 10-cell support rule of `research/study_config.json` stays for every re-analysis of the current atlas.
+>   - **Decided by the user:** re-weighting targets the Stage 2 labels, not the Stage 1 basis (A-20261010-08; W2.3 closed). It runs inside Arm D (§8; `healthy_downsampling_plan.md` §5.1-§5.2).
+>   - **Still for the lock:** confirm that patients below 100 malignant cells are left out rather than kept as train-only (§14 item 9), and Arm P's pre-fitted probes (§14 item 10).
 
 ## 1. Purpose, estimand, claim boundary
 
@@ -25,6 +33,7 @@ These are summarized across new supported patients by the median and the P20 (Op
 - **Q2:** per-patient intervals, and more supported patients for patient-level inference (H-S2-06)
 - **Q3:** frozen DR-vs-direct-gene pairs evaluated out of sample (informs H-S1-02)
 - **QI:** the IFN-α threshold prediction (H-S2-08)
+- **Q2/Q3, added 2026-10-09:** whether the healthy-to-malignant ratio limits transfer separately from the malignant count, and why downsampling healthy cells would help (H-S2-09; Arm D, `healthy_downsampling_plan.md`)
 
 **Claim boundary (AGENTS R6).** Results are descriptive. They describe label transfer to new patients whose labels come from the collaborator's pipeline. They are not clinical deployment, not recurrence risk and not causal. Each result names the arm (§8); the Arm P basis is "frozen transductive basis of the original cohort, new patients projected".
 
@@ -88,8 +97,104 @@ The W8.1 email asks for this.
 
 ## 4. Inclusion and support rule
 
-- **Support rule.** Read from `scripts/mrd_stage0_2/research/study_config.json` (`support_rule`: minimum malignant cells and both classes). This is the rule that defines the original supported patients (AGENTS R7). It is **not** changed for the new cohort; this answers THEME §11, open decision 6, for W8.2.
-- **Patients below the rule** are reported descriptively, like P05, P13 and the normal-only patients. They never enter lift summaries. In Arm I they may serve as training negatives.
+### 4.0 Decided by the user (2026-10-09): no patients without malignant cells in new runs
+
+> "In a new run, let's definitely subset the patients to do the whole stage0-2 pipeline, let's definitely not include patients that're just in the cohort and contribute no malignant cells at least." (A-20261009-14; recorded in devlog 2026-10-09_report-reading-notes)
+
+- **Scope.** Every new run:
+  - the Stage 1 fit set;
+  - the Stage 2 training negatives and the C-tuning folds;
+  - Arm I and Arm D (§8);
+  - the optional joint grid (§11);
+  - the W2.5 patient-subset pipeline.
+- **Patients excluded.**
+  - In the current cohort: P08, P10, P11 and P12, which have no malignant cells (checked against `research/study_config.json` and the cell metadata on 2026-10-09). Together they hold 10,638 cells, all normal.
+  - New patients without malignant cells are excluded the same way; they are listed in the inventory only.
+- **Mechanism.** The opt-in `--patients` filter (W8.3), defaults unchanged.
+- **Consequences.**
+  - Training n changes, so C is retuned (R5).
+  - The Stage 1 fit set changes, so new-run bases are not cell-for-cell comparable with the canonical transductive bases. Any comparison names both cohort definitions.
+- **Reading to confirm (§14 item 10).** The decision governs *new runs*. Arm P's stored canonical bases (fit on all 13 patients) are not a new run and stay as they are. Arm P's pre-fitted probes (§7) are fitted at lock time, so whether they also drop the zero-malignant patients' cells is the user's choice:
+  - **keep:** the probes are trained exactly as the canonical LOPO probes were;
+  - **drop:** consistent with the decision, but the Stage 2 training set then differs from every canonical number.
+- "At least" left the patients with a few malignant cells to §4.1, decided on 2026-10-10.
+
+### 4.1 Decided by the user (2026-10-10): new full runs keep patients with at least 100 malignant cells (A-20261009-11, A-20261010-07)
+
+> "We got 4 patients passing the 100 malignant cell rule. P02, P03, P04, P09. We need to think if P01, P06 and P07 are still relevant to use. For some reason P07 still does pretty decent lift in the IFN-alpha case." (A-20261009-11)
+
+> "Let's do the >=100 malignant cells." (A-20261010-07; devlog 2026-10-10_decisions-new-run-inclusion-reweighting-lfs)
+
+**The rule.**
+- **(a) T_eval = 100.** A patient is in a new full Stage 0-2 run, as a fitted, trained and held-out, summarized patient, only if it has at least 100 malignant cells and both classes. In the current cohort: P02, P03, P04 and P09. A new patient qualifies by the same rule, from the inventory counts (§2), before any probe score is computed. In this plan, "new supported patient" means a new patient that meets this rule.
+- **(b) Patients below it are left out** of every step of a new full run, like the zero-malignant patients (§4.0). This is the reading of the decision together with A-20261009-14 ("subset the patients to do the whole stage0-2 pipeline"); the W8.2 lock asks the user to confirm it against the train-only option (§14 item 9).
+- **What does not change.** The support rule in `research/study_config.json` (at least 10 malignant cells and both classes; AGENTS R7) stays, so existing results and any re-analysis of the current atlas keep the seven supported patients and their folds. The new rule is written into `frozen_config_v1.json` (§7) at the lock. A comparison between a new run and an existing result names both cohort definitions.
+- **Arm P** keeps the stored canonical bases (§4.0); its summarized new patients follow (a); its pre-fitted probes' training set is §14 item 10.
+
+The tables below are the information the user had when deciding; they stay as the record of what the rule implies.
+
+**The patients who remain after §4.0.** These are metadata values from `research/study_config.json`, rendered in STATUS.md §0 and checked against the cell metadata on 2026-10-09. "Healthy per malignant" is (total − malignant) / malignant.
+
+| Patient | Malignant | Total cells | Prevalence | Healthy per malignant | ≥10 | ≥20 | ≥100 |
+|---|---|---|---|---|---|---|---|
+| P03 | 758 | 2,327 | 32.57% | 2.1 | held out | held out | held out |
+| P02 | 211 | 1,462 | 14.43% | 5.9 | held out | held out | held out |
+| P04 | 102 | 1,128 | 9.04% | 10.1 | held out | held out | held out |
+| P09 | 375 | 17,126 | 2.19% | 44.7 | held out | held out | held out |
+| P06 | 44 | 3,259 | 1.35% | 73.1 | held out | held out | below |
+| P07 | 22 | 2,185 | 1.01% | 98.3 | held out | held out | below |
+| P01 | 45 | 11,860 | 0.38% | 262.6 | held out | held out | below |
+| P05 | 8 | 4,359 | 0.18% | 543.9 | below | below | below |
+| P13 | 4 | 5,774 | 0.07% | 1,442.5 | below | below | below |
+
+**Two separate choices.**
+- **(a) The evaluation threshold T_eval** (decided: 100): the malignant-cell count at which a patient is a held-out, summarized patient.
+  - ≥10 is the current rule (`study_config.json`, AGENTS R7).
+  - ≥20 is the D14 stratum parameter.
+  - ≥100 is the cut the user named, and the Option 1.1 "top 4-5 patients" idea (A-20261008-13).
+- **(b) The training role** of patients that have malignant cells but fall below T_eval (decided: excluded, to be confirmed at the lock):
+  - **train-only:** their malignant labels and healthy cells stay in the Stage 1 fit and in Stage 2 training, but they are never summarized. This is how P05 and P13 are used today;
+  - **excluded:** removed from every step, like the zero-malignant patients.
+
+**What each threshold implies** (current cohort; each new patient adds to the matching row):
+
+| | ≥10 | ≥20 | ≥100 |
+|---|---|---|---|
+| Held-out, summarized patients (LOPO folds) | 7: P01, P02, P03, P04, P06, P07, P09 | the same 7 (P07 has 22) | 4: P02, P03, P04, P09 |
+| Below T_eval but with malignant cells, role set by (b) | P05, P13 | P05, P13 | P01, P05, P06, P07, P13 |
+| Supported training patients per outer fold, i.e. inner-LOPO folds for tuning C | 6 | 6 | 3 |
+| Prevalence range of the summarized patients | 0.38-32.57% | 0.38-32.57% | 2.19-32.57%: the three lowest-prevalence supported patients leave the summary |
+| Highest-prevalence patients (P02, P03, P04) among the summarized | 3 of 7 | 3 of 7 | 3 of 4 |
+| Where P20 lift sits (linear interpolation) | between the 2nd and 3rd lowest patient | same | between the lowest and the 2nd lowest |
+| Smallest exact one-sided sign-test p, if every patient has lift > 0 | 1/128 | 1/128 | 1/16: cannot reach 0.05 |
+| Cells left if (b) = excluded (from the 49,480 that remain after §4.0) | 39,347, with 1,557 malignant | same | 22,043, with 1,446 malignant |
+| Comparability with existing results | the current rule; existing patient summaries stay on the same folds | identical patients here; differs only for new patients with 10-19 malignant cells | every existing patient summary (D1 atlas, D15b, D17, D19, report v1) uses 7 folds; comparing needs a recomputation on 4 folds or side-by-side reporting |
+
+**Further consequences.**
+- If (b) = excluded at ≥100, P01 also leaves the Stage 1 fit set, and the bases change. P01 is the patient with the largest leverage on the IFN-alpha axis (devlog 2026-10-08_d17-composition-matched-controls) and the most over-represented in score energy (devlog 2026-10-08_d16-factor-patient-matrix).
+- With 3 inner folds, the inner-LOPO choice of C rests on fewer patients. D15b ran three- and four-patient training sets (devlog 2026-10-08_d15b-full-design).
+
+**Evidence pointers on whether P01, P06 and P07 are still relevant** (numbers are in the cited entries):
+- **P07.**
+  - Positive IFN-alpha PCA40 lift at the atlas setting and under per-fold tuned C (devlog 2026-10-08_d19-regularization-contract; report v1, Figure 2).
+  - Positive single-factor PC8 and FA7 lift (devlog 2026-10-08_d16-factor-patient-matrix).
+  - Its residual PCA40 advantage over FA40 is a single-patient, penalty-dependent difference (D19).
+- **P01 and P06.**
+  - Within-patient DE genes, but weak held-out lift (devlog 2026-09-03_d12-d13-gsea-hvg-lowsupport; THEME §6 S14).
+  - Near-zero patient-count gains (devlog 2026-10-08_d15b-full-design).
+- **Across the atlas.** Lift above π reaches every supported patient in many representations, but strong lift concentrates in P02, P03 and P04 (devlog 2026-09-11_d1-atlas-783-d1e-d1f; report v1 section 08).
+- **The substance of the decision.** The low-prevalence patients are the ones closest to a low-burden MRD setting, while the high-count patients carry most of the malignant labels. Which of these the patient summaries should represent is the choice in (a).
+- **New patients.** Each new patient's support status and achievable interval width (§9) are known from counts before unblinding, so the threshold can be fixed with that information in hand.
+
+**Where the decision is recorded.**
+- The W8.5 `type: decision` entry: devlog 2026-10-10_decisions-new-run-inclusion-reweighting-lfs.
+- The study-wide support rule did not change, so `study_config.json` is unchanged (AGENTS R7).
+- The rule for new full runs is written into `frozen_config_v1.json` (§7) at the W8.2 lock.
+
+### 4.2 Other inclusion rules (unchanged)
+
+- **Support rule.** Re-analyses of the current atlas keep the rule in `research/study_config.json` (`support_rule`: minimum malignant cells and both classes; AGENTS R7). New full runs use the 100-cell rule of §4.1 (W8.5, decided 2026-10-10; THEME §11, decision 6).
+- **Patients below the chosen threshold** are reported descriptively and never enter lift summaries. Their training role follows §4.1 (b). Patients without malignant cells follow §4.0.
 - **Unit of analysis: the patient.** All MRD CITE samples of a patient are pooled, as for P09 in the canonical cohort. Per-sample results are secondary.
 - **Known patients.** Extra samples from P01–P13 are not new patients. They form a "new samples, known patients" stratum and are excluded from the external summaries.
 - **Multiome-only data** is excluded from the primary analysis, because the canonical study used CITE MRD cells only. It may be analysed as an exploratory stratum.
@@ -107,7 +212,7 @@ The W8.1 email asks for this.
 
 **Filtered cache.** `NEWEXP/analysis/cache/stage2_diagnostic/new_cohort_cache_v1/`. It is built with the §3 filters and the §6 preprocessing.
 
-**campaigns.csv.** Before any compute (R4), add one `planned` row per namespace: `new_cohort_inventory_v1`, `external_projection_v1`, `inductive_extended_lopo_v1`, and, only if the user asks, `newcohort_joint_grid_v1`. Each row has:
+**campaigns.csv.** Before any compute (R4), add one `planned` row per namespace: `new_cohort_inventory_v1`, `external_projection_v1`, `inductive_extended_lopo_v1`, `healthy_downsampling_v1` (Arm D, added 2026-10-09), and, only if the user asks, `newcohort_joint_grid_v1`. Each row has:
 - `experiment_id`: the new id;
 - `relaunch_policy`: `resume_only` for the new runners, `ask_user` for any GPU grid;
 - `screen_session`: the names in §11;
@@ -159,7 +264,7 @@ All sources are read-only and relative to `EXP`. The file contains:
   - PCA projects through the stored loadings. sklearn FA uses the stored loadings plus the stored per-gene noise variances to compute the posterior mean.
   - FactoSig and factosig_promax enter Arm P only after W2.2 persists ψ/μ **and** a refit reproduces the stored scores. Otherwise those representations are reported in Arm I only.
 - **Reconstruction gate.** Before unblinding, re-projecting the original cells must reproduce the stored `scores.npy` within the tolerance fixed by the W8.3 tests. A representation that fails is dropped from Arm P.
-- **Stage 2.** The pre-fitted probes from §7 (frozen and tuned), trained on all original cells, score every new patient.
+- **Stage 2.** The pre-fitted probes from §7 (frozen and tuned) score every new patient. They are trained on all original cells, or on the original cells without the zero-malignant patients if the user chooses that under §14 item 10.
 - **Also in Arm P:**
   - D14-style overlap of new-patient factor-score distributions against the original patients on the same bases (H-S1-04). This uses `scripts/mrd_stage0_2/stage2_supervised/patient_factor_overlap.py`, or the W1.2 (D20) v2 code if it has landed.
   - The frozen DR-vs-direct pairs on new patients (Q3; informs H-S1-02).
@@ -174,6 +279,23 @@ All sources are read-only and relative to `EXP`. The file contains:
   - fit Stage 2 with C tuned by inner LOPO over the training patients (W3.1), reporting L1 and L2 (R5).
 - **Scope.** The W2.1 pilot scope (IFN-α PCA40/FA40) plus the primary family. The full 47-representation version is a GPU campaign, run only if the user asks.
 - **Comparisons.** Per-patient lift against Arm P for new patients, and against the stored transductive LOPO for original patients.
+
+### Arm D — healthy-cell downsampling (added 2026-10-09; pre-registered in `healthy_downsampling_plan.md`; tests H-S2-09)
+
+- **Question** (A-20261009-12). Does the healthy-to-malignant ratio limit transfer separately from the malignant count? And if downsampling healthy cells helps, *why*: Stage 1 geometry, negative-class composition, or only the n-dependent penalty?
+- **Design.** A factorial with these factors:
+  - sampling scheme: random, proportional-stratified by patient × predicted type × pseudotime bin, type-equalizing, patient-capped; plus the Stage 2 sample-weight scheme SW, which re-weights the training labels per patient and class without dropping cells (added 2026-10-10: re-weighting targets the Stage 2 labels, A-20261010-08);
+  - retention level;
+  - placement: Stage 2 only (primary since 2026-10-10, the decided target), Stage 1 only and both (the read-outs of why a gain happens);
+  - Stage 1 scope: transductive or inductive;
+  - a count × ratio grid that subsamples malignant and healthy training cells independently.
+  The held-out patient is never downsampled. C is retuned per condition by inner LOPO on an extended grid, with L1 and L2 (R5).
+- **Two parts.**
+  - **D-L:** LOPO over the extended cohort, which gives the mechanism read-outs.
+  - **D-X:** a nested downsampling recipe, frozen on the original cohort and scored on the new patients like Arm P.
+- **Cohort.** §4 (at least 100 malignant cells; W8.5).
+- **When.** With the new data (the user's 2026-10-09 decision). No downsampling condition is scored on real labels before the lock.
+- Code W8.6, run W8.7, screens `W8_hds_*` (§11).
 
 ### Exploratory only
 
@@ -220,6 +342,7 @@ The decision rules below are **proposed** and are confirmed in the W8.2 entry (�
 | Inductive extended LOPO vs Arm P and the stored transductive LOPO | I | H-S1-06 | Per-patient lift under inductive Stage 1 falls within the patient-level interval of the transductive or projection value. | Systematic drops beyond those intervals. |
 | External points on the D15b patient-count curve | P | H-S2-06 | Descriptive. Points fall within the curve's spread at the matching k. | Points far below the curve, which would bound the grant's "more patients" argument. |
 | Frozen DR vs direct-gene pairs (informs, not tested) | P | H-S1-02 | Descriptive. Whether the in-sample D1e winners hold up out of sample. | — |
+| Healthy-cell downsampling recipe and count × ratio grid (added 2026-10-09) | D | H-S2-09 | The six criteria and the attribution rules in `healthy_downsampling_plan.md` §7: a recipe gain over the full-data probe under tuned L1 and L2 in the inductive scope; a ratio effect at a fixed count; no match on the full-data C path; the same direction on the new patients. | No gain beyond the seed spread with C tuned on the extended grid and L2 alongside, or a gain that appears only at fixed C or only in the transductive scope. |
 
 ## 11. Compute and screen-command plan
 
@@ -261,6 +384,8 @@ Verify:
 - `run_stage0_mrd_old34_broad_screen.py`, with `--experiment-dir "$SC_EXPERIMENT_ROOT/$SC_EXPERIMENT_ID" --branch-name newcohort_joint_grid_v1`, the W8.3 universe pin and `--patients`. It skips existing outputs unless `--rerun`, and has no `--resume`.
 - `run_stage2_mrd_multiobjective_scorecard.py`, with `--stage2-output-branch newcohort_joint_grid_v1`. It has no resume: use shards with `--shard-count/--shard-index`, then `--merge-stage2-run`.
 
+**5. Arm D, healthy-cell downsampling** (CPU; after the lock, in phases). The screens are `W8_hds_ifna`, `W8_hds_focus`, `W8_hds_grid` and `W8_hds_external`. The command template, the phase plan, the compute estimate and the checks are in `healthy_downsampling_plan.md` §8. The runner (W8.6) is planned.
+
 ## 12. Risks and mitigations
 
 | Risk | ALT | Mitigation |
@@ -278,6 +403,8 @@ Verify:
 | Forking paths after the data arrive | — | Lock entry with hashes; post hoc labelling; pre-fitted probes. |
 | Stage 0 gene sets may have been informed by the original cohort | — | W0.12 provenance. The new cohort is the unbiased test, which is one reason to lock first. |
 | Partial or staggered data delivery | — | Inventory per delivery. Primary summaries wait for the cohort the user declares complete in the lock entry, or in a superseding decision entry. |
+| Excluding zero-malignant patients (§4.0) changes the Stage 1 fit set and the training n of every new run | ALT-PEN, ALT-TRANS | C retuned per condition (R5); results name the cohort definition; comparisons with canonical numbers are side by side, never pooled. |
+| Arm D has many schemes, levels and placements, so the best one could be picked after the fact | ALT-SEL, ALT-NREG | A nested recipe, full curves reported, an extended C grid and decision rules fixed in `healthy_downsampling_plan.md` §5-§7 before the lock. |
 
 ## 13. What this plan cannot show
 
@@ -298,6 +425,9 @@ The plan cannot show:
 6. Whether to run the optional joint grid (§11, item 4). It is a GPU campaign and waits for the W0.6 decision (R4).
 7. Whether the W1.4 provenance column for the original cohort must be complete before the lock.
 8. When to lock: before the data arrive (preferred), or on arrival but before any scoring.
+9. **Patient inclusion (A-20261009-11, A-20261010-07; W8.5; §4.1).** Decided on 2026-10-10: (a) at least 100 malignant cells. Confirm (b), that patients below it are excluded rather than kept as training-only.
+10. **Zero-malignant exclusion and Arm P (§4.0).** Confirm the reading that the decision governs new runs, so Arm P's stored bases are unchanged. Choose whether Arm P's pre-fitted probes keep or drop the zero-malignant patients' cells.
+11. **Arm D.** Lock `healthy_downsampling_plan.md` with this plan, and answer its §12 choices: rehearsal or not, the recipe's placement and scope, design size, the P20 non-inferiority margin, EN, representations.
 
 ## Readiness checklist (W8.3 and dependencies)
 
@@ -308,3 +438,5 @@ The plan cannot show:
 - [ ] The regularization contract `tune_c_inner_lopo` (W3.1).
 - [ ] Uncertainty definitions (W4.1).
 - [ ] An app and checks parameterized for a second experiment (W7.3; not blocking for this plan).
+- [x] The patient-inclusion decision recorded (W8.5, 2026-10-10; §4.1). The rule is applied through the `--patients` filter (§4.0, §4.1).
+- [ ] `run_healthy_downsampling.py` and its tests, plus the additive full-cell inner-validation option for `tune_c_inner_lopo` and the additive per-cell weight option for the SW scheme (W8.6; Arm D).

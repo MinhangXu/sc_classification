@@ -47,6 +47,7 @@ Done means: the atlas shows per-fold activity, the selected penalty and C, and t
   - Give it its own --check, --export-bundle and --data-dir.
   - Test it on a synthetic bundle.
 - [W7.3] (P2) Read EXPERIMENT_ID from research/study_config.json, and parameterize EXPECTED for a new experiment — done when: the app runs against a second experiment dir. (depends: W8.4)
+- [W7.4] (P2) Show the D27 layer (devlog 2026-10-09_d27-factor-modality-assoc) in the factor explorer, joined on card_id: `d27_card_summary.csv`, `d27_adt_top.csv` and `d27_celltype_eta2.csv` from `analysis/scorecards/stage2_diagnostic/factor_modality_assoc_v1/` (schema in `factor_modality_assoc_v1_schema.md`); read-only, additive to the factor_cards_v1 contract — done when: `--check` passes and a card page shows within-patient rho, the isotype reference and cell-type eta2. (depends: W5.3)
 
 ## Code in this directory
 
