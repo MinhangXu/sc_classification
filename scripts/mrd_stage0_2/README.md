@@ -4,9 +4,11 @@ Current study: build and biologically interpret a three-stage knowledge-prior ma
 classifier on the MRD cohort, then answer the three PI questions (robust shared model,
 patient-specific biology, breaking apart programs).
 
-**Start here:** `../../AGENTS.md`, then `research/STATUS.md`. The tracker is `research/hypotheses.md`, with
-verdicts in the devlog (`research/devlog/`); the Cursor canvas is frozen in `research/legacy/`. Historical run map
-(HISTORICAL, 2026-07-02): `plans/experiment_20260525_stage0_2_rehydration_dossier.md`.
+**Start here:** "Start here in 10 minutes" in the repo `../../README.md`: the core report
+(`research/reports/2026-10-08_questions_report/report_core.pdf`), then `research/STATUS.md`, then `research/THEME.md`.
+Coding agents start at `../../AGENTS.md`. The tracker is `research/hypotheses.md`, with verdicts in the devlog
+(`research/devlog/`); the Cursor canvas is frozen in `research/legacy/`. Historical run map (HISTORICAL,
+2026-07-02): `plans/experiment_20260525_stage0_2_rehydration_dossier.md`.
 
 ## Research spine and workstreams
 
@@ -19,6 +21,9 @@ verdicts in the devlog (`research/devlog/`); the Cursor canvas is frozen in `res
     protected paths.
   - `asks/` — verbatim question sets with A-IDs; `devlog/<YYYY>/` — one entry per unit of progress (numbers live here);
     `legacy/` — frozen provenance (canvas copy).
+  - `reports/` — dated reports built from devlog Results (each folder's README says which PDF to read; only the core
+    questions report PDF is committed); `team_updates/` — short write-ups sent to collaborators; `paper/` — the living
+    manuscript plan (`OUTLINE.md`, `FIGURES.md`).
 - `workstreams/` — one directory per line of inquiry: README (charter + ID'd backlog) plus NEW code only.
   - `W0_context_provenance/` (meta), `W1_patient_aggregation/`, `W2_stage1_basis_variants/`,
     `W3_dr_value_regularization/`, `W4_evidence_strength/`, `W5_factor_interpretation/`, `W6_learning_curves/`,
@@ -52,8 +57,8 @@ verdicts in the devlog (`research/devlog/`); the Cursor canvas is frozen in `res
   - `cell_count_learning_curve.py` — D15 held-out AUPRC vs Stage 2 training-cell count (probe refit only); see
     `research/analyses.csv`.
 - `apps/` — local, read-only exploration apps (they read finished scorecards; nothing is refit). `old34_d1_atlas_explorer.py`
-  is the D1 atlas explorer (W7; tests: `tests/test_old34_d1_atlas_explorer.py`); see `research/analyses.csv` and
-  `../../AGENTS.md` §8 for its flags.
+  is the D1 atlas explorer (W7; tests: `tests/test_old34_d1_atlas_explorer.py`) and `old34_factor_explorer.py` the factor
+  explorer; both run from an `--export-bundle` without EXP. See `research/analyses.csv` and `../../AGENTS.md` §8 for their flags.
 - `notebooks/stage0_2/` — analysis notebooks. `old34_inquiry_narrative_guide.md` covers method mechanics; use
   `stage2_old34_comprehensive_diagnostic_suite.ipynb` for the canonical D1–D3 tables and
   `stage2_old34_d1a_descriptive_deep_dives_20260910.ipynb` for grouped panel taxonomy plus
@@ -74,7 +79,8 @@ status per namespace: `research/campaigns.csv`):
 ## Run the pipeline
 
 These are long (mostly GPU) campaigns. Read `research/campaigns.csv` first and launch them in `screen`, never from
-an agent shell (`../../AGENTS.md` R1-R4; resume behaviour is runner-specific).
+an agent shell (`../../AGENTS.md` R1-R4; resume behaviour is runner-specific). The commands are written from the
+lab-server umbrella directory that contains `sc_classification/`; from inside a clone, drop that leading prefix.
 
 Old34 broad screen (Stage 0/1 + quick Stage 2):
 

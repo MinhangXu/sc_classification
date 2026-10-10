@@ -1,6 +1,6 @@
 # AGENTS.md: sc_classification
 
-> Canonical for every coding agent and contributor. CLAUDE.md, GEMINI.md, .github/copilot-instructions.md, .cursor/rules and the frozen Cursor canvas only point here. If another doc disagrees, this file wins: fix the other doc in the same task.
+> Canonical for every coding agent and contributor. CLAUDE.md, GEMINI.md, .github/copilot-instructions.md, .cursor/rules and the frozen Cursor canvas only point here. If another doc disagrees, this file wins: fix the other doc in the same task. Humans start at README.md ("Start here in 10 minutes").
 
 ## 1. Repo in brief
 - `src/sc_classification/`: the library (src layout, installed with `pip install -e .`; importable, not run directly).
@@ -16,8 +16,8 @@
 2. Read `scripts/mrd_stage0_2/research/STATUS.md` (generated): cohort, workstreams, open tasks, hypotheses × current verdict, registry, campaigns, unanswered asks.
 3. Read `research/THEME.md` §6 (the canonical claim list, i.e. the claim boundary) and the § for your question (§2 Q1, §3 Q2, §4 Q3, §5 QI). Reads 1-3 give you the rules, the current state and the claim boundary.
 4. Read your workstream README (`workstreams/<W#_slug>/README.md`). If none fits, ask the user. Never create a W# silently.
-5. As needed: `python tools/research_index.py show <ID>` for every ID in the request; `research/campaigns.csv`, always before any compute; `research/CLAIMS.md` for the numbers; `notebooks/stage0_2/old34_inquiry_narrative_guide.md`, only for method mechanics.
-6. New questions from the user, PI, a teammate or a meeting: first look for them (`python tools/research_index.py show <A-ID>` or grep `research/asks/`). If one is already recorded, cite its A-ID. Otherwise append it verbatim to `research/asks/<YYYY-MM-DD>_<source>.md` (create the file if absent) with an A-ID and routes, in the format of `research/devlog/README.md` §4.
+5. As needed: `research/reports/2026-10-08_questions_report/report_core.pdf` (the one PDF git tracks, via a `.gitignore` exception; on the remote after the W0.3 push, in the lab working tree until then) for the current answers in plain words; `python tools/research_index.py show <ID>` for every ID in the request; `research/campaigns.csv`, always before any compute; `research/CLAIMS.md` for the numbers; `notebooks/stage0_2/old34_inquiry_narrative_guide.md`, only for method mechanics.
+6. New questions from the user, PI, a teammate or a meeting: first look for them (`python tools/research_index.py show <A-ID>` or grep `research/asks/`). If one is already recorded, cite its A-ID. Otherwise append it verbatim to an asks file with an A-ID and routes, in the format of `research/devlog/README.md` §4: the file is `research/asks/<YYYY-MM-DD>_<short-topic>.md` (create it if absent; front-matter `source` is the enum pi|meeting|teammate|user|report|chat); NN = 1 + the largest NN already used for that date across `research/asks/*.md` (grep `A-<YYYYMMDD>-`); `asked_by` / the per-line override is `teammate:<Name>` only when the name is given, else `not_recorded`. Record the ask before `reserve-id` (step 7), which rejects unknown A-IDs.
 7. Before computing: long or GPU job → R1 (screen command, stop); new artifacts → a NEW `_v<N>` slug (R3) under a reserved planned row or `research_index.py reserve-id`; training n changes → plan C retuning (R5); never move files (R10) or add absolute paths (R9).
 
 Docs with a HISTORICAL banner are not current.
@@ -62,6 +62,7 @@ R4 Campaigns.
 - Read research/campaigns.csv before any compute and obey relaunch_policy (never | resume_only | ask_user).
 - Add a planned row to research/campaigns.csv (status planned, relaunch_policy, runner, resume_command, screen_session) before handing the user a new GPU campaign.
 - No new 8-GPU job until the pooled Set C decision (W0.6) is made, unless the user overrides.
+- A campaigns.csv row is required for every screen-cpu/screen-gpu run; agent-shell diagnostics of about 5 minutes or less (compute: agent-cpu) need none.
 
 R5 Regularization.
 - sklearn C does not scale with n. Under balanced L1 at fixed C, a standardized feature enters only if its training class-mean gap exceeds about 4/(C·n_train).
@@ -88,7 +89,7 @@ R7 Metric and support.
 - Supported patient = at least 10 malignant cells and both classes (study_config.json: P01, P02, P03, P04, P06, P07, P09).
 - D14's 20-cell malignant stratum is an analysis parameter, not the support rule.
 
-R8 Data. Never load the 14.2 GB raw AnnData (SC_COHORT_H5AD). Use the cohort cache (study_config cohort_cache_relpath; `cohort_cache()`) or the cell metadata CSV. ADT raw counts are in the cohort cache `obsm['ADT']`; neither file holds dsb-normalized ADT.
+R8 Data. Never load the 14.2 GB raw AnnData (SC_COHORT_H5AD). Use the cohort cache (study_config cohort_cache_relpath; `cohort_cache()`) or the cell metadata CSV (cell_metadata_relpath). ADT raw counts are in the cohort cache `obsm['ADT']`; neither file holds dsb-normalized ADT. Cell-level columns in both files: patient, CN.label, predicted.annotation(.score), predicted.pseudotime(.score), Time, Tech, sample, timepoint_type, Days from SCT, Days.from.Relapse (the CSV adds cell_id and y_true; the cache also has batch and QC columns). The predicted.* columns are reference-mapping transfers (for a malignant cell, the nearest healthy state); which reference produced them is not recorded here (ask the owner).
 
 R9 Paths.
 - No absolute paths in new files.
@@ -119,8 +120,10 @@ R12 Evidence.
 
 ## 5. IDs and vocabulary
 - Question tags: Q1 shared vs patient-specific; Q2 strength of evidence; Q3 what DR adds vs direct genes; QI interpretability lens (= PI-Q3); meta.
-- Analysis IDs (`research/analyses.csv`): D1-D15 (+ D1c-f, D3b), D1DD1-13 and F1-F9 are frozen; F8 was never assigned; the D1DD and F series are closed. New analyses use a planned row in research/analyses.csv (STATUS §4 lists them) or `python tools/research_index.py reserve-id --workstream W# --title '...' [--slug <slug>_v1 --asks 'A-...' --code 'path' --findings-md <file>]`.
+- Analysis IDs (`research/analyses.csv`): D1-D15 (+ D1c-f, D3b), D1DD1-13 and F1-F9 are frozen; F8 was never assigned; the D1DD and F series are closed. New analyses use a planned row in research/analyses.csv (STATUS §4 lists them) or reserve-id, for example: `python tools/research_index.py reserve-id --workstream W5 --title '...' --questions 'QI;Q1' --question '<number-free sentence>' --asked-by user --asks 'A-...' --slug <slug>_v1 --code '<repo-relative path>' --findings-md <slug>_v1_findings.md` (`--help` lists every flag; record the ask first).
 - Other IDs: H-* hypotheses (`research/hypotheses.md`); ALT-* reviewer alternatives (`research/alternatives.csv`); W# workstreams and W#.n tasks; A-YYYYMMDD-NN asks; devlog ids = filename stems. Crosswalk from older labels: THEME §8.
+- A new W#.n backlog line inside an existing workstream is allowed: take the next free number in that README, priority P2 unless the user says otherwise, and name it in the final message for confirmation. A new W# is not (§2 step 4).
+- People (the owner, the PI, named teammates, "the user", "the lead agent"): README.md "People and roles".
 
 ## 6. Where new work goes
 - Code and notebooks: `scripts/mrd_stage0_2/workstreams/<W#_slug>/` as `run_<topic>.py`, `run_<topic>.sh` (screen jobs) and `<topic>_<purpose>_<YYYYMMDD>.ipynb`.
@@ -137,9 +140,11 @@ EXP = experiment_dir()
 ```
 - A script one directory deeper, such as `workstreams/<W#_slug>/anchors/*.py`, uses `parents[5]`.
 - A module used by 2 or more workstreams is promoted to `stage2_supervised/` only through a devlog entry with type: refactor. Artifacts follow R3.
+- Paper: `scripts/mrd_stage0_2/research/paper/` (README.md, OUTLINE.md) is the living paper context (W0.13), drafted in parallel with the runs; THEME §6 stays the claim boundary. When your result changes a claim, add its devlog id to the matching OUTLINE results subsection.
 
-## 7. End of every task: at most 3 small edits, then 1 command
-1. Create the devlog entry: `python tools/research_index.py new-entry <slug> --workstream W# [--type analysis] [--analyses D16]`. Fill all 8 sections: the verbatim question with its ask ID; estimand and null, incl. c_policy; code paths and the exact rerun or screen command; EXP-relative artifacts; headline numbers with [H-ID role] tags on evidence bullets; both claim-gate lines; next steps citing W#.n. Set closes and advances; set verdicts and alts only when they change. Leave commit: pending.
+## 7. End of every task: the devlog entry, only the edits that changed, then 1 command
+The asks append and reserve-id happen at task start (§2 steps 6-7); `research/paper/OUTLINE.md` changes only when a claim changes (§6).
+1. Create the devlog entry: `python tools/research_index.py new-entry <slug> --workstream W# [--type analysis] [--analyses D16]`. The 8 sections are Question, Why it matters, Estimand / null, Implementation, Artifacts, Results, Claim gate, Next steps. Set `implemented_by` to your tool (claude-code, codex, cursor-agent, ...). Devlog slugs are kebab-case ([a-z0-9-]); artifact slugs are snake_case_v<N>; Results evidence tags are [H-ID supports|qualifies|contradicts]. Fill all 8 sections: the verbatim question with its ask ID; estimand and null, incl. c_policy; code paths and the exact rerun or screen command; EXP-relative artifacts; headline numbers with [H-ID role] tags on evidence bullets; both claim-gate lines; next steps citing W#.n. Set closes and advances; set verdicts and alts only when they change. Leave commit: pending.
 2. Edit only what changed:
    - `research/analyses.csv`: your row's status or notes, plus the code, asks and findings_md columns of a row you reserved;
    - your workstream README: new backlog lines;
@@ -156,20 +161,21 @@ EXP = experiment_dir()
 - Lab server: conda env `sc-classification-rapids-py311`. RAPIDS imports need `CONDA_PREFIX=$HOME/miniconda3/envs/sc-classification-rapids-py311 $HOME/miniconda3/envs/sc-classification-rapids-py311/bin/python`.
 - Collaborators: `conda env create -f env-rapids-factosig.yml` (it pins python 3.10; the lab env is 3.11; any 3.10+ env also works), then `pip install -e '.[app,dev]'`.
 - Env vars (SC_REPO_ROOT, SC_EXPERIMENT_ROOT, SC_EXPERIMENT_ID, SC_DATA_ROOT, SC_COHORT_H5AD, and SC_PYTHON for the workstream run_*.sh wrappers, whose default is the active or lab conda env's python, then python) are listed in `.env.example`. Path check: `python -m sc_classification.utils.paths`.
-- Tests: `python -m pytest tests -q`. Until W0.4 lands, pytest is not installed in sc-classification-rapids-py311: run the tests from an env that has pytest (with `src` on PYTHONPATH) and say so in your devlog entry. Never pip install into the lab env without the user. Apps: `python scripts/mrd_stage0_2/apps/old34_d1_atlas_explorer.py [--check | --export-bundle DIR | --data-dir DIR]`, and `old34_factor_explorer.py` in the same directory with the same flags.
+- Which python: `tools/research_index.py` is stdlib-only (any python3). Anything that imports sc_classification, the path check included, needs the lab env on the lab server (bare `python` there is a base install without it): `CONDA_PREFIX=$HOME/miniconda3/envs/sc-classification-rapids-py311 $HOME/miniconda3/envs/sc-classification-rapids-py311/bin/python -m sc_classification.utils.paths`; collaborators use their `pip install -e` env.
+- Tests: pytest is installed in sc-classification-rapids-py311 (W0.4, 2026-10-09), so run them with the lab env's python: `CONDA_PREFIX=$HOME/miniconda3/envs/sc-classification-rapids-py311 $HOME/miniconda3/envs/sc-classification-rapids-py311/bin/python -m pytest tests -q` (one file: `-m pytest -q tests/<file>`; keep BLAS threads within the R1 cap). Collaborators use any env set up with `pip install -e '.[app,dev]'`. Never pip install into the lab env without the user. Apps: `python scripts/mrd_stage0_2/apps/old34_d1_atlas_explorer.py [--check | --export-bundle DIR | --data-dir DIR]`, and `old34_factor_explorer.py` in the same directory with the same flags.
 - Screen template: `screen -S <W#>_<topic>`, then `bash <runner.sh> ...`, then detach with Ctrl-a d (reattach with `screen -r <W#>_<topic>`).
 - Naming: scripts `run_<study_or_module>.py`; notebooks `<topic>_<purpose>_<YYYYMMDD>.ipynb`; experiment dirs `YYYYMMDD_HHMMSS_<slug>_<hash>`.
 
 ## 9. If you do not have the experiment dir (EXP), or you are on another machine
 - Where EXP lives: on the lab GPU server under `sc_classification/experiments/`. Ask the repo owner (Minhang Xu) for access, then point SC_EXPERIMENT_ROOT at the directory that holds it.
-- What works without EXP: devlog Results and `research/CLAIMS.md`, which carry every headline number; notebooks committed with outputs (except the D14 notebook `stage2_old34_patient_factor_overlap.ipynb`, which has none: use devlog 2026-10-02_d14-patient-factor-overlap); both apps from bundles made with `--export-bundle` and served with `--data-dir`; `python tools/research_index.py check` without `--strict-artifacts` (with it, an unresolvable experiment dir is an error, E21).
+- What works without EXP: the core report PDF (`scripts/mrd_stage0_2/research/reports/2026-10-08_questions_report/report_core.pdf`; tracked, on the remote after the W0.3 push); devlog Results and `research/CLAIMS.md`, which carry every headline number; notebooks committed with outputs (except the D14 notebook `stage2_old34_patient_factor_overlap.ipynb`, which has none: use devlog 2026-10-02_d14-patient-factor-overlap); both apps from bundles made with `--export-bundle` and served with `--data-dir`; `python tools/research_index.py check` without `--strict-artifacts` (with it, an unresolvable experiment dir is an error, E21).
 - Never recompute a campaign or invent a number to fill a missing artifact. Report from devlog entries instead, and say so in your entry.
 - factosig dependency: a separate repo, `git@github.com:MinhangXu/factosig.git`, which may be private (ask the owner). Clone it as the sibling `../factosig` (the umbrella repo carries it as a submodule there); `env-rapids-factosig.yml` installs `-e ../factosig`. Without it, FactoSig and factosig_promax imports and fits fail; PCA/FA, Stage 2 on stored scores, and analyses that read stored CSVs still work.
 - Legacy path debt: older notebooks set REPO to the lab-server repo path in their first cell, and some modules fall back to it (e.g. `patient_factor_overlap.find_repo_root`). Workarounds: pass the runners' `--experiment-dir`; edit a notebook's REPO cell locally and do not commit it; use SC_REPO_ROOT once W0.9 lands; or make a symlink. `python tools/research_index.py portability` lists every affected file.
 
 ## 10. Shims and legacy notes
-- Pointers only (edit this file, not them): CLAUDE.md, GEMINI.md, `.github/copilot-instructions.md`, `.cursor/rules/agents.mdc`.
+- Pointers only (edit this file, not them): CLAUDE.md, GEMINI.md, `.github/copilot-instructions.md`, `.cursor/rules/agents.mdc`. Codex and other AGENTS.md-aware tools read this file directly; README.md lists the shims for humans.
 - The Cursor canvas is a frozen, non-canonical view; its verbatim copy is in `scripts/mrd_stage0_2/research/legacy/`. The repository audit lives in the umbrella repo at `reports/mrd_stage0_2_repository_audit/`, not in this repo. The umbrella repo is local to the lab server (no remote): without it, use devlog 2026-08-25_repository-audit, which records the audit's findings, and ask the owner for the audit files.
 - `scripts/mrd_stage0_2/plans/` is design history; `plans/INDEX.md` keeps the plan → runner table.
 - StandardizedPipeline and ExperimentManager belong to the legacy pipeline, which the mrd_stage0_2 runners do not import. DESIGN.md, README_STANDARDIZED_WORKFLOW.md and DOWNSTREAM_ANALYSIS_GUIDE.md describe only that legacy pipeline.
-- Tracked notebooks are plain JSON, but `.gitattributes` still routes `*.ipynb` through LFS; dropping that line is open user decision W0.2. Do not edit `.gitattributes` without the user.
+- No Git LFS: the `filter=lfs` lines were removed from `.gitattributes` on 2026-10-10 (W0.2 closed; devlog 2026-10-10_decisions-new-run-inclusion-reweighting-lfs), so notebooks are plain git files. `.gitignore` ignores `*.png` and `*.pdf` repo-wide except `report_core.pdf` (rebuild and commit it with its `.tex` sources); which other figures and PDFs a clone carries is W0.15 (blocked on a user decision).

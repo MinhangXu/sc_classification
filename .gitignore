@@ -20,6 +20,9 @@ pipeline/*
 # Ignore figures and plots
 *.png
 *.pdf
+# Exception: the short core questions report is committed so a fresh clone can read the results
+# without the experiment dir (rebuild it with build.sh and commit it with its .tex sources).
+!scripts/mrd_stage0_2/research/reports/2026-10-08_questions_report/report_core.pdf
 
 # Cache files
 .cache/
