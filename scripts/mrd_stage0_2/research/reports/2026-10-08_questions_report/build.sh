@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Build the 2026-10-08 questions report: regenerate the figures, then compile the PDF(s).
 #
-#   bash build.sh                 # default: figures + report_core.pdf (the short read, at most 12 pages)
+#   bash build.sh                 # default: figures + report_core.pdf (the short read, at most 12 pages; an
+#                                 #   optional appendix after the label core:appendix is not counted)
 #   bash build.sh --full          # figures + report_full.pdf (the long companion, every section in full)
 #   bash build.sh --team          # figures + report_full_team.pdf (the long companion without Appendix C)
 #   bash build.sh --all           # figures + all three PDFs
@@ -84,8 +85,16 @@ compile() {
   overfull="$(grep -c '^Overfull' "$BUILD_DIR/$job.log" || true)"
   undefined="$(grep -c 'undefined' "$BUILD_DIR/$job.log" || true)"
   echo "== done: $job.pdf, ${pages:-?} pages; overfull boxes: $overfull; lines mentioning 'undefined': $undefined"
-  if [[ "$job" == "report_core" && -n "${pages:-}" && "$pages" -gt 12 ]]; then
-    echo "WARNING: report_core.pdf has $pages pages; its limit is 12 (see README.md)" >&2
+  if [[ "$job" == "report_core" && -n "${pages:-}" ]]; then
+    # The 12-page limit is for the body; the appendix (label core:appendix, its first page) comes after it.
+    local appendix_page body
+    appendix_page="$(sed -n 's/^\\newlabel{core:appendix}{{[^}]*}{\([0-9]*\)}.*/\1/p' "$BUILD_DIR/$job.aux" | head -1)"
+    body="$pages"
+    [[ -n "$appendix_page" ]] && body=$((appendix_page - 1))
+    echo "== report_core body: $body pages (limit 12); appendix: $((pages - body)) pages"
+    if [[ "$body" -gt 12 ]]; then
+      echo "WARNING: report_core.pdf has $body body pages; the body limit is 12 (see README.md)" >&2
+    fi
   fi
 }
 

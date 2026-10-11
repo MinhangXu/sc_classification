@@ -41,6 +41,7 @@ W9 runs no analyses. Numbers inside the reviews are literature values or the rev
 - [W9.1] (P1) Home the two literature reviews and route every recommended action to a W#.n task, with the routing table in the README — done when: both reviews are committed and every action is mapped.
 - [W9.2] (P2) Keep the related-work section (THEME §12) current at milestones — done when: THEME cites the reviews.
 - [W9.3] (P2) Write an addendum review if a routed task needs one (e.g. MRD single-cell cohorts, or sample size for external validation) — done when: the addendum and its routing exist.
+- [W9.4] (P2) Literature check of the surface-protein leads before any text uses them: CD63 and CD82 (both tetraspanins) as correlates of the IFN-alpha PC8 axis in malignant cells, and the proteins lower on malignant than on healthy cells of the same sample and predicted type (HLA class II, CD38, CD81; D29) — done when: a short note with verified citations exists and the report text cites it or drops the lead. (added 2026-10-10, devlog 2026-10-10_d29-cd63-depth-and-every-card)
 
 ## Routing table
 

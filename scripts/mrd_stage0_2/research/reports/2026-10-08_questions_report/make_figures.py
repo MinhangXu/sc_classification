@@ -6,7 +6,9 @@ artifacts (through report_style.exp_dir()/diag_dir()) and writes figures/<name>.
 
 Usage (from the repo root or this directory, with the lab env's python):
     python make_figures.py            # all sections
-    python make_figures.py 03 07      # only the listed sections (section 2b is "02b")
+    python make_figures.py 03 07      # only the listed sections (section 2b is "02b"; section 5's protein
+                                      # explainer figures fig05g-fig05k and fig05m are "05p"; its CD63
+                                      # and total-ADT figures fig05n, fig05o, fig05q, fig05r are "05q")
 
 build.sh calls this before compiling report.tex. Nothing here writes to EXP.
 """
@@ -34,6 +36,8 @@ MODULES = {
     "03": "figs_03_aggregate",
     "04": "figs_04_threshold",
     "05": "figs_05_pc8",
+    "05p": "figs_05p_protein_explainer",  # section 5's protein explainers (runs the Pavan update's make_figures_v3.py)
+    "05q": "figs_05q_cd63_depth",  # section 5's CD63 and total-ADT follow-up (D29): fig05n, fig05o, fig05q, fig05r
     "06": "figs_06_inductive",
     "07": "figs_07_curves",
     "08": "figs_08_dr_vs_direct",

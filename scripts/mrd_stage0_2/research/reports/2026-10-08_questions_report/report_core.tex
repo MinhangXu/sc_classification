@@ -16,7 +16,7 @@
 \setlength{\parskip}{3pt}
 \setlist{itemsep=1.5pt,topsep=2pt,parsep=0pt}
 \captionsetup{font=footnotesize,labelfont=bf,margin=0pt,skip=3pt}
-\fancyhead[L]{\small\color{inkmuted}MRD Stage 0--2: core answers to the 2026-10-08 questions (v3, 2026-10-10)}
+\fancyhead[L]{\small\color{inkmuted}MRD Stage 0--2: core answers to the 2026-10-08 questions (v3.2, 2026-10-10)}
 \titleformat{\section}{\large\bfseries}{}{0em}{}
 \titlespacing*{\section}{0pt}{0pt}{4pt}
 \renewcommand{\thefigure}{\arabic{figure}}
@@ -61,5 +61,10 @@
 \input{sections_core/08_learning_curves}    % learning curves (D15, D15b)
 \input{sections_core/09_three_questions}    % Q1-Q3 and the claim boundary
 \input{sections_core/10_decisions_next}     % decisions taken and what runs next with the new data
+% Not built (2026-10-10, version 3.1): a three-page appendix with the full report's surface-protein explainers
+% (rho schematic, Table 3 + two checks, Figure 19). It would take the core to 15 pages, over the 12-page limit
+% (A-20261010-11); pages 7-8 carry compact versions instead (Figure 6 bottom = fig05m; Table 1; Figure 7 = fig05l).
+% To print the appendix anyway, uncomment the next line and restore the last row of the glance table on page 1.
+% \input{sections_core/11_appendix_protein_figures} % appendix A1-A3 (D27)
 
 \end{document}

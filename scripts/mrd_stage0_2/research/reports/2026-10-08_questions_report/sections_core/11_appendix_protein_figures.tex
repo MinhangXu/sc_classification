@@ -1,0 +1,78 @@
+% NOT BUILT (2026-10-10, version 3.1): report_core.tex has this file's \input line commented out, because the
+% appendix would take the core to 15 pages (limit 12). Pages 7-8 (06_pc8_protein.tex) carry compact versions
+% instead: Figure 6 bottom (fig05m, Figure 19), Table 1 (Table 3's PC8 malignant rows) and Figure 7 (fig05l: the
+% sign of rho and the two checks). Kept so the appendix can be printed on request (asked of MX, 2026-10-10).
+% Core appendix (three pages after the 12-page body): the surface-protein explainer figures MX asked to see in
+% the report (asks A-20261010-14..24; devlog 2026-10-10_protein-explainer-v3). The label core:appendix marks the
+% first appendix page; build.sh counts the body pages as the pages before it (limit 12). Numbers: full report
+% section 5 (Figures 19, 20, 22 and Table 3) and that devlog entry. Figures come from figs_05p_protein_explainer.py
+% (which runs the Pavan update's make_figures_v3.py) and are placed at 6.5-6.8 in (drawn 7.0 in wide).
+\coreq{Appendix A1. How is one $\rho$ computed, and what does its sign mean?}{core:appendix}{``PC8's cell score for all malignant cells is a vector of length (1569) \ldots{} spearman rho is just the correlation of the ranking of that with CD34's cell score or another surface protein's cell score.'' ``So the sign means how forward and reversed the rank of the factor cell score against the ADT protein cell score? We should include that in the schematics'' (MX, 2026-10-10; A-20261010-16, -23)}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=6.5in]{figures/fig05k_rho_schematic_core.pdf}
+\caption{From a factor and a protein to one number (panels A and D of full report Figure~20). (A) One PC8 score per malignant cell is a vector of 1,569 numbers; the CD99 levels (CLR) of the same cells, in the same order, are a second one. Spearman $\rho$ is the Pearson correlation of their ranks: $+0.222$. (B) Yes, the sign says whether the two rankings run forward (CD99: cells ranked high on oriented PC8 tend to rank high on CD99) or in reverse (CD48, $-0.192$); $|\rho|$ says how consistently. The full report's Figure~20 adds an 8-cell worked example and the same $\rho$ within patients (median $+0.159$, 6 of 7) and within patient $\times$ cell type (median $+0.150$, 9 of 11 groups).}
+\end{figure}
+
+\fullref{section 5, \emph{What is PC8}: Figure~20 and the box ``How to read $\rho$''. \src{2026-10-10\_protein-explainer-v3; D27}}
+
+\coreq{Appendix A2. Table 3 in plain words, and two checks per protein}{core:appA2}{``The within (k/7), k means the number of patients that has the same rho sign, right? In type is a median value \ldots{} CD99 \ldots{} stayed as high as 0.150 \ldots{} But CD48 is somehow more robust'' and ``we should also include CD116$-$0.287, CD33$-$0.272, CD146 $+$0.270'' (MX, 2026-10-10; A-20261010-17, -18, -21)}
+
+\begin{coreanswer}
+\textbf{The robust rule reads only the within-patient column.} CD48, CD116, CD33 and CD146 pass it but fall to $|\rho| \leq 0.037$ inside one patient's cell type, so they mostly say which cell types sit at which end of PC8. CD99 fails it ($+0.159$, inside the isotype range) yet keeps $+0.150$ inside cell types (9 of 11 groups): a lead to check, not a finding. Yes, $k$ is the number of the 7 patients whose $\rho$ has the sign of the median.
+\end{coreanswer}
+
+\begin{table}[H]
+\centering
+\caption{PC8 against surface protein at three levels (the PC8 rows of full report Table~3, whose FA7 rows are in section~5). Spearman $\rho$ among cells of one label. In brackets: how many of the 7 patients, or of the patient $\times$ cell-type groups with $\geq 30$ cells (71 healthy; 11 malignant, from P02, P03, P04, P09), share the median's sign. Isotype reference: the largest $|\rho|$ of the 9 isotype controls in that column. $\ddagger$ added 2026-10-10.}
+\footnotesize
+\setlength{\tabcolsep}{6pt}
+\renewcommand{\arraystretch}{1.02}
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+ & Protein & all cells pooled & median within patient & median within patient and cell type \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Healthy cells (58,549)}} \\
+ & CD34 & $+0.251$ & $+0.245$ (7/7) & $+0.019$ (40/71) \\
+ & CD22 & $-0.221$ & $-0.246$ (6/7) & $-0.046$ (52/71) \\
+ & \emph{isotype reference} & \emph{0.056} & \emph{0.109} & \emph{0.043} \\
+\multicolumn{5}{@{}l}{\emph{Malignant cells (1,569)}} \\
+ & CD99 & $+0.222$ & $+0.159$ (6/7) & $+0.150$ (9/11) \\
+ & CD48 & $-0.192$ & $-0.308$ (6/7) & $-0.011$ (6/11) \\
+ & CD116 $\ddagger$ & $-0.108$ & $-0.287$ (7/7) & $-0.037$ (9/11) \\
+ & CD33 $\ddagger$ & $-0.137$ & $-0.272$ (5/7) & $+0.026$ (6/11) \\
+ & CD146 $\ddagger$ & $+0.090$ & $+0.270$ (6/7) & $+0.017$ (6/11) \\
+ & CD63 $\ddagger$ & $-0.183$ & $-0.252$ (6/7) & $-0.138$ (9/11) \\
+ & CD82 $\ddagger$ & $+0.138$ & $+0.238$ (7/7) & $+0.143$ (9/11) \\
+ & GPR56 $\ddagger$ & $+0.203$ & $+0.137$ (6/7) & $-0.057$ (6/11) \\
+ & \emph{isotype reference} & \emph{0.101} & \emph{0.227} & \emph{0.120} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=6.5in]{figures/fig05j_two_checks.pdf}
+\caption{Two checks per protein (full report Figure~22): x = the median within-patient $\rho$, y = the median inside patient $\times$ cell type, one dot per protein (orange: isotypes). Gray bands: the isotype reach at each level; dotted: the robust rule's 0.20 size bar; dashed: $y = x$. Only CD63 and CD82 sit outside both bands in malignant cells; in healthy cells every protein has $|y| \leq 0.10$.}
+\end{figure}
+
+\coreq{Appendix A3. The cell-type counts and ``mean oriented PC8 score'' of full report Figure~19; FA7's two protein lists}{core:appA3}{``Why 643 HSC/MPP2? What's mean oriented PC8 score.'' ``So does that mean CD22 is less associated with normal cells?'' ``FA7 malignant cells' surface protein correlation is finding two different surface protein compare to its healthy counter part.'' (MX, 2026-10-10; A-20261010-14, -15, -19, -20)}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=6.8in]{figures/fig05g_celltype_counts.pdf}
+\caption{Full report Figure~19, relabelled: mean oriented PC8 score of healthy (open) and malignant (filled) cells per predicted type, all 13 patients pooled; (malignant / healthy) cell counts per type; right, the largest share of each type's malignant cells from one patient. Gray labels: malignant not higher.}
+\end{figure}
+
+\evidence
+\begin{itemize}[leftmargin=1.3em]
+\item \emph{The counts} are all cells of all 13 patients. Only the 10 types with at least 20 malignant cells are drawn: they hold 1,544 of the 1,569 malignant cells (pDC2 16, ncMono 6 and CLP 3 are left out), which is why the labels do not add up. HSC/MPP2 has 643 malignant cells (P03 438, P09 129, P02 45, P07 10, P01 9, P04 7, P06 4, P13 1) and 5,984 healthy ones; P03 alone supplies 68\% of the malignant ones and 92\% of the malignant NP1 cells, so a pooled gap can partly be a patient difference. Inside each patient and type, malignant is higher in 19 of 21 comparisons.
+\item \emph{Mean oriented PC8 score}: each cell's PC8 score, z-scored over all 60,118 cells and multiplied by $-1$ so that positive points to the malignant-leaning end, averaged over the cells of one type and label; $+1$ = one cohort standard deviation.
+\item \emph{CD22's negative sign} in healthy cells (PC8 $-0.246$, FA7 $-0.312$ within patients) does not mean CD22 is ``less associated with normal cells'': no malignant cell enters that $\rho$. It says healthy cells with more CD22 tend to sit toward the healthy-leaning end, mostly because CD22 is highest on predicted CLP and cDC, which sit there; inside cell types it shrinks to $-0.046$ and $-0.085$.
+\item \emph{FA7's two lists} rank different cells: healthy cells are mostly CLP (21\%) and MEP-EP (18\%), malignant cells 41\% HSC/MPP2 and 18\% NP1. Each list holds the proteins that separate the cell types present, and they cross over weakly (only CD63 tracks FA7 in both labels).
+\end{itemize}
+
+\doesnot{any protein as a malignancy marker; a malignant-vs-healthy contrast in any $\rho$; dsb-normalized protein (CLR only); malignancy apart from recipient origin or batch.}
+
+\fullref{section 5, \emph{What is PC8}: Figure~19, Table~3, paragraph ``Why FA7's normal-cell and malignant-cell proteins differ''. \src{2026-10-10\_protein-explainer-v3; D27; D18}}

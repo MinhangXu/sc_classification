@@ -14,8 +14,8 @@ EXP artifacts).
 | File | Pages | Read it when |
 |---|---|---|
 | `report_core.pdf` | 12 (limit 12) | **Start here; this is the deliverable.** Page 1 is a one-table summary; then one page per question: short answer, 3-5 pieces of evidence with numbers, one figure, what it does not show, and the full-report section that has the detail. Team-safe (no personal appendix; "MX" is the study lead, Minhang Xu). |
-| `report_full.pdf` | about 90 | Reference only, not meant to be read through. You want the derivation, every caveat, the explainer boxes or a number's source. Same questions, every section in full; the core's pointers use its section numbers (1, 2, 2b, 3-9). |
-| `report_full_team.pdf` | about 90 | You share the long version: `report_full.pdf` without Appendix C (the lead's repository decisions). |
+| `report_full.pdf` | about 99 | Reference only, not meant to be read through. You want the derivation, every caveat, the explainer boxes or a number's source. Same questions, every section in full; the core's pointers use its section numbers (1, 2, 2b, 3-9). |
+| `report_full_team.pdf` | about 98 | You share the long version: `report_full.pdf` without Appendix C (the lead's repository decisions). |
 | `report_v1_2026-10-08.pdf` | 59 | Only to follow the 2026-10-09 reading notes, which cite version 1's figure numbers (kept, not rebuilt). |
 
 Only `report_core.pdf` is tracked (a `.gitignore` exception; it reaches the remote with the W0.3 push); the other
@@ -33,7 +33,9 @@ page.
 Devlog entries for the report itself: `scripts/mrd_stage0_2/research/devlog/2026/2026-10-09_questions-report.md` (version 1)
 `scripts/mrd_stage0_2/research/devlog/2026/2026-10-09_report-v2.md` (version 2) and
 `scripts/mrd_stage0_2/research/devlog/2026/2026-10-10_core-report-v3.md` (version 3: the 12-page core, section 2b,
-the tracked core PDF, the D26 ranges both reports derive).
+the tracked core PDF, the D26 ranges both reports derive) and
+`scripts/mrd_stage0_2/research/devlog/2026/2026-10-10_protein-explainer-v3.md` (version 3.1: the surface-protein
+explainers in section 5 and on the core's protein page).
 
 **Core report (2026-10-10).** The user will not read 85-92 pages (A-20261010-11), so `report_core.tex` holds the
 answers in 12 pages (limit 12): the glance table on page 1, then cohort and yardstick (with the key terms),
@@ -43,6 +45,30 @@ A-20261010-01, -03..-06 from devlog `2026-10-10_protein-association-for-pavan-v2
 learning curves, Q1-Q3 with the claim boundary, and the decisions for the new-data runs (A-20261010-07..10). It
 calls the study lead "MX" (defined on page 1), so collaborators do not read "you" as addressed to them. It reuses the full report's figures; two
 are cropped in LaTeX (see "Core report figures" below).
+
+**Version 3.2 (2026-10-10, late evening).** The user's questions on full report Figures 20-23 (asks
+A-20261010-26..37 in `research/asks/2026-10-10_cd63-every-card-isotypes.md`; devlog
+`2026-10-10_d29-cd63-depth-and-every-card`). Section 5 gains the subsection "CD63, followed up" with analysis D29
+(`workstreams/W5_factor_interpretation/run_d29_protein_depth_contrast.py`, slug `protein_depth_contrast_v1`) and four
+figures drawn by `figs_05q_cd63_depth.py` (make_figures key `05q`): `fig05n_cd63_ranks` (CD63 against PC8 rank by
+rank), `fig05o_cd63_anchors` (CD63 and CD82 taken apart), `fig05q_mal_vs_healthy` (protein AUC, malignant vs healthy
+cells of the same sample and type) and `fig05r_two_checks_depth` (Figure 22 with each cell's total ADT count held
+fixed). They follow Figure 23 (`fig05f`), so Figures 19-23 keep their numbers (new: 24-27; later figures move up by
+four). "Every card" explains the 289,961 pairs, Stage 2's role and eta2, with a statement box; `fig05f` drops the
+method colours. The core changes by one sentence on page 8.
+
+**Version 3.1 (2026-10-10, evening).** The user's questions on the protein part of section 5 (asks
+A-20261010-14..24 in `research/asks/2026-10-10_figure19-and-signs.md`; devlog `2026-10-10_protein-explainer-v3`)
+are answered inside both reports instead of only in the Pavan update directory: Figure 19 relabelled, Table 3 with
+plain headers and PC8's other strong malignant-cell correlates (CD116, CD33, CD146), a new Figure 20 (how one rho
+is computed from two per-cell vectors, and what its sign means) and a new Figure 22 (two checks per protein: within
+patient against within cell type). Version 3's Figure 20 is now Figure 21 and its Figure 21 is now Figure 23; every
+later figure is two higher. The update directory's working names F5, F6 and F7 are full report Figures 20, 22 and 19.
+The core stays at 12 pages and carries compact versions: page 7, Figure 6 bottom = Figure 19 (`fig05m_celltype_core`,
+one column per type); page 8, Table 1 = Table 3's PC8 malignant-cell rows, and Figure 7 = `fig05l_protein_core` (A:
+what the sign of rho means, Figure 20 panel D; B-C: the two checks of Figure 22). The matrix-to-vector panels of
+Figure 20 (A-C) and Table 3's FA7 rows are in the full report only. A three-page core appendix with the full-size
+figures was drafted and is not built (15 pages, over the limit; see `sections_core/11_appendix_protein_figures.tex`).
 
 **Version 3 (2026-10-10).** Adds section 2b, *What did we do with allograft rejection and apoptosis?*
 (`sections/02b_allograft_apoptosis_leverage.tex`, figures from `figs_02b_d26.py`): the D26 leverage test as run,
@@ -71,6 +97,7 @@ report as `report_v1_2026-10-08.pdf` (gitignored, like every PDF here except `re
 |---|---|
 | `report_core.tex` | Core report: page macros (`\coreq`, `coreanswer`, `\doesnot`, `\fullref`), one `\input` line per page |
 | `sections_core/00_title_and_glance.tex` ... `10_decisions_next.tex` | One file per core page; page 1 is the title and the answers-at-a-glance table (page numbers resolve by `\pageref`) |
+| `sections_core/11_appendix_protein_figures.tex` | Not built (its `\input` line in `report_core.tex` is commented out): a three-page core appendix A1-A3 with the rho schematic, Table 3's PC8 rows with the two-checks figure, and the relabelled Figure 19. It would take the core to 15 pages; to print it, uncomment the line and restore the glance-table row it names. Its first page carries the label `core:appendix`, after which `build.sh` stops counting the 12-page limit |
 | `report.tex` | Full report: title block, how-to-read, contents, one `\input` line per section, layout settings for the assembled report |
 | `preamble.tex` | Shared packages and the box macros (`answerbox`, `caveatbox`, `teambox`, `explainbox`, `\src`, `\pp`, `\lift`), used by both reports |
 | `sections/00_answers_at_a_glance.tex` | Full report: one-table summary (question, short answer, how sure, section) and what changed since the team report |
@@ -78,6 +105,9 @@ report as `report_v1_2026-10-08.pdf` (gitignored, like every PDF here except `re
 | `sections/A1_glossary.tex`, `sections/A2_where_things_live.tex` | Full report appendices: glossary; where code, artifacts and notebooks live |
 | `sections/C1_for_you_only.tex` | Full report Appendix C, for the lead only: repository decisions (LFS lines removed, pytest, push, tracked figures); left out of the team build |
 | `figs_NN_<topic>.py` | One figure module per full-report section (`figs_02b_d26.py` for section 2b); `main()` reads stored EXP tables (read-only), writes `figures/<name>.pdf` plus a `.png` preview, and prints the numbers its section quotes |
+| `figs_05p_protein_explainer.py` | Section 5's surface-protein explainers (make_figures key `05p`): runs `research/team_updates/2026-10-09_protein_association_for_pavan/make_figures_v3.py`, the one source for these figures in the Pavan update and here. Writes `fig05g_celltype_counts` (Figure 19, replacing `fig05c_celltype` in the text), `fig05h_rho_schematic_ab` + `fig05i_rho_schematic_cd` (Figure 20 and its continuation), `fig05j_two_checks` (Figure 22), `fig05k_rho_schematic_core` (for the unbuilt core appendix) and `fig05m_celltype_core` (core page 7, Figure 6 bottom: Figure 19 compact). Table 3 in `sections/05_what_is_pc8.tex` is typed from that script's `table3_rho_three_levels_v3.csv` |
+| `figs_05_pc8.py`, `fig05l_protein_core` | The core's protein-page figure (page 8, Figure 7): what the sign of rho means (panel D of Figure 20, compact) and the two checks of Figure 22, drawn with `make_figures_v3.py`'s loaders and panel function (so section 5's figures and this one share code and numbers). Since v3.1 `figs_05_pc8.py` no longer draws `fig05c_celltype` (version 3's Figure 19) |
+| `figs_05q_cd63_depth.py` | Section 5's CD63 and total-ADT figures (make_figures key `05q`; D29): `fig05n`, `fig05o`, `fig05q`, `fig05r`; asserts every plotted rho against D27 and D29 |
 | `report_style.py` | Shared figure style: palette by role (PCA blue, FA orange, FactoSig aqua, direct genes gray), type sizes, `save()`, `exp_dir()`, `diag_dir()` |
 | `make_figures.py` | Runs every figure module in section order (or the sections you name) |
 | `build.sh` | Figures, then pdflatex until cross-references settle; copies the PDF(s) here (`report_core.pdf` by default) |
@@ -95,6 +125,7 @@ bash $R/build.sh --full               # figures + report_full.pdf
 bash $R/build.sh --no-figures --team  # report_full_team.pdf (full report without Appendix C)
 bash $R/build.sh --all                # figures + report_core.pdf + report_full.pdf + report_full_team.pdf
 bash $R/build.sh --figures 03 07 --full  # regenerate only these sections' figures, then the full PDF
+bash $R/build.sh --figures 05 05p --all  # section 5 (05p = its surface-protein explainers), then all three PDFs
 ```
 
 - Python: `$SC_PYTHON` if set, otherwise `$HOME/miniconda3/envs/sc-classification-rapids-py311/bin/python`
@@ -105,7 +136,8 @@ bash $R/build.sh --figures 03 07 --full  # regenerate only these sections' figur
   `$REPORT_BUILD_DIR` if set, so the report directory only gains the PDFs.
 - Without EXP you can still compile with `--no-figures` if `figures/*.pdf` exist on your machine.
 - A full build takes about half a minute on the lab server (figures, then up to three pdflatex passes per PDF).
-  The script prints each PDF's page count and warns if `report_core.pdf` exceeds 12 pages.
+  The script prints each PDF's page count and warns if `report_core.pdf` exceeds 12 pages (pages after an
+  optional appendix labelled `core:appendix` are not counted; none is built now).
 
 ### Core report figures
 
@@ -114,9 +146,10 @@ patient-count and lift-concentration figures as they are). Two are cropped in La
 `trim`, because the core shows only some of their panels: `fig02a_who_dominates` (panels a and c, page 3) and
 `fig02b_d26a_ratio_by_set` (panels a-c, page 4). The trim values are in bp and documented at the top of those
 two page files; if `figs_02_shape.py` or `figs_02b_d26.py` changes a figure's layout, render the core page and
-adjust them. The PC8 and protein pages place `fig05a` and `fig05e` at their drawn width (6.5 in), so their
-text prints at its drawn size; the protein page and the D26 page are full to their last line, and the core is at
-its 12-page limit: any text added needs the same amount removed.
+adjust them. The PC8 page places `fig05a` and `fig05m_celltype_core` at their drawn width (6.5 in) and the protein
+page `fig05l_protein_core` at its drawn width (7.0 in; the core's text is 7.1 in wide), so their text prints at its
+drawn size; the PC8, protein and D26 pages are full to their last line, and the core is at its 12-page limit: any
+text added needs the same amount removed.
 
 ## Filter sections or pages before sharing
 

@@ -70,7 +70,7 @@ Generated from the research spine; regenerate with `python tools/research_index.
 | W4.3 Within-patient label-permutation negative control (from the dr_feature_screening Plan 2 s… | P1 | W4 | open | - | - | - |
 | W4.4 Variance decomposition with explicit estimands (label-free Stage 1 variance, per-factor p… | P1 | W4 | open | W1.1 (met) | - | - |
 | W5.2 Oriented per-patient gene-direction table for PC8 and FA7 (anchors/gene_direction_scratch… | P1 | W5 | open | W3.2 (met) | - | - |
-| W5.3 Factor × predicted cell type, and factor × CLR ADT, for the shortlist, stratified by labe… | P1 | W5 | in_progress | - | - | [2026-10-09_d27-factor-modality-assoc](devlog/2026/2026-10-09_d27-factor-modality-assoc.md) |
+| W5.3 Factor × predicted cell type, and factor × CLR ADT, for the shortlist, stratified by labe… | P1 | W5 | in_progress | - | - | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) |
 | W5.7 Held-out lift inside predicted cell types for the D18 selected drivers, plus composition-… | P1 | W5 | open | W5.3 (unmet) | - | - |
 | W6.2 D15 v2 cell-depth curve (slug cell_count_learning_curve_v2): C retuned per subsample, mor… | P1 | W6 | open | W3.1 (met) | - | - |
 | W6.4 Grant note: what D15 and D15b can and cannot justify about sequencing more patients (H-S2… | P1 | W6 | open | W6.1 (met) | - | - |
@@ -98,12 +98,14 @@ Generated from the research spine; regenerate with `python tools/research_index.
 | W5.4 Frameworks note: rotation, congruence, and pattern vs structure (factosig_promax loadings… | P2 | W5 | open | - | - | - |
 | W5.5 Census of programs that break into sub-axes, beyond IFN-alpha, using the cards, plus the… | P2 | W5 | in_progress | W5.1 (met) | - | [2026-10-08_d18-factor-cards](devlog/2026/2026-10-08_d18-factor-cards.md) |
 | W5.6 Target-rotate the FA loadings to IFN sub-signatures, and add a Spectra/PLIER comparator | P2 | W5 | open | - | - | - |
+| W5.8 Rerun D27's two checks and D29's malignant-vs-healthy contrast on the normalization the B… | P2 | W5 | open | W5.3 (unmet) | - | - |
 | W6.3 2D design: k training patients × a cap on malignant cells per patient. Reserve a new ID | P2 | W6 | open | W6.1 (met) | - | - |
 | W7.3 Read EXPERIMENT_ID from research/study_config.json, and parameterize EXPECTED for a new e… | P2 | W7 | open | W8.4 (unmet) | - | - |
 | W7.4 Show the D27 layer (devlog 2026-10-09_d27-factor-modality-assoc) in the factor explorer,… | P2 | W7 | open | W5.3 (unmet) | - | - |
 | W8.8 Write the downsampling arc into research/paper/OUTLINE.md (R12) and research/paper/FIGURE… | P2 | W8 | open | W8.7 (unmet) | - | - |
 | W9.2 Keep the related-work section (THEME §12) current at milestones | P2 | W9 | open | - | - | - |
 | W9.3 Write an addendum review if a routed task needs one (e.g. MRD single-cell cohorts, or sam… | P2 | W9 | open | - | - | - |
+| W9.4 Literature check of the surface-protein leads before any text uses them: CD63 and CD82 (b… | P2 | W9 | open | - | - | - |
 | W1.7 Timing, descriptive only: a D6-style scatter of days-from-SCT and days-to-relapse against… | P3 | W1 | open | - | - | - |
 | W3.7 Ankit's semi-supervised ladder (supervised PCA, sPLS-DA, linear supervised autoencoder wi… | later | W3 | blocked | - | new data, W8.2 | - |
 | W4.7 Read the Set B 294-panel scorecard, after first porting the lift figure contract (H-S0-03… | later | W4 | open | - | - | - |
@@ -119,7 +121,7 @@ Generated from the research spine; regenerate with `python tools/research_index.
 | H-S1-04 | Patients can be aggregated on a shared Stage 1 basis when per-patient factor-score distri… | supported_descriptive | 2026-10-08 | ALT-TRANS (open), ALT-NPAT (open), ALT-DEGEN (open), ALT-PREV (open) | 2026-10-09 |
 | H-S1-06 | Held-out-patient transfer survives an inductive Stage 1. | supported_descriptive | 2026-10-08 | ALT-TRANS (partial) | 2026-10-08 |
 | H-S2-03 | PI Q3 — a prior program breaks into distinct regulatory groups: different factors, differ… | supported_descriptive | 2026-10-08 | ALT-ROT (partial), ALT-PEN (open), ALT-SEED (open) | 2026-10-09 |
-| H-S2-05 | Patient- and cell-level error structure can explain which cells create an aggregate focus… | supported_descriptive | 2026-10-08 | ALT-CT (partial), ALT-PREV (open) | 2026-10-09 |
+| H-S2-05 | Patient- and cell-level error structure can explain which cells create an aggregate focus… | supported_descriptive | 2026-10-08 | ALT-CT (partial), ALT-PREV (open) | 2026-10-10 |
 | H-S1-07 | The P03-private malignant axis seen only in broad control bags reflects patient biology r… | open | 2026-10-08 | ALT-DONOR (open), ALT-LABEL (open), ALT-BATCH (open), ALT-CT (open) | 2026-10-02 |
 | H-S2-01 | PI Q1 — a robust shared model exists: high discovery AP, high aggregate LOPO, consistent… | open | 2026-10-08 | ALT-PREV (open), ALT-SEL (open), ALT-NPAT (open), ALT-TRANS (open), ALT-GENESET (open) | 2026-10-08 |
 | H-S2-02 | PI Q2 — patient-specific models can reveal biology that the shared model misses, rather t… | open | 2026-10-08 | ALT-PREV (open), ALT-NPAT (open), ALT-SEL (open) | 2026-09-03 |
@@ -161,7 +163,7 @@ Generated from the research spine; regenerate with `python tools/research_index.
 | id | statement | verdict | verdict date | open ALTs | last evidence date |
 |---|---|---|---|---|---|
 | H-S2-03 | PI Q3 — a prior program breaks into distinct regulatory groups: different factors, differ… | supported_descriptive | 2026-10-08 | ALT-ROT (partial), ALT-PEN (open), ALT-SEED (open) | 2026-10-09 |
-| H-S2-05 | Patient- and cell-level error structure can explain which cells create an aggregate focus… | supported_descriptive | 2026-10-08 | ALT-CT (partial), ALT-PREV (open) | 2026-10-09 |
+| H-S2-05 | Patient- and cell-level error structure can explain which cells create an aggregate focus… | supported_descriptive | 2026-10-08 | ALT-CT (partial), ALT-PREV (open) | 2026-10-10 |
 | H-S2-08 | The IFN-alpha PCA40-vs-FA40 patient-coverage gap at the selected C is a Stage 2 L1 thresh… | supported_descriptive | 2026-10-08 | ALT-ROT (open) | 2026-10-08 |
 | H-I-03 | Stage 1 loadings can be used as sign-oriented descriptive gene lists, but L1-selected fac… | supported_descriptive | 2026-10-08 | ALT-ROT (partial), ALT-SEED (open), ALT-DEGEN (partial) | 2026-10-08 |
 | H-S2-07 | Team hypothesis (a): PCA orthogonality pushes later components beyond P03 while FA keeps… | retired | 2026-10-08 | - | 2026-10-08 |
@@ -176,7 +178,7 @@ Generated from the research spine; regenerate with `python tools/research_index.
 
 ## 4. Analysis registry
 
-Next free D ID: D29 (reserve it with `python tools/research_index.py reserve-id`).
+Next free D ID: D30 (reserve it with `python tools/research_index.py reserve-id`).
 
 | id | title | Qs | workstream | date | status | artifact_dir | citing devlog entries |
 |---|---|---|---|---|---|---|---|
@@ -213,8 +215,9 @@ Next free D ID: D29 (reserve it with `python tools/research_index.py reserve-id`
 | D24 | Single-score baselines (UCell, AUCell, singscore, ssGSEA, score_genes, mean-z) | Q3 | W3 | 2026-10-08 | planned | analysis/scorecards/stage2_diagnostic/single_score_baselines_v1 | - |
 | D25 | Genotype and label-provenance shortcut audit of the P03-private axis | Q1 | W1 | 2026-10-08 | planned | analysis/scorecards/stage2_diagnostic/genotype_label_audit_v1 | - |
 | D26 | Leave-high-prevalence-out leverage test on allograft rejection and apoptosis (D17 design) | Q1, Q2 | W2 | 2026-10-09 | current | analysis/scorecards/stage2_diagnostic/leverage_allograft_apoptosis_v1 | [2026-10-09_d26-leverage-allograft-apoptosis](devlog/2026/2026-10-09_d26-leverage-allograft-apoptosis.md), [2026-10-10_d26-leverage-allograft-apoptosis-done](devlog/2026/2026-10-10_d26-leverage-allograft-apoptosis-done.md), [2026-10-10_core-report-v3](devlog/2026/2026-10-10_core-report-v3.md) |
-| D27 | Factor association with predicted cell type and CITE-seq surface proteins for all factor cards | QI, Q1 | W5 | 2026-10-09 | current | analysis/scorecards/stage2_diagnostic/factor_modality_assoc_v1 | [2026-10-09_d27-factor-modality-assoc](devlog/2026/2026-10-09_d27-factor-modality-assoc.md), [2026-10-09_protein-association-for-pavan](devlog/2026/2026-10-09_protein-association-for-pavan.md), [2026-10-10_protein-association-for-pavan-v2](devlog/2026/2026-10-10_protein-association-for-pavan-v2.md) |
+| D27 | Factor association with predicted cell type and CITE-seq surface proteins for all factor cards | QI, Q1 | W5 | 2026-10-09 | current | analysis/scorecards/stage2_diagnostic/factor_modality_assoc_v1 | [2026-10-09_d27-factor-modality-assoc](devlog/2026/2026-10-09_d27-factor-modality-assoc.md), [2026-10-09_protein-association-for-pavan](devlog/2026/2026-10-09_protein-association-for-pavan.md), [2026-10-10_protein-association-for-pavan-v2](devlog/2026/2026-10-10_protein-association-for-pavan-v2.md), [2026-10-10_protein-explainer-v3](devlog/2026/2026-10-10_protein-explainer-v3.md) |
 | D28 | Cell-type-stratified score-energy shares per patient | Q1, Q2 | W1 | 2026-10-09 | current | analysis/scorecards/stage2_diagnostic/factor_patient_matrix_celltype_v1 | [2026-10-09_d28-celltype-score-shares](devlog/2026/2026-10-09_d28-celltype-score-shares.md) |
+| D29 | PC8 and FA7 x surface protein: total-ADT sensitivity of the two checks and a direct malignant-vs-healthy protein contrast | QI, Q1 | W5 | 2026-10-10 | current | analysis/scorecards/stage2_diagnostic/protein_depth_contrast_v1 | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) |
 | D1DD1 | Grouped D1 atlas | Q1, Q3 | W1 | 2026-09-10 | current | analysis/scorecards/stage2_diagnostic/d1a_deep_dive_20260910 | [2026-09-10_d1a-descriptive-deep-dives](devlog/2026/2026-09-10_d1a-descriptive-deep-dives.md) |
 | D1DD2 | Patient-specific K trend | Q1, Q3 | W1 | 2026-09-10 | current | analysis/scorecards/stage2_diagnostic/d1a_deep_dive_20260910 | [2026-09-10_d1a-descriptive-deep-dives](devlog/2026/2026-09-10_d1a-descriptive-deep-dives.md) |
 | D1DD3 | Focus patient and configuration heatmaps | Q1, Q3 | W1 | 2026-09-10 | current | analysis/scorecards/stage2_diagnostic/d1a_deep_dive_20260910 | [2026-09-10_d1a-descriptive-deep-dives](devlog/2026/2026-09-10_d1a-descriptive-deep-dives.md) |
@@ -292,6 +295,27 @@ Next free D ID: D29 (reserve it with `python tools/research_index.py reserve-id`
 | A-20261009-16 | partial | user | D14, W1.2, D20, H-S1-04, W8 | As a result of data driven statistical test for whether to aggregate patients, we say "On… | [2026-10-09_report-reading-notes](devlog/2026/2026-10-09_report-reading-notes.md), [2026-10-09_report-v2](devlog/2026/2026-10-09_report-v2.md), [2026-10-09_w8-healthy-downsampling-plan](devlog/2026/2026-10-09_w8-healthy-downsampling-plan.md) |
 | A-20261010-01 | partial | teammate:Pavan | W5.3, D27 | have you been able to integrate the protein data? | [2026-10-09_protein-association-for-pavan](devlog/2026/2026-10-09_protein-association-for-pavan.md) |
 | A-20261010-12 | partial | user | W0.14, W0.15 | In terms of sharing the repo, let's make sure that we are building something both human c… | [2026-10-10_core-report-v3](devlog/2026/2026-10-10_core-report-v3.md) |
+| A-20261010-14 | partial | user | W5.3, D27 | I feel like figure 19 could be useful to be included in the email, but I am a bit confuse… | [2026-10-10_protein-explainer-v3](devlog/2026/2026-10-10_protein-explainer-v3.md) |
+| A-20261010-15 | partial | user | W5.3, D27 | What's mean oriented PC8 score. | [2026-10-10_protein-explainer-v3](devlog/2026/2026-10-10_protein-explainer-v3.md) |
+| A-20261010-16 | partial | user | W5.3, D27 | I think we should include illustration showing the matrix decomp: PC8's cell score for al… | [2026-10-10_protein-explainer-v3](devlog/2026/2026-10-10_protein-explainer-v3.md) |
+| A-20261010-17 | partial | user | W5.3, D27 | Table 3 also looks good to show these rho. The within (k/7), k means the number of patien… | [2026-10-10_protein-explainer-v3](devlog/2026/2026-10-10_protein-explainer-v3.md) |
+| A-20261010-18 | partial | user | W5.3, D27 | My observation here would be that CD99's correlation between malignant cell and PC8 seems… | [2026-10-10_protein-explainer-v3](devlog/2026/2026-10-10_protein-explainer-v3.md) |
+| A-20261010-19 | partial | user | W5.3, D27 | And FA7 malignant cells' surface protein correlation is finding two different surface pro… | [2026-10-10_protein-explainer-v3](devlog/2026/2026-10-10_protein-explainer-v3.md) |
+| A-20261010-20 | partial | user | W5.3, D27 | Lastly, do these signs mean anything, e.g. CD22 have a negative value for both PC8 and FA… | [2026-10-10_protein-explainer-v3](devlog/2026/2026-10-10_protein-explainer-v3.md) |
+| A-20261010-21 | partial | user | W5.3, D27 | I think we should also include "CD116−0.287, CD33−0.272, CD146 +0.270" from PC8's other s… | [2026-10-10_protein-explainer-v3](devlog/2026/2026-10-10_protein-explainer-v3.md) |
+| A-20261010-23 | partial | user | W5.3, D27 | So the sign means how forward and reversed the rank of the factor cell score against the… | [2026-10-10_protein-explainer-v3](devlog/2026/2026-10-10_protein-explainer-v3.md) |
+| A-20261010-25 | partial | user | W5.3, D27 | can I say \"CD99 is pretty consistent for within-patient and within cell types, which mea… | - |
+| A-20261010-26 | partial | user | W5.3, D27 | On panel D in the full report "What the sign means: do the two ranks run the same way or… | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) |
+| A-20261010-27 | partial | user | W5.3, W8 | I need Bachireddy Lab's help on whether the isotype protein are a good control/yardstick… | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) |
+| A-20261010-29 | partial | user | W5.3, D27 | I then used the other page which is Figure 22 on the full report in my slides. So basical… | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) |
+| A-20261010-30 | partial | user | W5.3, D27 | I am going through the FA7 section: I agree with "The proteins that track a factor across… | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) |
+| A-20261010-31 | partial | user | W5.3, D27 | And we are saying "Among the malignant cells, cells rank high on PC8 tend to rank low on… | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) |
+| A-20261010-32 | partial | user | W5.3, D27 | Let's also visualize CD63 like figure 21. | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) |
+| A-20261010-33 | partial | user | W5.3, D27 | Then in Every card: factor x surface protein and cell type section, I am confused on 2027… | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) |
+| A-20261010-34 | partial | user | W5.3, D27 | The passage start by describing panel C which shows that x-axis is how patient specificit… | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) |
+| A-20261010-35 | partial | user | W5.3, D27 | We are not including PCA, probably because it's not showing up also I don't see the need… | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) |
+| A-20261010-36 | partial | user | W5.3, W0.13, D27 | Let's have a scientific statement we can make about these in addition to what you said in… | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) |
+| A-20261010-37 | partial | user | W5.3, D27 | Lastly wrt d) and e) I need to understand what's eta^2 of patient? We are showing all sta… | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) |
 
 ## 7. Pending runs
 
@@ -304,8 +328,10 @@ Next free D ID: D29 (reserve it with `python tools/research_index.py reserve-id`
 | date | entry | type | workstream | status | title |
 |---|---|---|---|---|---|
 | 2026-10-10 | [2026-10-10_core-report-v3](devlog/2026/2026-10-10_core-report-v3.md) | docs | W0 | done | Core questions report v3 (12 pages, the deliverable; full report section 2b on allograft rejection and apoptosis), D26 ranges the reports derive, report_core.pdf tracked through a .gitignore exception, and README/AGENTS onboarding for collaborators and their agents |
+| 2026-10-10 | [2026-10-10_protein-explainer-v3](devlog/2026/2026-10-10_protein-explainer-v3.md) | docs | W5 | done | v3 of the Pavan protein update and questions report v3.1 - PC8 x surface-protein explainers (rho schematic with a sign panel, two checks per protein incl. CD116/CD33/CD146, Figure 19 relabelled, Table 3 in plain words) placed in the full report section 5 and, compact, on the core report's pages 7-8 |
 | 2026-10-10 | [2026-10-10_protein-association-for-pavan-v2](devlog/2026/2026-10-10_protein-association-for-pavan-v2.md) | docs | W5 | done | v2 of the Pavan protein update - four single-idea PC8 x surface-protein figures (per-patient heatmap, CD34 between vs within cell type, the same-patient same-type comparisons (19 of 21), isotype noise floor), captions and a shorter reply draft |
 | 2026-10-10 | [2026-10-10_decisions-new-run-inclusion-reweighting-lfs](devlog/2026/2026-10-10_decisions-new-run-inclusion-reweighting-lfs.md) | decision | W8 | done | User decisions for runs on the new patient data - full Stage 0-2 runs keep patients with at least 100 malignant cells (the 10-cell support rule stays for the current atlas), re-weighting targets the Stage 2 labels, and the Git LFS lines are dropped |
+| 2026-10-10 | [2026-10-10_d29-cd63-depth-and-every-card](devlog/2026/2026-10-10_d29-cd63-depth-and-every-card.md) | analysis | W5 | done | D29 - PC8/FA7 x surface protein with each cell's total ADT count held fixed, and a direct malignant-vs-healthy protein contrast (CD63 followed up); the user's questions on full report Figures 20-23 answered in questions report v3.2 |
 | 2026-10-10 | [2026-10-10_d26-leverage-allograft-apoptosis-done](devlog/2026/2026-10-10_d26-leverage-allograft-apoptosis-done.md) | analysis | W2 | done | D26 done - leaving P02+P03+P04 out of Stage 1 moves the allograft-rejection and apoptosis axes beyond composition-matched controls, mostly through P03, but no more than leaving out the contrast patients does (H-S1-05 not supported on the three panels tested, PCA/FA) |
 | 2026-10-09 | [2026-10-09_w8-healthy-downsampling-plan](devlog/2026/2026-10-09_w8-healthy-downsampling-plan.md) | docs | W8 | done | W8 pre-registered healthy-cell downsampling plan (Arm D, H-S2-09, ALT-NREG), patient-inclusion section of the integration plan, and the living paper context (research/paper/) |
 | 2026-10-09 | [2026-10-09_report-v2](devlog/2026/2026-10-09_report-v2.md) | docs | W0 | done | Questions report version 2 - the user's reading notes on v1 (A-20261009-01..16) taken up in the report itself, plots fixed, D26-D28 and the W8 downsampling and inclusion plans integrated |
@@ -316,8 +342,6 @@ Next free D ID: D29 (reserve it with `python tools/research_index.py reserve-id`
 | 2026-10-09 | [2026-10-09_d27-factor-modality-assoc](devlog/2026/2026-10-09_d27-factor-modality-assoc.md) | analysis | W5 | done | D27 factor x predicted cell type and factor x CITE-seq surface protein for all 1,801 non-degenerate D18 factor cards, pooled vs within patient vs within patient x cell type |
 | 2026-10-09 | [2026-10-09_d26-leverage-allograft-apoptosis](devlog/2026/2026-10-09_d26-leverage-allograft-apoptosis.md) | run | W2 | partial | D26 leave-high-prevalence-out leverage test on allograft rejection and apoptosis (D17 design) - runner, smoke test and reference axes; full run handed to the user's screen W2_d26 (W2.4) |
 | 2026-10-08 | [2026-10-08_d15b-full-design](devlog/2026/2026-10-08_d15b-full-design.md) | analysis | W6 | done | D15b patient-count learning curve, full design (all 63 training subsets per held-out patient, C retuned per training set) completed in screen W6_d15b |
-| 2026-10-08 | [2026-10-08_w7-atlas-strip-factor-explorer](devlog/2026/2026-10-08_w7-atlas-strip-factor-explorer.md) | tool | W7 | done | W7.1 atlas per-fold active-coefficient strip, selected penalty and C, labelled leverage caveat; W7.2 read-only factor explorer on factor_cards_v1 |
-| 2026-10-08 | [2026-10-08_team-update-and-wave2-integration](devlog/2026/2026-10-08_team-update-and-wave2-integration.md) | docs | W0 | done | Team update for 2026-10-08 and integration of the wave-2 entries (D15b-D19, W7 apps) into the registry, campaigns, workstream READMEs and generated indexes |
 
 ## 9. THEME review queue
 
@@ -330,5 +354,5 @@ THEME.md last_reviewed: 2026-10-10; reviewed_through: 2026-10-10_protein-associa
 ## 10. Provenance debt
 
 - Entries with commit: pending older than 14 days (as of 2026-10-10): none
-- Entries with dirty_run: true: 51
-- Backfilled entries: 35 of 60
+- Entries with dirty_run: true: 53
+- Backfilled entries: 35 of 62

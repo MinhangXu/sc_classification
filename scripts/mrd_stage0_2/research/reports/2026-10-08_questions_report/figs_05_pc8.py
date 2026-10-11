@@ -7,7 +7,9 @@ fig05b_axis_lift     Univariate held-out lift of PC8 and FA7 per supported patie
                      alone, sign fixed on the training folds), plus a strip showing whether the
                      stored L1 probe (C = 1e-4) kept the factor in that LOPO fold.
 fig05c_celltype      Mean oriented PC8 score by predicted cell type, normal vs malignant cells
-                     (types with malignant rows in the D18 cell-type table).
+                     (types with malignant rows in the D18 cell-type table). Version 3's Figure 19; since
+                     version 3.1 (2026-10-10) main() no longer draws it: both reports show the relabelled
+                     fig05g_celltype_counts (make_figures section 05p) instead.
 
 Added for report v2 (2026-10-09 reading notes A-20261009-06, -07, -08):
 fig05d_identifiability  What "not identifiable" means for PC8 and FA7. (a) PCA40 variance per component:
@@ -22,6 +24,15 @@ fig05e_rho_anchors   D27: the report's PC8 x ADT numbers taken apart. PC8 x CD34
 fig05f_modality_all  D27 over all 1,801 non-degenerate cards. (a, b) The strongest robust factor x ADT pair per
                      marker (oriented cards), normal and malignant cells. (c) How much of a pooled rho holds
                      within patients (|pooled| >= 0.20). (d, e) Cell-type eta2 within patient vs patient eta2.
+
+Added for report v3.1 (2026-10-10; asks A-20261010-18, -21, -23, -24):
+fig05l_protein_core  The core report's surface-protein page: (A) what the sign of one Spearman rho means (the
+                     1,569 malignant cells ranked on oriented PC8 and on CD99 or CD48; mean protein rank per
+                     tenth of the PC8 ranking), (B, C) the two checks per protein of full report Figure 22.
+                     Drawn with the loaders and panel function of the Pavan update's make_figures_v3.py, which
+                     also draws section 5's other explainer figures (fig05g-fig05k, make_figures section 05p).
+                     Reads the cohort cache (obs and obsm['ADT'] only; never the raw AnnData) and the stored
+                     IFN-alpha PCA40 scores; asserts every recomputed rho against D27.
 
 Data (EXP-relative, read only):
   analysis/scorecards/stage2_diagnostic/factor_cards_v1/factor_cards_genes.csv
@@ -56,6 +67,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
+from matplotlib.patches import Rectangle  # noqa: E402
 
 import report_style as rs  # noqa: E402
 
@@ -540,10 +552,12 @@ def fig05d_identifiability() -> dict:
 
 # ---- D27: rho anchors -----------------------------------------------------------------------
 
-ANCHORS = [  # (card, label, marker, panel title)
-    (PC8, "normal", "CD34", "(a) PC8 \u00d7 CD34, normal"),
-    (PC8, "malignant", "CD99", "(b) PC8 \u00d7 CD99, malignant"),
-    (PC8, "malignant", "CD48", "(c) PC8 \u00d7 CD48, malignant"),
+# (card, label, marker, panel title). Titles are short (PC8 x ... is in the caption): with "PC8 x" the titles of
+# (b) and (c) ran together (v3.1 review).
+ANCHORS = [
+    (PC8, "normal", "CD34", "(a) CD34, normal"),
+    (PC8, "malignant", "CD99", "(b) CD99, malignant"),
+    (PC8, "malignant", "CD48", "(c) CD48, malignant"),
 ]
 
 
@@ -641,10 +655,12 @@ def fig05e_rho_anchors() -> pd.DataFrame:
         ax.set_xlabel(f"\u03c1 (oriented); band: isotype \u00b1{ref:.2f}", fontsize=6.8)
         # Title: panel name and verdict (bold), then both conditions of the rule with this pair's values
         # (regular), so the verdict is never read off the sign count alone (CD99: 6/7 agree, yet not robust
-        # because its |median| is below 0.20).
+        # because its |median| is below 0.20). Since v3.1 the verdict names the check it is (A-20261010-18): the
+        # rule reads the within-patient values only ("across patients"); whether a correlation persists inside
+        # cell types is the square, the second check of Figure 22 (fig05j).
         med, k = float(r["rho_within_median"]), int(r["n_same_sign"])
         robust = _is_robust(med, k)
-        verdict = "robust" if robust else "not robust"
+        verdict = "across patients: passes" if robust else "across patients: fails"
         size_ok = abs(med) >= ROBUST_ABS
         sign_ok = k >= ROBUST_SAME_SIGN
         ax.set_title(f"{r['title']}\n{verdict}", fontsize=7.4, pad=22)
@@ -730,7 +746,9 @@ def _pairs_panel(ax, best: pd.DataFrame, title: str, iso_q99: float) -> None:
                 markeredgecolor=rs.INK_2, markeredgewidth=1.0, zorder=2)
         ax.plot([pl], [y], linestyle="none", marker="D", markersize=4.2, markerfacecolor=rs.SURFACE,
                 markeredgecolor=rs.INK, markeredgewidth=1.0, zorder=3)
-        ax.plot([w], [y], linestyle="none", marker="o", markersize=5.6, markerfacecolor=rs.METHOD[r["method"]],
+        # One ink colour: the row label already names the Stage 1 method (A-20261010-35: colour was redundant, and its
+        # missing blue read as "no PCA card").
+        ax.plot([w], [y], linestyle="none", marker="o", markersize=5.6, markerfacecolor=rs.INK,
                 markeredgecolor=rs.SURFACE, markeredgewidth=0.8, zorder=4)
         ax.text(0.99, y, f"{int(r['n_patients_same_sign'])}/7", transform=ax.get_yaxis_transform(), fontsize=6.4,
                 color=rs.INK_2, ha="right", va="center")
@@ -774,8 +792,8 @@ def fig05f_modality_all() -> dict:
     _pairs_panel(ax_a, best["normal"], "(a) Normal cells: strongest pair per marker", q99["normal"])
     _pairs_panel(ax_b, best["malignant"], "(b) Malignant cells: strongest pair per marker", q99["malignant"])
     handles = [
-        Line2D([], [], linestyle="none", marker="o", markersize=5.4, markerfacecolor=rs.MUTED,
-               markeredgecolor=rs.SURFACE, label="median within patient (colour = method)"),
+        Line2D([], [], linestyle="none", marker="o", markersize=5.4, markerfacecolor=rs.INK,
+               markeredgecolor=rs.SURFACE, label="median within patient"),
         Line2D([], [], linestyle="none", marker="D", markersize=4.2, markerfacecolor=rs.SURFACE,
                markeredgecolor=rs.INK, label="pooled (patients mixed)"),
         Line2D([], [], linestyle="none", marker="s", markersize=4.2, markerfacecolor=rs.SURFACE,
@@ -817,14 +835,17 @@ def fig05f_modality_all() -> dict:
         for cid, name, m in ((PC8, "PC8", "pca"), (FA7, "FA7", "fa")):
             rr = e[e["card_id"] == cid].iloc[0]
             ax.plot([rr["eta2_patient"]], [rr["eta2_celltype_within_median"]], linestyle="none", marker="o",
-                    markersize=5.4, markerfacecolor=rs.METHOD[m], markeredgecolor=rs.SURFACE, markeredgewidth=0.8,
+                    markersize=5.0, markerfacecolor=rs.INK, markeredgecolor=rs.SURFACE, markeredgewidth=0.8,
                     zorder=3)
             ax.annotate(name, xy=(rr["eta2_patient"], rr["eta2_celltype_within_median"]),
                         xytext=(0.30, 0.55 if name == "FA7" else 0.42), fontsize=6.6, color=rs.INK,
                         arrowprops=dict(arrowstyle="-", color=rs.INK_2, lw=0.6, shrinkA=1, shrinkB=2))
         above = int((e["eta2_celltype_within_median"] > e["eta2_patient"]).sum())
-        ax.text(0.97, 0.97, f"above the diagonal:\n{above:,} of {len(e):,} cards", transform=ax.transAxes,
-                fontsize=6.4, color=rs.INK, ha="right", va="top")
+        # Region labels (A-20261010-37): what above and below the diagonal mean, with the card counts.
+        ax.text(0.97, 0.97, f"above: cell type explains\nmore ({above:,} of {len(e):,})", transform=ax.transAxes,
+                fontsize=6.2, color=rs.INK, ha="right", va="top", linespacing=1.05)
+        ax.text(0.97, 0.03, f"below: patient explains\nmore ({len(e) - above:,})", transform=ax.transAxes,
+                fontsize=6.2, color=rs.INK, ha="right", va="bottom", linespacing=1.05)
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
         ax.set_xticks([0, 0.5, 1])
@@ -836,6 +857,121 @@ def fig05f_modality_all() -> dict:
     plt.setp(ax_e.get_yticklabels(), visible=False)
     rs.save(fig, "fig05f_modality_all")
     return {"counts": counts, "best": best, "q99": q99, "eta": eta}
+
+
+# ---------------------------------------------------------------------------------------------
+# Report v3.1 (2026-10-10): the core report's surface-protein page (asks A-20261010-18, -21, -23, -24)
+# ---------------------------------------------------------------------------------------------
+
+# The explainer figures of section 5 (full report Figures 19, 20 and 22: fig05g-fig05k) are drawn by the Pavan
+# update's make_figures_v3.py (make_figures section "05p"). The core page's one figure reuses that script's
+# loaders, per-cell checks and two-checks panel, so both reports show the same numbers from the same code.
+EXPLAINER = HERE.parents[1] / "team_updates" / "2026-10-09_protein_association_for_pavan" / "make_figures_v3.py"
+
+
+def _explainer():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("make_figures_v3_core", EXPLAINER)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def fig05l_protein_core() -> dict:
+    """Core report, surface-protein page: (A) what the sign of one Spearman rho means, compact (panel D of full
+    report Figure 20: the 1,569 malignant cells ranked on oriented PC8 and on CD99 or CD48, as the mean protein
+    rank in each tenth of the PC8 ranking); (B, C) the two checks per protein of full report Figure 22 (fig05j),
+    malignant and healthy cells, drawn with the explainer's own panel function. Drawn 7.0 in wide (the core's
+    text width is 7.1 in), so the core places it at its drawn size."""
+    mx = _explainer()
+    d27 = mx.load_d27()
+    iso = mx.isotype_refs(d27["adt"])
+    cohort = mx.load_cells(d27["orient"])
+    d5 = mx.fig5_data(d27, cohort)  # asserts the per-cell recomputation against D27
+    n = d5["n_mal"]
+    mid = (n + 1) / 2
+
+    W, H = 7.0, 3.1  # v3.1 review: 0.4 in shorter (panels 1.9 in, one legend row) so Table 1 fits the page
+    c = mx.Canvas(W, H)
+    fs_small, fs_note = mx.FS_SMALL, mx.FS_NOTE
+    top, side = 0.62, 1.9  # B and C: axes top (in) and side
+    # ---- A: the sign, compact
+    c.panel_title(0.1, 0.2, "A", "What the sign of ρ means")
+    c.text(0.3, 0.3, f"Each of the {n:,} malignant cells is ranked\non oriented PC8 (x) and on one protein (y);\n"
+                     "ρ = the Pearson correlation of the two\nrank vectors. Line: mean protein rank in\n"
+                     "each tenth of the PC8 ranking. Dotted:\nthe middle rank, where it stays if ρ = 0.",
+           fontsize=fs_note - 0.6, color=rs.INK_2, linespacing=1.25)
+    a_side = 1.45
+    axA = c.ax(0.52, top + side - a_side, a_side, a_side)
+    axA.axhline(mid, color=rs.INK_2, lw=0.8, ls=(0, (1, 2)), zorder=1)
+    styles = {mx.SIGN_EXAMPLES[0]: dict(color=rs.INK, marker="o"), mx.SIGN_EXAMPLES[1]: dict(color=rs.MUTED, marker="s")}
+    for prot in mx.SIGN_EXAMPLES:
+        s = d5["sign"][prot]
+        axA.plot(s["bin_x"], s["bin_y"], lw=1.5, ms=3.0, mec=rs.SURFACE, mew=0.5, zorder=3, **styles[prot])
+    s_pos, s_neg = (d5["sign"][p] for p in mx.SIGN_EXAMPLES)
+    axA.text(n * 0.97, s_pos["bin_y"][-1] + 95, f"{mx.SIGN_EXAMPLES[0]}  ρ {mx.signed(s_pos['rho'], 3)}\nforward",
+             ha="right", va="bottom", fontsize=fs_small - 0.8, color=rs.INK, fontweight="bold", linespacing=1.1)
+    axA.text(n * 0.97, s_neg["bin_y"][-1] - 95, f"{mx.SIGN_EXAMPLES[1]}  ρ {mx.signed(s_neg['rho'], 3)}\nreversed",
+             ha="right", va="top", fontsize=fs_small - 0.8, color=rs.INK_2, fontweight="bold", linespacing=1.1)
+    ticks = [1, int(round(mid)), n]
+    axA.set_xlim(-30, n + 31)
+    axA.set_ylim(-30, n + 31)
+    for setter in (axA.set_xticks, axA.set_yticks):
+        setter(ticks)
+    axA.set_xticklabels([f"{t:,}" for t in ticks], fontsize=fs_small - 1.2)
+    axA.set_yticklabels([f"{t:,}" for t in ticks], fontsize=fs_small - 1.2)
+    axA.tick_params(length=2, pad=1.5)
+    axA.grid(axis="both", visible=False)
+    axA.set_xlabel("PC8 rank (1 = lowest)", fontsize=fs_small - 0.6, color=rs.INK_2, labelpad=2)
+    axA.set_ylabel("protein rank", fontsize=fs_small - 0.6, color=rs.INK_2, labelpad=1)
+    # ---- B, C: the two checks (as fig05j, smaller)
+    mx.LABEL_OFFSETS.update({("malignant", "CD82"): (5, 4), ("malignant", "GPR56"): (5, -1),
+                             ("normal", "CD112"): (5, -7)})
+    # CD146 sits near the right edge of the smaller panel: its label goes below it on a leader, into empty space
+    # (to its right it would run into panel C; to its left it sat on the isotype diamonds).
+    mx.LABEL_AT[("malignant", "CD146")] = (0.232, -0.118)
+    adt = d27["adt"]
+    r99 = mx.d27_row(adt, "PC8", "malignant", "CD99")
+    r34 = mx.d27_row(adt, "PC8", "normal", "CD34")
+    xB, xC = 2.72, 4.98
+    c.panel_title(xB - 0.42, 0.2, "B", "Two checks: malignant cells")
+    c.text(xB - 0.22, 0.3, f"{d27['pooled_n']['malignant']:,} cells; {int(r99['n_pct_strata'])} type groups from "
+                           "P02, P03, P04, P09", fontsize=fs_small - 1.2, color=rs.INK_2)
+    c.panel_title(xC + 0.02, 0.2, "C", "Healthy cells")
+    c.text(xC + 0.22, 0.3, f"{d27['pooled_n']['normal']:,} cells; {int(r34['n_pct_strata'])} type groups\n"
+                           "from 7 patients", fontsize=fs_small - 1.2, color=rs.INK_2, linespacing=1.15)
+    axB = c.ax(xB, top, side, side)
+    axC = c.ax(xC, top, side, side)
+    tB = mx.fig6_panel(axB, adt, iso.loc[("PC8", "malignant")], "malignant", key=False)
+    tC = mx.fig6_panel(axC, adt, iso.loc[("PC8", "normal")], "normal", key=False)
+    for ax in (axB, axC):
+        ax.set_xlabel("x: within patient (median of 7)", fontsize=fs_small - 0.6, color=rs.INK_2, labelpad=2)
+        ax.tick_params(labelsize=fs_small - 1.4, length=2, pad=1.5)
+    axB.set_ylabel("y: within patient and cell type (median)", fontsize=fs_small - 0.6, color=rs.INK_2, labelpad=1)
+    axC.set_ylabel("")
+    axC.set_yticklabels([])
+    handles = [Line2D([], [], ls="none", marker="o", ms=5.0, mfc=rs.INK_2, mec=rs.SURFACE),
+               Line2D([], [], ls="none", marker="o", ms=4.0, mfc=mx.LIGHT_DOT, mec="none"),
+               Line2D([], [], ls="none", marker="D", ms=4.0, mfc=mx.ISOTYPE_C, mec=rs.SURFACE),
+               Line2D([], [], color=rs.MUTED, lw=0.9, ls=(0, (4, 2.5))),
+               Line2D([], [], color=rs.INK_2, lw=0.8, ls=(0, (1, 2))),
+               Rectangle((0, 0), 1, 1, facecolor=mx.BAND, edgecolor="none")]
+    c.fig.legend(handles, ["named protein", "other", "isotype (9)",
+                           "y = x: holds in type; y ≈ 0: cell type", f"|x| = {mx.ROBUST_ABS:.2f}: rule's bar",
+                           "isotype reach"],
+                 loc="upper left", bbox_to_anchor=(0.3 / W, 1 - (top + side + 0.36) / H), ncol=6,
+                 frameon=False, fontsize=fs_small - 1.2, handletextpad=0.4, columnspacing=0.8, labelspacing=0.35)
+    bad = c.overflow()
+    assert not bad, f"fig05l_protein_core: text outside the canvas: {bad}"
+    c.save("fig05l_protein_core", report=True)
+    both = pd.concat([tB, tC], ignore_index=True)
+    return {"sign": {p: (round(d5["sign"][p]["rho"], 3), np.round(d5["sign"][p]["bin_y"]).astype(int).tolist())
+                     for p in mx.SIGN_EXAMPLES},
+            "checks": both[both["labelled"]][["cells", "adt_marker_short", "rho_within_median", "n_patients_same_sign",
+                                               "rho_pct_median", "n_pct_same_sign", "meets_fig20_rule",
+                                               "outside_x_band", "outside_y_band"]],
+            "iso": iso.loc[[("PC8", "malignant"), ("PC8", "normal")], ["iso_within_patient", "iso_within_type"]]}
 
 
 def adt_table_rows() -> pd.DataFrame:
@@ -858,17 +994,51 @@ def adt_table_rows() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def print_every_card_numbers() -> None:
+    """The numbers of section 5's "Every card" answers (version 3.2; asks A-20261010-33..37), from D27 and D18 tables."""
+    cs = pd.read_csv(d27_dir() / "d27_card_summary.csv")
+    rob = pd.read_csv(d27_dir() / "d27_adt_robust.csv")
+    sl = pd.read_csv(cards_dir() / "factor_cards_shortlist.csv")
+    eta = celltype_vs_patient_eta2()
+    n_markers = 161
+    print("[every card] cards", len(cs), "x markers", n_markers, "=", len(cs) * n_markers, "pairs per label; isotype rows",
+          len(cs) * 9)
+    print("[every card] cards by method", cs.groupby("method").size().to_dict(), "; orientation",
+          cs["orientation_status"].value_counts().to_dict())
+    print("[every card] bases: D14 screen", int(sl["shortlist_reasons"].str.contains("d14_screen").sum()), "of", len(sl))
+    print("[every card] robust pairs by method", {lab: g.groupby("method").size().to_dict() for lab, g in rob.groupby("label")})
+    for lab in LABELS:
+        r = rob[(rob["label"] == lab) & rob["oriented"].astype(bool)].copy()
+        r["a"] = r["rho_within_median"].abs()
+        best = r.sort_values("a", ascending=False).drop_duplicates("adt_marker_short").head(10)
+        pca = r[r["method"] == "pca"].groupby("adt_marker_short")["a"].max()
+        shown = best.set_index("adt_marker_short")["a"]
+        print(f"[every card] {lab}: shown |rho| {shown.min():.3f}-{shown.max():.3f}; best PCA card for the same markers "
+              f"{pca.reindex(shown.index).min():.3f}-{pca.reindex(shown.index).max():.3f}; PCA among shown: "
+              f"{int((best['method'] == 'pca').sum())}")
+        e = eta[eta["label"] == lab]
+        x, y = e["eta2_patient"], e["eta2_celltype_within_median"]
+        print(f"[every card] {lab}: eta2 patient median {x.median():.3f}, cell type median {y.median():.3f}; above "
+              f"{int((y > x).sum())}, below {int((y <= x).sum())}; both < 0.1: {int(((x < 0.1) & (y < 0.1)).sum())}")
+        for cid, name in ((PC8, "PC8"), (FA7, "FA7")):
+            rr = e[e["card_id"] == cid].iloc[0]
+            print(f"[every card] {lab} {name}: eta2 patient {rr['eta2_patient']:.3f}, cell type {rr['eta2_celltype_within_median']:.3f}")
+
+
 def main() -> None:
     rs.apply()
     a = fig05a_pc8_poles()
     b = fig05b_axis_lift()
-    c = fig05c_celltype()
+    # fig05c_celltype (version 3's Figure 19) is no longer drawn: both reports show the relabelled fig05g
+    # (make_figures section 05p). Its table still gives the "8 of 10 types" the text quotes.
+    c = celltype_table()
     pd.set_option("display.width", 220)
     print(a.to_string())
     print(b[["factor_name", "patient", "univariate_lift_pp", "fitted_single_factor_lift_pp", "coef", "is_nonzero",
              "fold_all_zero", "n_malignant", "prevalence"]].to_string())
     print(c.to_string())
     print_v2_numbers()
+    print_every_card_numbers()
 
 
 def print_v2_numbers() -> None:
@@ -908,6 +1078,11 @@ def print_v2_numbers() -> None:
                   "patient", round(float(rr["eta2_patient"]), 4), "null within", round(float(rr["eta2_null_within_median"]), 4))
     print("\n== ADT table")
     print(adt_table_rows().to_string())
+    core = fig05l_protein_core()
+    print("\n== core protein page (fig05l): sign examples (pooled rho; mean protein rank per PC8 tenth)")
+    print(core["sign"])
+    print(core["iso"].round(3).to_string())
+    print(core["checks"].round(3).to_string())
 
 
 if __name__ == "__main__":

@@ -1,0 +1,18 @@
+factor,cells,n_cells_pooled,protein,row_source,mark,all_cells_pooled,median_within_patient,patients_agreeing,n_patients,median_within_patient_and_cell_type,groups_agreeing,n_groups,rho_P03,groups_with_within_patient_sign_d27,isotype_ref_pooled,isotype_ref_within_patient,isotype_ref_within_type,isotype_ref_set_by,meets_fig20_rule,other_label_median_within_patient,other_label_patients_agreeing,other_label_median_within_type
+PC8,healthy,58549,CD34,report Table 3 before 2026-10-10,,0.251,0.2446,7,7,0.0188,40,71,0.2516,40,0.0562,0.109,0.0431,RTK4530 / RTK4530 / RTK4174,True,0.1658,6,0.0381
+PC8,healthy,58549,CD22,report Table 3 before 2026-10-10,,-0.2209,-0.2456,6,7,-0.046,52,71,-0.2333,52,0.0562,0.109,0.0431,RTK4530 / RTK4530 / RTK4174,True,-0.0584,4,0.0109
+PC8,malignant,1569,CD99,report Table 3 before 2026-10-10,,0.2218,0.1593,6,7,0.1496,9,11,0.1834,9,0.1013,0.2268,0.1204,RTK4530 / RTK2071 / RTK2071,False,-0.0608,5,0.0341
+PC8,malignant,1569,CD48,report Table 3 before 2026-10-10,,-0.1915,-0.3077,6,7,-0.0111,6,11,0.03,6,0.1013,0.2268,0.1204,RTK4530 / RTK2071 / RTK2071,True,-0.2154,6,-0.063
+PC8,malignant,1569,CD116,added 2026-10-10,‡,-0.1085,-0.2874,7,7,-0.0366,9,11,-0.0309,9,0.1013,0.2268,0.1204,RTK4530 / RTK2071 / RTK2071,True,0.0195,4,-0.0115
+PC8,malignant,1569,CD33,added 2026-10-10,‡,-0.1371,-0.2724,5,7,0.0257,6,11,0.0655,5,0.1013,0.2268,0.1204,RTK4530 / RTK2071 / RTK2071,True,0.0952,6,-0.0355
+PC8,malignant,1569,CD146,added 2026-10-10,‡,0.0903,0.2705,6,7,0.0175,6,11,-0.0164,6,0.1013,0.2268,0.1204,RTK4530 / RTK2071 / RTK2071,True,0.0489,6,0.0146
+PC8,malignant,1569,CD63,added 2026-10-10,‡,-0.1831,-0.2517,6,7,-0.1381,9,11,-0.0007,9,0.1013,0.2268,0.1204,RTK4530 / RTK2071 / RTK2071,True,-0.1107,7,-0.0634
+PC8,malignant,1569,CD82,added 2026-10-10,‡,0.1377,0.2383,7,7,0.1428,9,11,0.142,9,0.1013,0.2268,0.1204,RTK4530 / RTK2071 / RTK2071,True,0.1417,6,0.0648
+PC8,malignant,1569,GPR56,added 2026-10-10,‡,0.203,0.1373,6,7,-0.0569,6,11,0.0349,5,0.1013,0.2268,0.1204,RTK4530 / RTK2071 / RTK2071,False,0.135,6,-0.0155
+FA7,healthy,58549,CD22,report Table 3 before 2026-10-10,,-0.354,-0.3121,7,7,-0.0851,53,71,-0.3022,53,0.08,0.0706,0.0452,RTK4530 / RTK4530 / RTK4174,True,-0.0993,6,0.007
+FA7,healthy,58549,CD34,report Table 3 before 2026-10-10,,0.2601,0.2984,7,7,-0.0036,36,71,0.2832,35,0.08,0.0706,0.0452,RTK4530 / RTK4530 / RTK4174,True,0.1535,5,-0.0223
+FA7,healthy,58549,CD112,report v1 table,†,0.2973,0.2816,7,7,0.0348,43,71,0.2737,43,0.08,0.0706,0.0452,RTK4530 / RTK4530 / RTK4174,True,0.1652,5,0.0436
+FA7,malignant,1569,CD116,report Table 3 before 2026-10-10,,-0.1085,-0.3157,6,7,-0.0346,6,11,0.0148,6,0.1219,0.2568,0.1217,RTK2071 / RTK2071 / RTK2071,True,-0.0508,4,-0.0351
+FA7,malignant,1569,CLEC12A,report Table 3 before 2026-10-10,,-0.1583,-0.2909,7,7,-0.0406,8,11,-0.0014,8,0.1219,0.2568,0.1217,RTK2071 / RTK2071 / RTK2071,True,0.0714,6,-0.0057
+FA7,malignant,1569,GPR56,report v1 table,†,0.2146,0.2471,6,7,-0.0036,6,11,0.0172,5,0.1219,0.2568,0.1217,RTK2071 / RTK2071 / RTK2071,True,0.0126,4,-0.0213
+FA7,malignant,1569,CD63,report v1 table,†,-0.1814,-0.1952,5,7,-0.1113,9,11,0.0037,9,0.1219,0.2568,0.1217,RTK2071 / RTK2071 / RTK2071,False,-0.1774,7,-0.0685

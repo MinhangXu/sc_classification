@@ -33,7 +33,7 @@ Done means: a factor-card bundle (D18) covers the pre-declared shortlist with or
 
 ## Builds on
 
-- Registry rows owned here: D5, D8, D1DD10, D1DD11, D1DD12, F5, F6, F7, F9, D18, D27.
+- Registry rows owned here: D5, D8, D1DD10, D1DD11, D1DD12, F5, F6, F7, F9, D18, D27, D29.
 - Used from other workstreams: F3 (W3; IFN-alpha collinearity and L1/L2/EN refits), D14 (W1; the 47 representations of the shortlist), D19 and W3.2 (W3; tuned-C probes for W5.2).
 - Hypotheses: H-S2-03, H-S2-05, H-S2-07, H-I-02, H-I-03; H-S2-08 (owned by W3) for the IFN-alpha case.
 - Notebooks (under `scripts/mrd_stage0_2/notebooks/stage0_2/`): `stage2_old34_layer4_5_interpretability_suite.ipynb` (D5), `stage2_old34_meeting_followup_metric_interactions.ipynb` (D8), `stage2_old34_feedback_deep_dives_20260917.ipynb` (F5-F7, F9), `stage2_old34_d1a_descriptive_deep_dives_20260910.ipynb` (D1DD10-D1DD12).
@@ -64,6 +64,7 @@ Done means: a factor-card bundle (D18) covers the pre-declared shortlist with or
 - [W5.5] (P2) Census of programs that break into sub-axes, beyond IFN-alpha, using the cards, plus the within-span per-patient L2 direction-angle test — done when: a census table exists (H-S2-03). (depends: W5.1)
 - [W5.6] (P2) Target-rotate the FA loadings to IFN sub-signatures, and add a Spectra/PLIER comparator — done when: L1 results are compared between rotated and unrotated loadings.
 - [W5.7] (P1) Held-out lift inside predicted cell types for the D18 selected drivers, plus composition-matched comparisons (the open half of ALT-CT for H-S2-05). Reuse the D27 strata and `d27_celltype_means_by_patient.csv.gz` — done when: a within-cell-type lift table exists for the drivers. (depends: W5.3)
+- [W5.8] (P2) Rerun D27's two checks and D29's malignant-vs-healthy contrast on the normalization the Bachireddy lab recommends (dsb if the upstream assay, implied by obs nCount_dsb, or its empty-droplet background can be shared; otherwise their preferred isotype or total-count handling), for every card, not only PC8 and FA7; new `_v<N>` slugs (R3) — done when: the two-checks table and the contrast exist on that normalization and the PC8 rows are compared with D29. It waits for the Bachireddy lab's reply to the isotype and dsb questions; added 2026-10-10 by devlog 2026-10-10_d29-cd63-depth-and-every-card. (depends: W5.3)
 
 ## Code in this directory
 
@@ -133,7 +134,7 @@ The D18 bundle contract (`factor_cards_v1`, the interface to the W7.2 factor exp
 
 ## Conventions
 
-- Owned artifact slugs (EXP-relative, under `analysis/{scorecards,figures,cache}/stage2_diagnostic/`): `factor_cards_v1` (D18), `factor_modality_assoc_v1` (D27). New IDs for W5.2-W5.7 come from `python tools/research_index.py reserve-id --workstream W5 --title '...'`. R3: a new slug ends in `_v<N>` and is never overwritten; each artifact dir carries `*_findings.md`, `*_manifest.json` and `*_artifact_ledger.csv`. Paths in devlog entries and `scripts/mrd_stage0_2/research/analyses.csv` are relative to the experiment dir.
+- Owned artifact slugs (EXP-relative, under `analysis/{scorecards,figures,cache}/stage2_diagnostic/`): `factor_cards_v1` (D18), `factor_modality_assoc_v1` (D27), `protein_depth_contrast_v1` (D29). New IDs for W5.2-W5.7 come from `python tools/research_index.py reserve-id --workstream W5 --title '...'`. R3: a new slug ends in `_v<N>` and is never overwritten; each artifact dir carries `*_findings.md`, `*_manifest.json` and `*_artifact_ledger.csv`. Paths in devlog entries and `scripts/mrd_stage0_2/research/analyses.csv` are relative to the experiment dir.
 - C policy (AGENTS.md R5): sklearn C does not scale with n. Under balanced L1 at fixed C, a standardized feature enters only if its training class-mean gap exceeds about 4/(C·n_train). Cards read stored coefficients at the stored C; any refit (W5.2 probes, W5.5 per-patient directions, W5.6 rotated loadings) retunes C per condition by inner LOPO over the training patients through W3's `regularization_contract.tune_c_inner_lopo` (D19) and reports L2 alongside. Record `c_policy` and `training_n_changed` in the devlog entry. An all-zero L1 probe scores the constant-score no-skill AP = π by construction; never read it as "no signal".
 - Interpretation language (R6): for any loading, state the sign orientation and the penalty (L1/L2/EN) and name genes from both poles; factosig_promax loadings are a pattern matrix, so report structure correlations alongside; descriptive only, no causal claims.
 - Import header for a new script in this directory (files in `anchors/` sit one level deeper and use `parents[5]`):
