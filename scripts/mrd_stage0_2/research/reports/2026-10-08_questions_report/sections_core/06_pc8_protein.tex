@@ -44,7 +44,7 @@
 \begin{itemize}[leftmargin=1.3em]
 \item \emph{The sign} (A): $\rho$ is the Pearson correlation of the 1,569 malignant cells' PC8 ranks and protein ranks. $\rho > 0$: the rankings run forward (CD99 $+0.222$: mean CD99 rank 585 in the lowest tenth of PC8, 932 in the highest); $\rho < 0$: in reverse (CD48 $-0.192$: 913 to 591). The sign means something only because PC8 is oriented; no healthy cell enters a malignant-cell $\rho$.
 \item \emph{Two checks} (Table~1, B). \emph{Consistent across patients}: the robust rule on the middle row ($|$median$| \geq 0.20$, $\geq$5 of 7 of one sign; 5 of the 14 passing stay inside the isotype reach, 0.227). \emph{Persists within cell types}: the last row past its reach (0.120). CD48, CD116, CD33, CD146 pass only the first; CD99 only the second (a lead: 11 groups, 4 patients); CD63, CD82 both. With each cell's total ADT count held fixed (D29), only CD63 of these still clears both bands.
-\item \emph{Healthy cells} (C): CD34 ($+0.245$ within patients, 7/7) and the other correlates (CD22, CD48, CD81, CD112) shrink inside cell types, none beyond $|\rho| = 0.085$; every cell passed a CD34+ sort, yet CD34 still varies with differentiation stage. \emph{Isotypes}: 9 antibodies named \texttt{Isotype-<clone>} in the data, with no human target: a noise reference, not a test.
+\item \emph{Healthy cells} (C): CD34 ($+0.245$ within patients, 7/7) and the other correlates (CD22, CD48, CD81, CD112) shrink inside cell types, none beyond $|\rho| = 0.085$. \emph{CLR}: each antibody's log count minus the cell's average over all 170. \emph{Isotypes}: 9 antibodies with no human target (\texttt{Isotype-<clone>}), so their signal is each cell's non-specific background: a noise reference, not a test.
 \end{itemize}
 
 \begin{table}[H]
@@ -71,4 +71,4 @@ Within patient \& type: median (of 11) & $+0.150$ (9) & $-0.011$ (6) & $-0.037$ 
 
 \doesnot{any protein as a malignancy marker; a malignant-vs-healthy contrast in any $\rho$; dsb-normalized protein (CLR only); a factor fit that uses the protein (not attempted); malignancy apart from recipient origin or batch.}
 
-\fullref{section 5: Figures~19--22 and Table~3; CD63 and total ADT: Figures~24--27. \src{D27; D29; 2026-10-10\_protein-explainer-v3; 2026-10-10\_d29-cd63-depth-and-every-card}}
+\fullref{section 5, Figures~19--28 and Tables~3--4. \src{D27; D29}}

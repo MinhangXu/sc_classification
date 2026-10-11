@@ -764,30 +764,34 @@ def _pairs_panel(ax, best: pd.DataFrame, title: str, iso_q99: float) -> None:
     ax.tick_params(axis="y", length=0)
     ax.grid(axis="y", visible=False)
     ax.grid(axis="x", visible=True)
-    ax.set_xlim(-0.05, 1.0)
+    ax.set_xlim(-0.12, 1.0)
     ax.set_xticks([0, 0.2, 0.4, 0.6, 0.8])
-    ax.set_xlabel("|\u03c1| (sign of the within-patient median)", fontsize=7.4)
+    # A-20261011-08: every value is multiplied by the sign of the within-patient median (shown in brackets), so the dot is
+    # |median| and a diamond or square left of 0 would have the opposite sign.
+    ax.set_xlabel("\u03c1 \u00d7 sign of the within-patient median\n(dot = |\u03c1|; left of 0 = opposite sign)", fontsize=7.0)
     ax.set_title(title, fontsize=8.4)
 
 
 def fig05f_modality_all() -> dict:
+    """Figure 23, first page: (a, b) strongest robust pair per marker; (c) within-patient / pooled; (d) inside-type /
+    within-patient (asked 2026-10-11, A-20261011-10). The second page (fig05f2: a Simpson-type example, the eta2 panels
+    and lift against cell-type eta2) is drawn by figs_05q_cd63_depth.py, which loads the per-cell data."""
     counts = robust_counts()
     noise = pd.read_csv(d27_dir() / "d27_adt_noise_floor.csv")
     q99 = {lab: float(noise[(noise["label"] == lab) & (noise["feature_kind"] == "isotype")
                             & (noise["statistic"] == "abs_rho_within_median")]["q99"].iloc[0]) for lab in LABELS}
     best = {lab: top_robust_pairs(lab) for lab in LABELS}
-    eta = celltype_vs_patient_eta2()
+    rob = pd.read_csv(d27_dir() / "d27_adt_robust.csv")
 
-    fig = plt.figure(figsize=(rs.FULL_W, 6.3))
-    gs = fig.add_gridspec(2, 3, height_ratios=[1.75, 1.0], hspace=0.42, wspace=0.55, top=0.915, bottom=0.075,
+    fig = plt.figure(figsize=(rs.FULL_W, 6.0))
+    gs = fig.add_gridspec(2, 2, height_ratios=[1.75, 1.0], hspace=0.50, wspace=0.30, top=0.915, bottom=0.095,
                           left=0.21, right=0.985)
-    # Two dot plots side by side in the top row (nested grid keeps the y labels inside the figure).
     top = gs[0, :].subgridspec(1, 2, wspace=1.3)  # room for (a)'s k/7 column before (b)'s labels
     ax_a = fig.add_subplot(top[0, 0])
     ax_b = fig.add_subplot(top[0, 1])
-    ax_c = fig.add_subplot(gs[1, 0])
-    ax_d = fig.add_subplot(gs[1, 1])
-    ax_e = fig.add_subplot(gs[1, 2], sharey=ax_d)
+    bot = gs[1, :].subgridspec(1, 2, wspace=0.28)
+    ax_c = fig.add_subplot(bot[0, 0])
+    ax_d = fig.add_subplot(bot[0, 1])
 
     _pairs_panel(ax_a, best["normal"], "(a) Normal cells: strongest pair per marker", q99["normal"])
     _pairs_panel(ax_b, best["malignant"], "(b) Malignant cells: strongest pair per marker", q99["malignant"])
@@ -803,60 +807,45 @@ def fig05f_modality_all() -> dict:
     fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, 0.995), ncol=4, frameon=False, fontsize=6.8,
                handletextpad=0.3, columnspacing=1.1)
 
-    # (c) within / pooled ratio.
-    bins = np.linspace(-1.0, 2.0, 61)
-    spots = {"normal": (1.13, 0.098, "left"), "malignant": (-0.12, 0.080, "right")}
-    for lab, col in (("normal", rs.MUTED), ("malignant", rs.INK)):
-        rr = np.clip(counts[lab]["ratio"], bins[0] + 1e-9, bins[-1] - 1e-9)
-        h, _ = np.histogram(rr, bins=bins)
-        h = h / h.sum()
-        ax_c.stairs(h, bins, color=col, lw=1.3)
-        med = counts[lab]["ratio_median"]
-        ax_c.axvline(med, color=col, lw=0.9, ls=(0, (3, 2)))
-        x, y, ha = spots[lab]
-        ax_c.text(x, y, f"{lab}\nmedian {med:.2f}", fontsize=6.4, color=col, ha=ha, va="center", linespacing=1.0)
-    ax_c.axvline(1.0, color=rs.AXIS, lw=0.8)
-    ax_c.axvline(0.0, color=rs.AXIS, lw=0.8)
-    ax_c.set_xlim(-1.0, 2.0)
+    def ratio_hist(ax, values: dict, xlabel: str, title: str, spots: dict, xlim=(-1.0, 2.0)):
+        bins = np.linspace(xlim[0], xlim[1], 61)
+        for lab, col in (("normal", rs.MUTED), ("malignant", rs.INK)):
+            rr = np.clip(values[lab], bins[0] + 1e-9, bins[-1] - 1e-9)
+            h, _ = np.histogram(rr, bins=bins)
+            h = h / h.sum()
+            ax.stairs(h, bins, color=col, lw=1.3)
+            med = float(np.median(values[lab]))
+            ax.axvline(med, color=col, lw=0.9, ls=(0, (3, 2)))
+            x, y, ha = spots[lab]
+            ax.text(x, y, f"{lab}\nmedian {med:.2f}\n({len(values[lab]):,} pairs)", fontsize=6.3, color=col, ha=ha,
+                    va="center", linespacing=1.0)
+        ax.axvline(1.0, color=rs.AXIS, lw=0.8)
+        ax.axvline(0.0, color=rs.AXIS, lw=0.8)
+        ax.set_xlim(*xlim)
+        ax.set_xticks([-1, 0, 1, 2])
+        ax.set_xlabel(xlabel, fontsize=7.0)
+        ax.set_ylabel("share of pairs", fontsize=7.4)
+        ax.set_title(title, fontsize=8.0)
+
+    # (c) within / pooled, pairs with |pooled| >= 0.20
+    ratio_hist(ax_c, {lab: counts[lab]["ratio"] for lab in LABELS},
+               "within-patient median \u00f7 pooled \u03c1\n(pairs with |pooled \u03c1| \u2265 0.20)",
+               "(c) Does a pooled \u03c1 hold within patients?",
+               {"normal": (1.13, 0.098, "left"), "malignant": (-0.12, 0.080, "right")})
     ax_c.set_ylim(0, 0.13)
-    ax_c.set_xticks([-1, 0, 1, 2])
     ax_c.set_yticks([0, 0.05, 0.10])
     ax_c.set_yticklabels(["0", "0.05", "0.10"])
-    ax_c.set_xlabel("within-patient median \u00f7 pooled \u03c1\n(pairs with |pooled \u03c1| \u2265 0.20)", fontsize=7.0)
-    ax_c.set_ylabel("share of pairs", fontsize=7.4)
-    ax_c.set_title("(c) Does a pooled \u03c1\nhold within patients?", fontsize=8.0)
-
-    # (d, e) eta2: cell type within patient vs patient.
-    for ax, lab, title in ((ax_d, "normal", "(d) Normal cells"), (ax_e, "malignant", "(e) Malignant cells")):
-        e = eta[eta["label"] == lab]
-        ax.plot([0, 1], [0, 1], color=rs.AXIS, lw=0.8, ls=(0, (3, 2)), zorder=0)
-        ax.plot(e["eta2_patient"], e["eta2_celltype_within_median"], linestyle="none", marker="o", markersize=2.0,
-                markerfacecolor=rs.MUTED, markeredgecolor="none", alpha=0.45, zorder=1)
-        for cid, name, m in ((PC8, "PC8", "pca"), (FA7, "FA7", "fa")):
-            rr = e[e["card_id"] == cid].iloc[0]
-            ax.plot([rr["eta2_patient"]], [rr["eta2_celltype_within_median"]], linestyle="none", marker="o",
-                    markersize=5.0, markerfacecolor=rs.INK, markeredgecolor=rs.SURFACE, markeredgewidth=0.8,
-                    zorder=3)
-            ax.annotate(name, xy=(rr["eta2_patient"], rr["eta2_celltype_within_median"]),
-                        xytext=(0.30, 0.55 if name == "FA7" else 0.42), fontsize=6.6, color=rs.INK,
-                        arrowprops=dict(arrowstyle="-", color=rs.INK_2, lw=0.6, shrinkA=1, shrinkB=2))
-        above = int((e["eta2_celltype_within_median"] > e["eta2_patient"]).sum())
-        # Region labels (A-20261010-37): what above and below the diagonal mean, with the card counts.
-        ax.text(0.97, 0.97, f"above: cell type explains\nmore ({above:,} of {len(e):,})", transform=ax.transAxes,
-                fontsize=6.2, color=rs.INK, ha="right", va="top", linespacing=1.05)
-        ax.text(0.97, 0.03, f"below: patient explains\nmore ({len(e) - above:,})", transform=ax.transAxes,
-                fontsize=6.2, color=rs.INK, ha="right", va="bottom", linespacing=1.05)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.set_xticks([0, 0.5, 1])
-        ax.set_yticks([0, 0.5, 1])
-        ax.set_xlabel("\u03b7\u00b2 of patient", fontsize=7.4)
-        ax.set_title(title, fontsize=8.0)
-        ax.grid(axis="x", visible=True)
-    ax_d.set_ylabel("\u03b7\u00b2 of cell type\n(median within patient)", fontsize=7.4)
-    plt.setp(ax_e.get_yticklabels(), visible=False)
+    # (d) inside type / within patient, robust pairs (the y/x of Figure 22, for every card)
+    ret = {lab: rob.loc[rob["label"] == lab, "pct_to_within_ratio"].dropna().to_numpy() for lab in LABELS}
+    ratio_hist(ax_d, ret, "inside-type median \u00f7 within-patient median\n(robust pairs; 1 = same size inside cell types)",
+               "(d) Does a within-patient \u03c1 hold inside cell types?",
+               {"normal": (-0.12, 0.15, "right"), "malignant": (0.62, 0.11, "left")})
+    ax_d.set_ylim(0, 0.24)
+    ax_d.set_yticks([0, 0.1, 0.2])
+    ax_d.set_yticklabels(["0", "0.10", "0.20"])
     rs.save(fig, "fig05f_modality_all")
-    return {"counts": counts, "best": best, "q99": q99, "eta": eta}
+    return {"counts": counts, "best": best, "q99": q99,
+            "retention": {lab: (float(np.median(v)), int((v >= 0.5).sum()), len(v)) for lab, v in ret.items()}}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1023,6 +1012,22 @@ def print_every_card_numbers() -> None:
         for cid, name in ((PC8, "PC8"), (FA7, "FA7")):
             rr = e[e["card_id"] == cid].iloc[0]
             print(f"[every card] {lab} {name}: eta2 patient {rr['eta2_patient']:.3f}, cell type {rr['eta2_celltype_within_median']:.3f}")
+    # 2026-10-11 (A-20261011-07, -09): how often a robust pair is much weaker pooled, proteins vs isotypes; lift per card
+    full = pd.read_parquet(d27_dir() / "d27_adt_assoc_full.parquet",
+                           columns=["label", "is_isotype", "rho_pooled", "rho_within_median", "n_patients_same_sign"])
+    for lab in LABELS:
+        for kind, g in (("proteins", rob[rob["label"] == lab]),
+                        ("isotypes", full[(full["label"] == lab) & full["is_isotype"]
+                                          & (full["rho_within_median"].abs() >= ROBUST_ABS)
+                                          & (full["n_patients_same_sign"] >= ROBUST_SAME_SIGN)])):
+            w, p_ = g["rho_within_median"].abs(), g["rho_pooled"].abs()
+            print(f"[every card] {lab} {kind}: robust {len(g)}, pooled < half within {int((p_ < 0.5 * w).sum())} "
+                  f"({(p_ < 0.5 * w).mean():.3f}), gap >= 0.20 {int((w - p_ >= 0.20).sum())} ({(w - p_ >= 0.20).mean():.3f})")
+    lift = pd.read_csv(cards_dir() / "factor_cards_patient_lift.csv")
+    med = lift[lift["patient"].isin(rs.SUPPORTED)].groupby("card_id")["univariate_lift"].median()
+    med = med.reindex(cs["card_id"])
+    print(f"[every card] median held-out lift (factor alone) >= 5 pp: {int((med >= 0.05).sum())} of {med.notna().sum()} "
+          f"cards; PC8 {100 * med[PC8]:.1f} pp, FA7 {100 * med[FA7]:.1f} pp")
 
 
 def main() -> None:
@@ -1066,7 +1071,8 @@ def print_v2_numbers() -> None:
                                "rho_pooled", "rho_pct_median", "isotype_max_abs_rho_within_median",
                                "is_selected_driver"]].round(3).to_string())
     print("isotype q99 |median within|:", f["q99"])
-    eta = f["eta"]
+    print("inside-type / within-patient ratio (median, n >= 0.5, n):", f["retention"])
+    eta = celltype_vs_patient_eta2()
     for lab in LABELS:
         e2 = eta[eta["label"] == lab]
         print(lab, "eta2 celltype within median (median over cards)", round(float(e2["eta2_celltype_within_median"].median()), 3),

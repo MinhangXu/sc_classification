@@ -7,7 +7,7 @@ Terms used anywhere in this report, in alphabetical order. Each entry gives the 
 
 \begin{description}[leftmargin=0pt,itemsep=3pt,font=\normalfont\bfseries]
 
-\item[ADT (CLR).] Antibody-derived tags: the CITE-seq surface-protein counts, 161 markers plus 9 isotype controls. Here they are raw counts transformed by a per-cell centred log-ratio (CLR) over all 170 features, without dsb normalization.
+\item[ADT (CLR).] Antibody-derived tags: the CITE-seq surface-protein counts, 161 markers plus 9 isotype controls. Here they are raw counts transformed by a per-cell centred log-ratio (CLR): for each cell, $\log(1+\text{count})$ of each antibody minus the cell's average of that quantity over all 170, so a value is relative to the cell's own average antibody signal; no dsb normalization. Side effect: weakly bound antibodies (isotypes most of all) get lower CLR values in cells with more antibody in total (Figure~\ref{fig:05t}).
 
 \item[Aggregation calls (aggregate, location shift, separate-subtype candidate).] The pre-set verdicts of the patient factor-overlap test for one representation. \emph{Aggregate}: normal weighted overlap $\geq 0.75$, every patient's normal patient-vs-rest overlap $\geq 0.60$, malignant weighted overlap $\geq 0.45$ and malignant gap to the null $<0.15$. \emph{Separate-subtype candidate}: a normal patient-vs-rest overlap below 0.40, or a malignant weighted overlap below 0.35 with a gap of at least 0.15. \emph{Location shift}: everything in between. The subtype gates are checked first, and the malignant cells have no per-patient gate. The gates are magnitude rules; they are not calibrated against a null.
 
@@ -39,6 +39,8 @@ Terms used anywhere in this report, in alphabetical order. Each entry gives the 
 
 \item[Direct-gene representation (direct-gene probe).] No Stage~1: the Stage~2 probe is fit directly on the panel's standardized genes. This is the no-DR baseline against which DR is compared.
 
+\item[dsb.] ``Denoised and scaled by background'' (Mul\`e, Martins \& Tsang 2022), the CITE-seq protein normalization that subtracts each antibody's ambient background estimated from empty droplets and removes a per-cell technical term estimated from the cell's isotype controls and background level. Not used here (the cohort cache has raw counts only); the metadata's \texttt{nCount\_dsb} shows a dsb assay existed upstream (W5.8).
+
 \item[Effective $K$.] The number of non-degenerate factors in a Stage~1 fit; a degenerate factor has zero score variance. IFN-$\alpha$ FA40 has an effective $K$ of 36.
 
 \item[Eigengap (relative).] For a factor with variance $v_k$ (explained variance for PCA, $\Psi$-whitened loading norm for FA): $\min(|v_k-v_{k-1}|,|v_k-v_{k+1}|)/v_k$. At 0.10 or less, the factor is nearly tied with a neighbour and any rotation within that pair fits about equally well, so the individual axis is not identifiable. PC8 has 0.055.
@@ -65,7 +67,7 @@ Terms used anywhere in this report, in alphabetical order. Each entry gives the 
 
 \item[Inductive (Stage~1).] A basis fit without the held-out patient's cells; those cells are then projected onto it. This is what deployment to a new patient would look like. Compare transductive.
 
-\item[Isotype reference.] For one factor card and label: the largest $|$median within-patient $\rho|$ between the factor and any of the 9 isotype-control antibodies, which bind nothing specific. A marker association at or below this level cannot be told apart from non-specific binding and CLR centring.
+\item[Isotype reference.] For one factor card and label: the largest $|$median within-patient $\rho|$ between the factor and any of the 9 isotype-control antibodies. Isotype controls are antibodies of the panel's species and subclasses raised against targets human cells do not carry, so their signal is each cell's non-specific background (Fc-receptor sticking, sticky or dead cells, free antibody in the droplet). A marker association at or below this level cannot be told apart from non-specific binding and CLR centring; in these data the isotypes' CLR values mostly track each cell's total ADT count (D29).
 
 \item[$K$.] The number of factors requested from Stage~1: 5, 10, 20 or 40.
 

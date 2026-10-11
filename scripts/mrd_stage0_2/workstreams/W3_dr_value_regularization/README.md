@@ -53,6 +53,7 @@ Done means: one shared regularization contract implements R5 and is used by ever
 - [W3.6] (P2) Stability selection, or cluster-level selection, for correlated factosig_promax factors — done when: driver claims carry selection frequencies.
 - [W3.7] (later) Ankit's semi-supervised ladder (supervised PCA, sPLS-DA, linear supervised autoencoder with a lambda sweep) inside nested LOPO, with every supervised step refit per fold. Comparator: the W2 inductive basis plus the W3.1 contract — done when: a pre-registered comparison entry exists. (blocked: new data, W8.2)
 - [W3.8] (P1) Per-fold tuned-C re-scoring of the D19 knife-edge atlas cells (L1, L2 and EN via `tune_c_inner_lopo`) — done when: a table compares fixed-C and tuned-C pooled AP, median lift and P20 lift for those cells. (depends: W3.1)
+- [W3.9] (P1) Protein in the classifier: the LOPO Stage 2 probe on the 161 CLR ADT markers alone and on RNA factors plus ADT, with ADT standardized within patient or sample so the probe cannot learn staining batches; C retuned by inner LOPO (R5) and L2 reported alongside; lift, median and P20 against the RNA-only probes — done when: a lift table per patient exists for ADT-only, RNA-only and RNA+ADT. Answers Pavan's "have you integrated the protein data?" directly; added 2026-10-11 by devlog 2026-10-11_clr-isotype-p03-fig23-next (A-20261011-12, -13).
 
 ## Code in this directory
 

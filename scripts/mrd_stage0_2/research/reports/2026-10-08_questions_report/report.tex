@@ -113,7 +113,7 @@
 \vspace{10pt}
 {\small
 \begin{tabular}{@{}l@{\hspace{1em}}p{0.78\linewidth}@{}}
-\textbf{Date} & Version 3.2, 10 October 2026 (results through the D26 leverage run of 2026-10-10, now its own section 2b, your decisions of that day, the surface-protein explainers of that evening and the CD63 and total-ADT follow-up of that night, D29, in section 5); version 2 of 9--10 October changed the report in answer to your reading notes; version 1 of 8--9 October is kept as \texttt{report\_v1\_2026-10-08.pdf} \\
+\textbf{Date} & Version 3.3, 11 October 2026 (results through the D26 leverage run of 2026-10-10, now its own section 2b, your decisions of that day, the surface-protein explainers of that evening, the CD63 and total-ADT follow-up of that night, D29, and the explanations and next steps of 11 October, all in section 5); version 2 of 9--10 October changed the report in answer to your reading notes; version 1 of 8--9 October is kept as \texttt{report\_v1\_2026-10-08.pdf} \\
 \textbf{Data} & Experiment \nolinkurl{20260525_060508_stage0_mrd_old34_broad_screen_82db5093} (EXP; 60,118 MRD CITE-seq cells, 13 patients) \\
 \textbf{Code} & Repository \texttt{sc\_classification}, branch \texttt{sc\_classification\_gpu}, commit \texttt{f5a8f4d}, plus uncommitted changes: the full-design patient-count curve entry (D15b) with its registry rows, the 2026-10-09 and 2026-10-10 analyses (D26, D27, D28) and this report \\
 \textbf{Length} & This is the long companion (\texttt{report\_full.pdf}): every section in full, for checking and for reference. The short read is \texttt{report\_core.pdf} (one page per question, at most 12 pages); its pointers use this report's section numbers. Each section here stands alone \\
@@ -134,6 +134,12 @@ Each numbered section answers one question from the 2026-10-08 team report, quot
 \end{itemize}
 
 All numbers are \emph{descriptive}: effect sizes measured on these data, with no calibrated test, no patient-level interval and no outside cohort behind them, so they describe these patients and bases and claim nothing beyond them. They come from seven supported patients (at least 10 malignant cells and both classes), mostly on a Stage~1 basis fit transductively on all cells. The study's claim rules (THEME \S6, with the claim levels of the devlog rules) name two higher levels that no result here reaches: \emph{inferential} (a calibrated null, patient-level uncertainty and nested selection) and \emph{publication} (every reviewer alternative addressed, every blocking task done, evidence from committed code). When a section compares classifiers it quotes pooled AP, median lift and P20 lift together, because they can rank methods differently. Grey bracketed pointers such as \src{2026-10-08\_d19-regularization-contract} name the devlog entry that holds each number; Appendix~B maps sections to code and artifacts.
+
+\subsection*{Revision 2026-10-11 (version 3.3)}
+
+\begin{itemize}[leftmargin=1.4em]
+\item \textbf{Your questions on version 3.2} (asks A-20261011-01 to -13; devlog 2026-10-11\_clr-isotype-p03-fig23-next) are answered in section \emph{What is PC8}: a box ``Three terms in plain words'' (ADT and CLR, isotype controls, dsb, with one sentence for an email); ``Why P03 sits near 0'' with Table~\ref{tab:05p03}; Figure~\ref{fig:05f} with a clearer x-axis, a new panel d and a second page (a Simpson-type example, the $\eta^2$ panels, lift against cell type), and the CD123 example, the ``strong within, weak pooled'' pattern and Simpson's paradox under ``Every card''; Figure~\ref{fig:05t} (new) on how isotypes track each cell's total count, and ``Should we switch to the total-ADT-adjusted figures?''; and a subsection ``Where the protein work goes next'' (protein in the classifier, protein in the DR step, the factor-free contrast with inference, the L1-selected drivers in detail). Figures 19--27 keep their numbers; Figure~\ref{fig:05t} is 28 and later figures move up by one; Table~\ref{tab:05p03} is new, so later tables move up by one.
+\end{itemize}
 
 \subsection*{Revision 2026-10-10, late evening (version 3.2)}
 

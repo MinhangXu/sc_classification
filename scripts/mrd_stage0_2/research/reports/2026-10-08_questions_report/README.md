@@ -46,6 +46,16 @@ learning curves, Q1-Q3 with the claim boundary, and the decisions for the new-da
 calls the study lead "MX" (defined on page 1), so collaborators do not read "you" as addressed to them. It reuses the full report's figures; two
 are cropped in LaTeX (see "Core report figures" below).
 
+**Version 3.3 (2026-10-11).** The user's questions on version 3.2 (asks A-20261011-01..13 in
+`research/asks/2026-10-11_clr-isotype-dsb-fig23-next.md`; devlog `2026-10-11_clr-isotype-p03-fig23-next`). Section 5
+gains a box defining ADT/CLR, isotype controls and dsb (with an email sentence), "Why P03 sits near 0" with a new
+Table 4 (`tab:05p03`, typed from `figs_05q_cd63_depth.table4_p03`'s printed rows), Figure 23 split over two pages
+(`fig05f_modality_all`: a-d, with a new inside-type / within-patient panel d and a clearer x-axis; `fig05f2_modality_more`:
+e a Simpson-type example, f-g the eta2 panels, h lift against cell type), a new Figure 28 (`fig05t_isotype_depth`,
+after Figure 27), "Should we switch to the total-ADT-adjusted figures?" and "Where the protein work goes next".
+`fig05f2` and `fig05t` are drawn by `figs_05q_cd63_depth.py` (it loads the per-cell data); `figs_05_pc8.py` prints the
+new "Every card" numbers. The core page 8 defines CLR and isotypes in one sentence and stays at 12 pages.
+
 **Version 3.2 (2026-10-10, late evening).** The user's questions on full report Figures 20-23 (asks
 A-20261010-26..37 in `research/asks/2026-10-10_cd63-every-card-isotypes.md`; devlog
 `2026-10-10_d29-cd63-depth-and-every-card`). Section 5 gains the subsection "CD63, followed up" with analysis D29
@@ -107,7 +117,7 @@ report as `report_v1_2026-10-08.pdf` (gitignored, like every PDF here except `re
 | `figs_NN_<topic>.py` | One figure module per full-report section (`figs_02b_d26.py` for section 2b); `main()` reads stored EXP tables (read-only), writes `figures/<name>.pdf` plus a `.png` preview, and prints the numbers its section quotes |
 | `figs_05p_protein_explainer.py` | Section 5's surface-protein explainers (make_figures key `05p`): runs `research/team_updates/2026-10-09_protein_association_for_pavan/make_figures_v3.py`, the one source for these figures in the Pavan update and here. Writes `fig05g_celltype_counts` (Figure 19, replacing `fig05c_celltype` in the text), `fig05h_rho_schematic_ab` + `fig05i_rho_schematic_cd` (Figure 20 and its continuation), `fig05j_two_checks` (Figure 22), `fig05k_rho_schematic_core` (for the unbuilt core appendix) and `fig05m_celltype_core` (core page 7, Figure 6 bottom: Figure 19 compact). Table 3 in `sections/05_what_is_pc8.tex` is typed from that script's `table3_rho_three_levels_v3.csv` |
 | `figs_05_pc8.py`, `fig05l_protein_core` | The core's protein-page figure (page 8, Figure 7): what the sign of rho means (panel D of Figure 20, compact) and the two checks of Figure 22, drawn with `make_figures_v3.py`'s loaders and panel function (so section 5's figures and this one share code and numbers). Since v3.1 `figs_05_pc8.py` no longer draws `fig05c_celltype` (version 3's Figure 19) |
-| `figs_05q_cd63_depth.py` | Section 5's CD63 and total-ADT figures (make_figures key `05q`; D29): `fig05n`, `fig05o`, `fig05q`, `fig05r`; asserts every plotted rho against D27 and D29 |
+| `figs_05q_cd63_depth.py` | Section 5's CD63 and total-ADT figures (make_figures key `05q`; D29): `fig05n`, `fig05o`, `fig05q`, `fig05r`, `fig05t` (Figure 28) and `fig05f2` (Figure 23, second page); prints Table 4's rows; asserts every plotted rho against D27 and D29 |
 | `report_style.py` | Shared figure style: palette by role (PCA blue, FA orange, FactoSig aqua, direct genes gray), type sizes, `save()`, `exp_dir()`, `diag_dir()` |
 | `make_figures.py` | Runs every figure module in section order (or the sections you name) |
 | `build.sh` | Figures, then pdflatex until cross-references settle; copies the PDF(s) here (`report_core.pdf` by default) |

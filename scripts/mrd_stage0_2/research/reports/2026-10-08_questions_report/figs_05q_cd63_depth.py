@@ -64,7 +64,8 @@ def load() -> dict:
     mvh = pd.read_csv(d / "d29_mal_vs_healthy.csv")
     checks = pd.read_csv(d / "d29_regression_checks.csv")
     assert bool(checks["passed"].all()), checks
-    return {"d27": d27, "cohort": cohort, "rho": rho, "strata": strata, "iso": iso, "mvh": mvh}
+    axes = pd.read_csv(d / "d29_depth_axes.csv")
+    return {"d27": d27, "cohort": cohort, "rho": rho, "strata": strata, "iso": iso, "mvh": mvh, "axes": axes}
 
 
 def d29_row(rho: pd.DataFrame, factor: str, label: str, protein: str) -> pd.Series:
@@ -399,6 +400,323 @@ def fig05r_two_checks_depth(D: dict) -> pd.DataFrame:
     return pd.concat([tA, tB], ignore_index=True)
 
 
+
+# ----------------------------------------------------------------------------------------------
+# 2026-10-11 (asks A-20261011-03, -06, -07, -09..-12): Figure 23 continued, Figure 28, Table 4
+# ----------------------------------------------------------------------------------------------
+
+def _p8():
+    spec = importlib.util.spec_from_file_location("figs_05_pc8_for_q", HERE / "figs_05_pc8.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+SIMPSON_CARD = ("hvg_top_requested_3000__available_3000", "fa", 40, 16, "CD133")  # Figure 23b's CD133 row
+LIFT_LABELS = {  # cards labelled in panel (h): the CD123 example of Figure 23a (A-20261011-07), PC8, FA7
+    "single_group__innate_immune_context__factosig_promax__k40__f007": "innate immune\npromax40 f7 (CD123)",
+}
+
+
+def _simpson_data(D: dict) -> dict:
+    panel, method, k, factor, prot = SIMPSON_CARD
+    card = f"{panel}__{method}__k{k}__f{factor:03d}"
+    p8 = _p8()
+    cs = pd.read_csv(p8.d27_dir() / "d27_card_summary.csv").set_index("card_id")
+    sign = int(cs.loc[card, "orientation_sign"])
+    x = np.asarray(np.load(rs.exp_dir() / "stage1_dr" / f"panel_id={panel}" / f"method={method}" / f"k={k}" / "seed=42"
+                           / "scores.npy"), dtype=np.float64)[:, factor - 1]
+    f = sign * (x - x.mean()) / x.std()
+    cells, clr, names = D["cohort"]["cells"], D["cohort"]["clr"], D["cohort"]["names"]
+    y = clr[:, names.index(f"ADT-{prot}")]
+    mal = (cells["label"] == "malignant").to_numpy()
+    full = pd.read_parquet(p8.d27_dir() / "d27_adt_assoc_full.parquet")
+    row = full[(full["card_id"] == card) & (full["label"] == "malignant") & (full["adt_marker_short"] == prot)].iloc[0]
+    out = {"card": card, "prot": prot, "f": f, "y": y, "mal": mal, "per": {}}
+    for p in rs.SUPPORTED:
+        m = mal & (cells["patient"] == p).to_numpy()
+        r = float(spearmanr(f[m], y[m])[0])
+        assert abs(r - float(row[f"rho_{p}"])) < TOL, (p, r, row[f"rho_{p}"])
+        out["per"][p] = {"mask": m, "rho": r, "n": int(m.sum()), "mf": float(f[m].mean()), "my": float(y[m].mean())}
+    r = float(spearmanr(f[mal], y[mal])[0])
+    assert abs(r - float(row["rho_pooled"])) < TOL
+    out["pooled"] = r
+    out["median"] = float(row["rho_within_median"])
+    return out
+
+
+def fig05f2_modality_more(D: dict) -> dict:
+    """Figure 23, second page: (e) a within >> pooled pair cell by cell (A-20261011-09, -11); (f, g) eta2 of cell type
+    against eta2 of patient (Figure 23d-e of version 3.2); (h) median held-out lift against cell-type eta2 (A-20261011-07)."""
+    p8 = _p8()
+    S = _simpson_data(D)
+    eta = p8.celltype_vs_patient_eta2()
+    lift = pd.read_csv(p8.cards_dir() / "factor_cards_patient_lift.csv")
+    lift = lift[lift["patient"].isin(rs.SUPPORTED)]
+    med_lift = lift.groupby("card_id")["univariate_lift"].median()
+    cs = pd.read_csv(p8.d27_dir() / "d27_card_summary.csv").set_index("card_id")
+
+    fig = plt.figure(figsize=(rs.FULL_W, 6.55))
+    # (e) small multiples: 7 patients + all pooled, shared axes
+    gsE = fig.add_gridspec(2, 4, left=0.085, right=0.985, top=0.905, bottom=0.505, wspace=0.10, hspace=0.36)
+    xs, ys = S["f"][S["mal"]], S["y"][S["mal"]]
+    xlim = (np.quantile(xs, 0.002) - 0.2, np.quantile(xs, 0.998) + 0.2)
+    ylim = (np.quantile(ys, 0.002) - 0.2, np.quantile(ys, 0.998) + 0.2)
+    order = list(rs.SUPPORTED) + ["all"]
+    axes_e = []
+    for i, p in enumerate(order):
+        ax = fig.add_subplot(gsE[i // 4, i % 4])
+        axes_e.append(ax)
+        ax.scatter(xs, ys, s=1.0, color=rs.GRID, linewidth=0, zorder=1, rasterized=True)
+        if p == "all":
+            ax.scatter(xs, ys, s=1.4, color=mx.LIGHT_DOT, linewidth=0, zorder=2, rasterized=True)
+            for q in rs.SUPPORTED:
+                d = S["per"][q]
+                ax.plot([d["mf"]], [d["my"]], ls="none", marker="o", ms=4.6, mfc=rs.INK, mec=rs.SURFACE, mew=0.7, zorder=4)
+                dx, dy = {"P07": (-12, 4), "P01": (4, -2), "P02": (4, 2), "P09": (-12, 4), "P04": (4, -6),
+                          "P06": (4, -2), "P03": (4, 1)}[q]
+                ax.annotate(q, (d["mf"], d["my"]), xytext=(dx, dy), textcoords="offset points",
+                            fontsize=5.6, color=rs.INK, zorder=5)
+            ax.set_title(f"all 1,569 pooled: ρ = {signed(S['pooled'], 2)}", fontsize=6.8, fontweight="bold", loc="left")
+        else:
+            d = S["per"][p]
+            ax.scatter(xs[d["mask"][S["mal"]]], ys[d["mask"][S["mal"]]], s=3.0 if d["n"] < 300 else 1.6, color=rs.INK_2,
+                       linewidth=0, zorder=2, rasterized=True)
+            ax.plot([d["mf"]], [d["my"]], ls="none", marker="o", ms=4.6, mfc=rs.INK, mec=rs.SURFACE, mew=0.7, zorder=4)
+            ax.set_title(f"{p} ({d['n']:,}): ρ = {signed(d['rho'], 2)}", fontsize=6.8, loc="left")
+        ax.set_xlim(*xlim)
+        ax.set_ylim(*ylim)
+        ax.tick_params(labelsize=5.8, length=2, pad=1)
+        ax.grid(False)
+        if i % 4:
+            ax.set_yticklabels([])
+        if i < 4:
+            ax.set_xticklabels([])
+    axes_e[4].set_xlabel("oriented factor score (cohort z)", fontsize=6.6)
+    axes_e[0].set_ylabel(f"{S['prot']} (CLR)", fontsize=6.6)
+    axes_e[4].set_ylabel(f"{S['prot']} (CLR)", fontsize=6.6)
+    fig.text(0.085, 0.975, "(e) Within patients strong, pooled weak: CD133 × HVGs (3000) FA40 factor 16, malignant cells",
+             fontsize=8.0, fontweight="bold", color=rs.INK, va="top")
+    fig.text(0.085, 0.948, "Light gray: every malignant cell; dark: that patient's cells; large dot: that patient's mean.",
+             fontsize=6.6, color=rs.INK_2, va="top")
+
+    # (f, g) eta2 and (h) lift
+    gsB = fig.add_gridspec(1, 3, left=0.085, right=0.985, top=0.405, bottom=0.075, wspace=0.42)
+    ax_f, ax_g, ax_h = (fig.add_subplot(gsB[0, i]) for i in range(3))
+    out = {}
+    for ax, lab, title in ((ax_f, "normal", "(f) Normal cells"), (ax_g, "malignant", "(g) Malignant cells")):
+        e = eta[eta["label"] == lab]
+        ax.plot([0, 1], [0, 1], color=rs.AXIS, lw=0.8, ls=(0, (3, 2)), zorder=0)
+        ax.plot(e["eta2_patient"], e["eta2_celltype_within_median"], ls="none", marker="o", ms=2.0, mfc=rs.MUTED,
+                mec="none", alpha=0.45, zorder=1)
+        for cid, name in ((p8.PC8, "PC8"), (p8.FA7, "FA7")):
+            rr = e[e["card_id"] == cid].iloc[0]
+            ax.plot([rr["eta2_patient"]], [rr["eta2_celltype_within_median"]], ls="none", marker="o", ms=5.0,
+                    mfc=rs.INK, mec=rs.SURFACE, mew=0.8, zorder=3)
+            ax.annotate(name, xy=(rr["eta2_patient"], rr["eta2_celltype_within_median"]),
+                        xytext=(0.30, 0.55 if name == "FA7" else 0.42), fontsize=6.6, color=rs.INK,
+                        arrowprops=dict(arrowstyle="-", color=rs.INK_2, lw=0.6, shrinkA=1, shrinkB=2))
+        above = int((e["eta2_celltype_within_median"] > e["eta2_patient"]).sum())
+        ax.text(0.97, 0.97, f"above: cell type explains\nmore ({above:,} of {len(e):,})", transform=ax.transAxes,
+                fontsize=6.0, color=rs.INK, ha="right", va="top", linespacing=1.05)
+        ax.text(0.97, 0.03, f"below: patient explains\nmore ({len(e) - above:,})", transform=ax.transAxes,
+                fontsize=6.0, color=rs.INK, ha="right", va="bottom", linespacing=1.05)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_xticks([0, 0.5, 1])
+        ax.set_yticks([0, 0.5, 1])
+        ax.tick_params(labelsize=6.4)
+        ax.set_xlabel("η² of patient", fontsize=7.0)
+        ax.set_ylabel("η² of cell type\n(median within patient)", fontsize=7.0)
+        ax.set_title(title, fontsize=7.8)
+        out[f"eta_{lab}"] = (above, len(e))
+    # (h) lift vs cell-type eta2 (normal cells), every card
+    e = eta[eta["label"] == "normal"].set_index("card_id")
+    xh = e["eta2_celltype_within_median"]
+    yh = 100 * med_lift.reindex(xh.index)
+    drivers = cs["is_selected_driver"].reindex(xh.index).fillna(False).astype(bool)
+    ax_h.plot(xh[~drivers], yh[~drivers], ls="none", marker="o", ms=2.0, mfc=rs.MUTED, mec="none", alpha=0.45, zorder=1)
+    ax_h.plot(xh[drivers], yh[drivers], ls="none", marker="o", ms=3.4, mfc="none", mec=rs.INK, mew=0.7, zorder=2)
+    ax_h.axhline(0, color=rs.AXIS, lw=0.8, zorder=0)
+    lab_pts = dict(LIFT_LABELS)
+    lab_pts[p8.PC8] = "PC8"
+    lab_pts[p8.FA7] = "FA7"
+    offs = {p8.PC8: (-0.02, 9.0), p8.FA7: (0.30, 11.0)}
+    for cid, name in lab_pts.items():
+        ax_h.plot([xh[cid]], [yh[cid]], ls="none", marker="o", ms=4.8, mfc=rs.INK, mec=rs.SURFACE, mew=0.7, zorder=3)
+        tx, ty = offs.get(cid, (0.48, 7.0))
+        ax_h.annotate(name, xy=(xh[cid], yh[cid]), xytext=(tx, ty), fontsize=6.0, color=rs.INK, linespacing=1.0,
+                      arrowprops=dict(arrowstyle="-", color=rs.INK_2, lw=0.6, shrinkA=1, shrinkB=2))
+    r_med = float(spearmanr(xh, yh, nan_policy="omit")[0])
+    ax_h.text(0.97, 0.97, f"Spearman {signed(r_med, 2)}\n(open: 119 selected drivers)", transform=ax_h.transAxes,
+              fontsize=6.0, color=rs.INK, ha="right", va="top", linespacing=1.05)
+    ax_h.set_xlim(0, 1)
+    ax_h.set_xticks([0, 0.5, 1])
+    ax_h.tick_params(labelsize=6.4)
+    ax_h.set_xlabel("η² of cell type (normal cells,\nmedian within patient)", fontsize=7.0)
+    ax_h.set_ylabel("median held-out lift over the\n7 patients, factor alone (pp)", fontsize=7.0)
+    ax_h.set_title("(h) Lineage factors and lift", fontsize=7.8)
+    for ax in (ax_f, ax_g, ax_h):
+        ax.grid(axis="x", visible=True)
+    rs.save(fig, "fig05f2_modality_more")
+    ex = "single_group__innate_immune_context__factosig_promax__k40__f007"
+    out.update({"simpson": {p: (S["per"][p]["n"], round(S["per"][p]["rho"], 3), round(S["per"][p]["mf"], 2),
+                                round(S["per"][p]["my"], 2)) for p in rs.SUPPORTED},
+                "simpson_pooled": S["pooled"], "simpson_median": S["median"], "lift_vs_eta2_rho": r_med,
+                "promax_f7": {"eta2_ct_normal": float(xh[ex]), "median_lift_pp": float(yh[ex]),
+                              "per_patient_lift_pp": (100 * lift[lift["card_id"] == ex].set_index("patient")["univariate_lift"]).round(1).to_dict()},
+                "drivers_median_lift_pp": float(yh[drivers].median()), "all_median_lift_pp": float(yh.median())})
+    return out
+
+
+ISO_EXAMPLE = ("P09", "Isotype-RTK4530")
+
+
+def fig05t_isotype_depth(D: dict) -> dict:
+    """Figure 28: why isotypes correlate with PC8 at all (A-20261011-03)."""
+    cells, clr, names = D["cohort"]["cells"], D["cohort"]["clr"], D["cohort"]["names"]
+    counts = D["cohort"]["counts"]
+    log_tot = np.log1p(counts.sum(axis=1))
+    isos = [n for n in names if n.startswith("Isotype")]
+    pats = list(rs.SUPPORTED)
+    fig = plt.figure(figsize=(rs.FULL_W, 5.2))
+    gs = fig.add_gridspec(2, 2, left=0.115, right=0.985, top=0.885, bottom=0.09, wspace=0.50, hspace=0.50)
+    # (A) one isotype in one patient's malignant cells: raw count barely moves, CLR falls
+    p, iso = ISO_EXAMPLE
+    j = names.index(iso)
+    m = ((cells["label"] == "malignant") & (cells["patient"] == p)).to_numpy()
+    sub = gs[0, 0].subgridspec(1, 2, wspace=0.65)
+    out = {}
+    for k, (vals, ylab, key) in enumerate(((np.log1p(counts[m, j]), "raw: log(1 + count)", "raw"),
+                                           (clr[m, j], "after CLR", "clr"))):
+        ax = fig.add_subplot(sub[0, k])
+        ax.scatter(log_tot[m], vals, s=3.0, color=rs.INK_2, linewidth=0, rasterized=True)
+        r = float(spearmanr(log_tot[m], vals)[0])
+        out[f"A_{key}"] = r
+        ax.set_title(f"{ylab}\nρ = {signed(r, 2)}", fontsize=6.6, loc="left", linespacing=1.0)
+        ax.set_xlabel("log total ADT\ncount of the cell", fontsize=6.4)
+        ax.tick_params(labelsize=5.8, length=2, pad=1)
+        ax.grid(False)
+    fig.text(0.02, 0.985, f"(A) One isotype ({iso.replace('Isotype-', '')}) in {p}'s {int(m.sum())} malignant cells",
+             fontsize=7.8, fontweight="bold", color=rs.INK, va="top")
+    # (B) every isotype: rho(CLR, log total ADT) inside each supported patient
+    ax = fig.add_subplot(gs[0, 1])
+    ys = np.arange(len(isos), dtype=float)
+    rows = []
+    for lab, col, dy in (("normal", rs.MUTED, -0.17), ("malignant", rs.INK, 0.17)):
+        for y, n in zip(ys, isos):
+            jj = names.index(n)
+            vals = []
+            for q in pats:
+                mm = ((cells["label"] == lab) & (cells["patient"] == q)).to_numpy()
+                vals.append(float(spearmanr(clr[mm, jj], log_tot[mm])[0]))
+            ax.plot(vals, np.full(len(vals), y + dy), ls="none", marker="|", ms=4.5, mew=0.8, color=col, zorder=2)
+            med = float(np.median(vals))
+            ax.plot([med], [y + dy], ls="none", marker="o", ms=4.2, mfc=col, mec=rs.SURFACE, mew=0.6, zorder=3)
+            rows.append({"isotype": n, "label": lab, "median": med, "min": min(vals), "max": max(vals)})
+    ax.axvline(0, color=rs.INK_2, lw=0.8)
+    ax.set_yticks(ys)
+    ax.set_yticklabels([n.replace("Isotype-", "") for n in isos], fontsize=6.2)
+    ax.set_ylim(ys[-1] + 0.6, -0.6)
+    ax.set_xlim(-1, 0.3)
+    ax.tick_params(axis="x", labelsize=6.2)
+    ax.tick_params(axis="y", length=0)
+    ax.grid(False)
+    ax.set_xlabel("ρ(isotype CLR, log total ADT) inside a patient", fontsize=6.6)
+    ax.set_title("(B) Every isotype, every patient", fontsize=7.8, fontweight="bold", loc="left", pad=13)
+    ax.text(0.0, 1.01, "dot: median of 7 (gray healthy, black malignant); ticks: patients",
+            transform=ax.transAxes, fontsize=5.8, color=rs.INK_2, ha="left", va="bottom")
+    out["B"] = pd.DataFrame(rows)
+    # (C) PC8 vs log total ADT, inside each patient
+    ax = fig.add_subplot(gs[1, 0])
+    axes_t = D["axes"]
+    yp = np.arange(len(pats), dtype=float)
+    for lab, mk, fc in (("normal", "o", rs.SURFACE), ("malignant", "o", rs.INK)):
+        a = axes_t[(axes_t["kind"] == "factor") & (axes_t["name"] == "PC8") & (axes_t["label"] == lab)].set_index("patient")
+        v = [float(a.loc[q, "rho_log_total_adt"]) for q in pats]
+        ax.plot(v, yp + (0.15 if lab == "malignant" else -0.15), ls="none", marker=mk, ms=4.6, mfc=fc, mec=rs.INK,
+                mew=0.8, zorder=3)
+        out[f"C_{lab}"] = dict(zip(pats, np.round(v, 3)))
+    ax.axvline(0, color=rs.INK_2, lw=0.8)
+    nm = D["d27"]["patient_n"]["malignant"]
+    ax.set_yticks(yp)
+    ax.set_yticklabels([f"{q} ({nm.loc[q]:,} mal.)" for q in pats], fontsize=6.2)
+    ax.set_ylim(yp[-1] + 0.6, -0.6)
+    ax.set_xlim(-0.6, 0.3)
+    ax.tick_params(axis="x", labelsize=6.2)
+    ax.tick_params(axis="y", length=0)
+    ax.grid(False)
+    ax.set_xlabel("ρ(oriented PC8, log total ADT) inside a patient", fontsize=6.6)
+    ax.set_title("(C) PC8 tracks total ADT counts in some patients", fontsize=7.8, fontweight="bold", loc="left")
+    ax.legend([Line2D([], [], ls="none", marker="o", ms=4, mfc=rs.SURFACE, mec=rs.INK),
+               Line2D([], [], ls="none", marker="o", ms=4, mfc=rs.INK, mec=rs.INK)], ["healthy", "malignant"],
+              fontsize=5.8, frameon=False, loc="lower right", handletextpad=0.2, borderaxespad=0.2)
+    # (D) isotype x PC8, median within patient (malignant): CLR vs total ADT held fixed
+    ax = fig.add_subplot(gs[1, 1])
+    r = D["rho"]
+    a = r[(r["factor"] == "PC8") & (r["label"] == "malignant") & r["is_isotype"]].set_index("feature").reindex(isos)
+    for y, (n, q) in zip(ys, a.iterrows()):
+        x0, x1 = float(q["rho_within_median_raw"]), float(q["rho_within_median_partial"])
+        ax.annotate("", xy=(x1, y), xytext=(x0, y),
+                    arrowprops=dict(arrowstyle="-|>", color=rs.MUTED, lw=0.7, mutation_scale=6, shrinkA=2, shrinkB=2.5))
+        ax.plot([x0], [y], ls="none", marker="o", ms=4.0, mfc="none", mec=rs.MUTED, mew=0.8, zorder=3)
+        ax.plot([x1], [y], ls="none", marker="o", ms=4.4, mfc=rs.INK, mec=rs.SURFACE, mew=0.6, zorder=4)
+    ax.axvline(0, color=rs.INK_2, lw=0.8)
+    ax.set_yticks(ys)
+    ax.set_yticklabels([n.replace("Isotype-", "") for n in isos], fontsize=6.2)
+    ax.set_ylim(ys[-1] + 0.6, -0.6)
+    ax.set_xlim(-0.1, 0.3)
+    ax.tick_params(axis="x", labelsize=6.2)
+    ax.tick_params(axis="y", length=0)
+    ax.grid(False)
+    ax.set_xlabel("median within-patient ρ with oriented PC8,\nmalignant: CLR (open) → total ADT fixed", fontsize=6.6)
+    ax.set_title("(D) Isotype × PC8, with and without", fontsize=7.8, fontweight="bold", loc="left")
+    out["D"] = a[["rho_within_median_raw", "rho_within_median_partial"]].round(3)
+    rs.save(fig, "fig05t_isotype_depth")
+    return out
+
+
+T4_PROTEINS = ("CD48", "CD116", "CD33", "CD146", "CD63", "CD82", "CD99")
+
+
+def table4_p03(D: dict) -> pd.DataFrame:
+    """Table 4 (A-20261011-06): PC8 x protein inside each supported patient, malignant cells, CLR and with total ADT
+    held fixed, plus PC8 x log total ADT and the largest isotype |rho| in that patient. Prints the LaTeX rows."""
+    st = D["strata"]
+    g = st[(st["factor"] == "PC8") & (st["label"] == "malignant") & (st["kind"] == "patient")]
+    pats = list(rs.SUPPORTED)
+    rows = []
+    ax = D["axes"]
+    a = ax[(ax["kind"] == "factor") & (ax["name"] == "PC8") & (ax["label"] == "malignant")].set_index("patient")
+    rows.append({"row": "PC8 vs log total ADT", **{p: (float(a.loc[p, "rho_log_total_adt"]), np.nan) for p in pats}})
+    iso = g[g["is_isotype"]]
+    rows.append({"row": "largest isotype |rho|", **{p: (float(iso.loc[iso["patient"] == p, "rho_raw"].abs().max()),
+                                                     float(iso.loc[iso["patient"] == p, "rho_partial"].abs().max()))
+                                                  for p in pats}})
+    for prot in T4_PROTEINS:
+        q = g[g["feature_short"] == prot].set_index("patient")
+        rows.append({"row": prot, **{p: (float(q.loc[p, "rho_raw"]), float(q.loc[p, "rho_partial"])) for p in pats}})
+    for p in pats:  # raw values equal D27's per-patient rho
+        for prot in T4_PROTEINS:
+            r27 = mx.d27_row(D["d27"]["adt"], "PC8", "malignant", prot)
+            v = [rr[p][0] for rr in rows if rr["row"] == prot][0]
+            assert abs(v - float(r27[f"rho_{p}"])) < TOL
+    def fmt(v):
+        return "" if np.isnan(v) else signed(v, 2).replace("−", "$-$").replace("+", "$+$")
+    print("\n== Table 4 LaTeX rows (CLR / total ADT held fixed)")
+    for rr in rows:
+        cells_ = []
+        for p in pats:
+            raw, part = rr[p]
+            if rr["row"].startswith("largest"):
+                cells_.append(f"{raw:.2f} / {part:.2f}")
+            elif np.isnan(part):
+                cells_.append(fmt(raw))
+            else:
+                cells_.append(f"{fmt(raw)} / {fmt(part)}")
+        print(f" & {rr['row']} & " + " & ".join(cells_) + r" \\")
+    return pd.DataFrame(rows)
+
 def pc8_fa7_agreement(D: dict) -> pd.DataFrame:
     """Spearman of the oriented PC8 and FA7 scores among the cells of one label: pooled and inside each supported
     patient (FA7's CD63 is not an independent confirmation of PC8's when the two scores rank cells alike)."""
@@ -422,6 +740,12 @@ def main() -> None:
     o = fig05o_cd63_anchors(D)
     q = fig05q_mal_vs_healthy(D)
     r = fig05r_two_checks_depth(D)
+    f2 = fig05f2_modality_more(D)
+    t = fig05t_isotype_depth(D)
+    t4 = table4_p03(D)
+    print("fig05f2 (Figure 23 continued)\n", {k: v for k, v in f2.items()})
+    print("fig05t (Figure 28)\n", {k: v for k, v in t.items() if k != "B"})
+    print(t["B"].round(3).to_string(index=False))
     if mx.OVERFLOW:
         raise SystemExit("\n".join(mx.OVERFLOW))
     pd.set_option("display.width", 200)
